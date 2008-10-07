@@ -97,6 +97,10 @@ vmlinux_link()
 			-lutil -lrt -lpthread
 		rm -f linux
 	fi
+	if [ -n "${AFTER_LINK}" ]; then
+		/usr/lib/rpm/debugedit -b ${RPM_BUILD_DIR} -d /usr/src/debug -i  ${output} \
+		    > ${output}.id
+	fi
 }
 
 # generate .BTF typeinfo from DWARF debuginfo

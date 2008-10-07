@@ -58,6 +58,7 @@ $(obj)/vdso.o : $(obj)/vdso.so
 # Link rule for the .so file, .lds has to be first
 $(obj)/vdso.so.dbg: $(obj)/vdso.lds $(obj-vdso) FORCE
 	$(call if_changed,vdsold_and_vdso_check)
+	$(if $(AFTER_LINK),$(AFTER_LINK))
 
 # Strip rule for the .so file
 $(obj)/%.so: OBJCOPYFLAGS := -S
