@@ -93,8 +93,18 @@ static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 	if (c->x86_power & (1 << 8)) {
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
+#ifndef CONFIG_XEN
 		if (!check_tsc_unstable())
 			sched_clock_stable = 1;
+#else
+                /*
+                 * Under Xen, we cannot consider the TSC stable or it will
+                 * go backwards in certain circumstances.
+                 * http://lists.xensource.com/archives/html/xen-devel/2010-07/msg00738.html
+                 * https://bugs.launchpad.net/ubuntu/+source/linux/+bug/727459
+                 */
+                mark_tsc_unstable("Xen domain");
+#endif
 	}
 
 	/*
