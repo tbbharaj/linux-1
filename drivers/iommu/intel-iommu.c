@@ -408,7 +408,8 @@ int dmar_disabled = 1;
 int intel_iommu_enabled = 0;
 EXPORT_SYMBOL_GPL(intel_iommu_enabled);
 
-static int dmar_map_gfx = 1;
+/* disabled by default; causes way too many issues */
+static int dmar_map_gfx = 0;
 static int dmar_forcedac;
 static int intel_iommu_strict;
 static int intel_iommu_superpage = 1;
@@ -433,10 +434,10 @@ static int __init intel_iommu_setup(char *str)
 		} else if (!strncmp(str, "off", 3)) {
 			dmar_disabled = 1;
 			printk(KERN_INFO "Intel-IOMMU: disabled\n");
-		} else if (!strncmp(str, "igfx_off", 8)) {
-			dmar_map_gfx = 0;
+		} else if (!strncmp(str, "igfx_on", 7)) {
+			dmar_map_gfx = 1;
 			printk(KERN_INFO
-				"Intel-IOMMU: disable GFX device mapping\n");
+				"Intel-IOMMU: enabled GFX device mapping\n");
 		} else if (!strncmp(str, "forcedac", 8)) {
 			printk(KERN_INFO
 				"Intel-IOMMU: Forcing DAC for PCI devices\n");
