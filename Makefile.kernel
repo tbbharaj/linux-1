@@ -38,31 +38,43 @@ linux_BRANCH	= linux-3.2.y
 linux_HEAD	= $(linux_BRANCH)
 linux_PREFIX	= linux-$(linux_TAGVER)/
 linux_GIT	= $(shell $(get_fetch_base))/linux.git
-linux_TAR	= linux-$(linux_TAGVER)$(TARFILE)
+linux_TAR	= linux-$(linux_TAGVER)
 
-MODULES_TAR	= $(addprefix $(SOURCEDIR)/,$(addsuffix $(TARFILE),$(MODULES)))
+MODULES_UPDATE	= $(addsuffix /.update,$(MODULES))
+MODULES_NAMES	= $(foreach m,$(MODULES),$(if $($(m)_TAR),$($(m)_TAR),$(m)))
+MODULES_FILES	= $(addprefix $(SOURCEDIR)/,$(addsuffix $(TARFILE),$(MODULES_NAMES)))
+MODULES_TAR	= $(addsuffix .tar,$(MODULES_NAMES))
 
-# if the module defines a *_TAR that is different from $module$(TARFILE) we rename our intermediary output
-sources : $(MODULES_TAR)
-	$(foreach m,$(MODULES),$(if $($(m)_TAR),$(if $(filter-out $(m)$(TARFILE),$($(m)_TAR)),\
-		mv -fv $(SOURCEDIR)/$(m)$(TARFILE) $(SOURCEDIR)/$($(m)_TAR);))\
-		) true
+%/.update : %/.git Makefile.kernel Makefile | %
+	pushd $* ; $(GIT) clean -f -d -x
+	pushd $* ; $(if $($*_BRANCH),$(call checkout-branch,$($*_BRANCH)),true)
+	touch $@
 
-%.tar.bz2: %.tar
-	bzip2 -f $<
+#sources : $(MODULES_UPDATE)
 
-%.tar.gz: %.tar
-	gzip -f $<
+sources : $(MODULES_FILES)
 
 .SECONDEXPANSION:
+$(SOURCEDIR)/%.tar.bz2: %.tar | $(SOURCEDIR)
+	bzip2 -f -c $< > $@
+
+$(SOURCEDIR)/%.tar.gz: %.tar | $(SOURCEDIR)
+	gzip -f -c $< > $@
+
 $(MODULES) :
 	$(GIT) clone $$($@_GIT) $@
 
-%-update : %/.git
-	pushd $* ; $(GIT) clean -f -d -x
-	pushd $* ; $(if $($*_BRANCH),$(call checkout-branch,$($*_BRANCH)),true)
-
-$(SOURCEDIR)/%.tar : %-update %/.git Makefile | $(SOURCEDIR)
+$(addsuffix .tar,$(MODULES)) : %.tar : %/.git Makefile.kernel Makefile | $(SOURCEDIR)
 	$(GIT) archive --format=tar --prefix $($*_PREFIX) --remote=$* $($*_BASE) > $@
 
-.PHONY: $(addsuffix -update,$(MODULES))
+# these targets are required to rename the vanilla $module.tar to the desired
+# tarfile name. one for each module needing it.
+$(linux_TAR).tar : linux.tar
+	ln -sf $< $@
+
+clean ::
+	rm -fv $(MODULES_FILES) $(MODULES_TAR) $(addsuffix .tar,$(MODULES))
+
+.SECONDARY : $(MODULES_TAR)
+
+.PHONY:
