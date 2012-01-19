@@ -20,6 +20,11 @@ endef
 common :
 	git clone $(get_common_url) $@
 
-sources :: common
+sources : common
 	$(MAKE) $@
+
+else
+
+include Makefile.kernel
+
 endif

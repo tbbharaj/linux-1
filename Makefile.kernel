@@ -1,0 +1,38 @@
+# -*- Makefile -*-
+# Makefile for source package: kernel
+#
+# Module created by 'gafton' on 2012-01-19
+
+ifeq ($(GIT),)
+$(error Makefile.common must be included before this Makefile)
+endif
+
+MODULES		= linux
+TARFILE		= .tar.gz
+
+linux_TAGVER	= 3.2.1
+linux_BASE	= v$(linux_TAGVER)
+linux_PREFIX	= linux-$(linux_TAGVER)/
+linux_BRANCH	= linux-3.2.y
+linux_GIT	= $(shell $(get_fetch_base))/linux.git
+
+MODULES_TAR = $(addprefix $(SOURCEDIR)/,$(addsuffix $(TARFILE),$(MODULES)))
+
+sources : $(MODULES_TAR)
+
+%.tar.bz2: %.tar
+	bzip2 -f $<
+
+%.tar.gz: %.tar
+	gzip -f $<
+
+.SECONDEXPANSION:
+$(MODULES) :
+	$(GIT) clone $$($@_GIT) $@
+
+%-update : %/.git
+	pushd $* ; $(GIT) clean -f -d -x
+	pushd $* ; $(if $($*_BRANCH),$(call checkout-branch,$($*_BRANCH)),true)
+
+$(SOURCEDIR)/%.tar : %-update %/.git Makefile | $(SOURCEDIR)
+	$(GIT) archive --format=tar --prefix $($*_PREFIX) --remote=$* $($*_BASE) > $@
