@@ -40,7 +40,7 @@ glibc package.
 cp $RPM_SOURCE_DIR/config-*generic .
 cp %{SOURCE10} .
 # Dynamically generate kernel .config files from config-* files
-make -f %{SOURCE11} VERSION=%{version} configs
+make -f %{SOURCE11} VERSION=%{version} config
 cp kernel-%{version}-%{_target_cpu}.config .config
 
 %build
