@@ -7,6 +7,13 @@ Group: System Environment/Kernel
 Vendor: The Linux Community
 URL: http://www.kernel.org
 Source: linux-3.2.1.tar.gz
+
+Source10: kconfig.py
+Source11: Makefile.config
+Source20: config-generic
+Source21: config-x86_32-generic
+Source22: config-x86_64-generic
+
 BuildRoot: %{_tmppath}/%{name}-%{PACKAGE_VERSION}-root
 Provides: kernel-drm kernel-3.2.1
 %define __spec_install_post /usr/lib/rpm/brp-compress || :
@@ -29,39 +36,34 @@ glibc package.
 
 %prep
 %setup -q -n linux-%{version}
+# Drop some necessary files from the source dir into the buildroot
+cp $RPM_SOURCE_DIR/config-*generic .
+cp %{SOURCE10} .
+# Dynamically generate kernel .config files from config-* files
+make -f %{SOURCE11} VERSION=%{version} configs
+cp kernel-%{version}-%{_target_cpu}.config .config
 
 %build
 make clean && make %{?_smp_mflags}
 
 %install
-%ifarch ia64
-mkdir -p $RPM_BUILD_ROOT/boot/efi $RPM_BUILD_ROOT/lib/modules
-mkdir -p $RPM_BUILD_ROOT/lib/firmware
-%else
+rm -rf $RPM_BUILD_ROOT
+export KBUILD_IMAGE=arch/x86/boot/bzImage
+
 mkdir -p $RPM_BUILD_ROOT/boot $RPM_BUILD_ROOT/lib/modules
 mkdir -p $RPM_BUILD_ROOT/lib/firmware
-%endif
+
 INSTALL_MOD_PATH=$RPM_BUILD_ROOT make %{?_smp_mflags} KBUILD_SRC= modules_install
-%ifarch ia64
-cp $KBUILD_IMAGE $RPM_BUILD_ROOT/boot/efi/vmlinuz-3.2.1
-ln -s efi/vmlinuz-3.2.1 $RPM_BUILD_ROOT/boot/
-%else
-%ifarch ppc64
-cp vmlinux arch/powerpc/boot
-cp arch/powerpc/boot/$KBUILD_IMAGE $RPM_BUILD_ROOT/boot/vmlinuz-3.2.1
-%else
 cp $KBUILD_IMAGE $RPM_BUILD_ROOT/boot/vmlinuz-3.2.1
-%endif
-%endif
+
 make %{?_smp_mflags} INSTALL_HDR_PATH=$RPM_BUILD_ROOT/usr headers_install
 cp System.map $RPM_BUILD_ROOT/boot/System.map-3.2.1
 cp .config $RPM_BUILD_ROOT/boot/config-3.2.1
-%ifnarch ppc64
+
 cp vmlinux vmlinux.orig
 bzip2 -9 vmlinux
 mv vmlinux.bz2 $RPM_BUILD_ROOT/boot/vmlinux-3.2.1.bz2
 mv vmlinux.orig vmlinux
-%endif
 
 %clean
 rm -rf $RPM_BUILD_ROOT
