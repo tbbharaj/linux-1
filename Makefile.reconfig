@@ -18,7 +18,6 @@ KBUILD		= $(firstword $(wildcard $(SOURCEDIR)/linux-$(KVERSION)))
 # this target regenerates the config-* files after re-running them through "make oldconfig"
 reconfig : reconfig-clean $(KCONFIG) $(CONFIGS)
 	mv -v $(CONFIGS) $(SOURCEDIR)/
-
 reconfig-prep : $(addprefix $(SOURCEDIR)/,$(CONFIGS) Makefile.config) $(SPECFILE)
 	@echo "preparing new kernel tree for config update"
 	set -e ; $(RPM) -bp --without oldconfig $(if $(DEBUG),,--quiet) --target=i686,x86_64 $(SPECFILE)
@@ -35,7 +34,12 @@ $(KALL_CONF) : %.config : $(KBUILD)/configs/%.config
 
 NEWCONFIGS	= $(addprefix $(KBUILD)/configs/,$(KALL_CONF))
 $(NEWCONFIGS) : reconfig-newconfigs
-
+ifeq ($(KBUILD),)
+reconfig-clean:
+	@echo "Could not find a suitable prepped linux kernel tree to perform config work"
+	@echo "You should probably run 'make reconfig-prep' first"
+	@exit -1
+else
 reconfig-clean : $(KBUILD)
 	@rm -fv $(KALL_CONF) $(NEWCONFIGS) $(KBUILD)/.config
 	@rm -fv $(addprefix $(KBUILD)/,$(KALL_CONF) $(CONFIGS))
@@ -47,6 +51,7 @@ config-x86_32-generic : $(K_X32) config-generic
 	$(KCONFIG) --diff1 $^ >$@
 config-x86_64-generic : $(K_X64) config-generic
 	$(KCONFIG) --diff1 $^ >$@
+endif
 
 clean ::
 	@rm -fv $(CONFIGS) $(KALL_CONF)
