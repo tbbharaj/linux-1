@@ -7,18 +7,46 @@ ifeq ($(GIT),)
 $(error Makefile.common must be included before this Makefile)
 endif
 
+#
+# Author: Cristian Gafton <gafton@amazon.com>
+#
+
 MODULES		= linux
 TARFILE		= .tar.gz
 
+# This is used to generate files for a src.rpm file containing a "vanilla"
+# linux kernel archive plus patches.
+#
+# For each module, the *_BASE defines the tag that will get archived as a
+# tarball, to serve the purpose of the "original tarball"
+#
+# The *_HEAD defines the "head" of the module that has patches applied on top
+# of the *_BASE. The *_HEAD can be the name of a branch rooted at *_BASE or
+# some other tag/commit-id. Every commit between *_BASE and *_HEAD will get
+# transformed into a patch and inserted in the appropriate places in the spec
+# file.
+#
+# Other module-specific defines are:
+# *_PREFIX	- the name of the top level directory for the tarball
+# *_TAR		- name of the tarball archive filename that will get generated
+# *_BRANCH	- default branch that shoule be checked out
+# *_GIT		- git repository url for this module
+
 linux_TAGVER	= 3.2.1
 linux_BASE	= v$(linux_TAGVER)
-linux_PREFIX	= linux-$(linux_TAGVER)/
 linux_BRANCH	= linux-3.2.y
+linux_HEAD	= $(linux_BRANCH)
+linux_PREFIX	= linux-$(linux_TAGVER)/
 linux_GIT	= $(shell $(get_fetch_base))/linux.git
+linux_TAR	= linux-$(linux_TAGVER)$(TARFILE)
 
-MODULES_TAR = $(addprefix $(SOURCEDIR)/,$(addsuffix $(TARFILE),$(MODULES)))
+MODULES_TAR	= $(addprefix $(SOURCEDIR)/,$(addsuffix $(TARFILE),$(MODULES)))
 
+# if the module defines a *_TAR that is different from $module$(TARFILE) we rename our intermediary output
 sources : $(MODULES_TAR)
+	$(foreach m,$(MODULES),$(if $($(m)_TAR),$(if $(filter-out $(m)$(TARFILE),$($(m)_TAR)),\
+		mv -fv $(SOURCEDIR)/$(m)$(TARFILE) $(SOURCEDIR)/$($(m)_TAR);))\
+		) true
 
 %.tar.bz2: %.tar
 	bzip2 -f $<
@@ -36,3 +64,5 @@ $(MODULES) :
 
 $(SOURCEDIR)/%.tar : %-update %/.git Makefile | $(SOURCEDIR)
 	$(GIT) archive --format=tar --prefix $($*_PREFIX) --remote=$* $($*_BASE) > $@
+
+.PHONY: $(addsuffix -update,$(MODULES))
