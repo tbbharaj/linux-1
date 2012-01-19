@@ -3,3 +3,5 @@ common/
 *~
 linux/
 linux*/
+linux.tar
+linux-*.tar
