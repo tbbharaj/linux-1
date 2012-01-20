@@ -106,8 +106,10 @@ sed -e "s#@@LINUX_DIR@@#$LINUX_DIR#" \
     -e "s#@@TAGVER@@#${TAGVER}#" \
     <$TOPDIR/scripts/patch.in >$TOPDIR/scripts/patch
 chmod 755 $TOPDIR/scripts/patch
+sed -i -e "s/local patch=/export patch=/" $SOURCEDIR/kernel.spec
 
 # now prep the tree
+export PATH=$TOPDIR/scripts:$PATH
 rpmbuild "${rpmopts[@]}" "${RPM_PREP[@]}" -bp --nodeps --target=i686,x86_64 --quiet $SOURCEDIR/kernel.spec
 exit 0
 
