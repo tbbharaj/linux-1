@@ -10,12 +10,12 @@ LINUX_DIR=$TOPDIR/linux
 
 function usage {
     cat <<EOF
-Usage : $0 [options] <src.rpm> <vTAG>
+Usage : $0 --<series> <src.rpm> <vTAG>
 valid options are:
-    --fedora13          define and import a fedora13 package
-    --fedora14          define and import a fedora14 package
-    --fedora15          define and import a fedora15 package
-    --fedora16          define and import a fedora16 package
+    --fedora13    define and import a fedora13 package
+    --fedora14    define and import a fedora14 package
+    --fedora15    define and import a fedora15 package
+    --fedora16    define and import a fedora16 package
 * vTAG is a linux kernel tree version release base tag for the package being
   imported, ie, v2.6.39
 EOF
@@ -29,30 +29,29 @@ VTAG=
 declare -a RPM_PREP=(--define 'dist linux')
 while [ $# -gt 0 ] ; do
     case $1 in
+        -h | --help ) usage ; exit 0 ;;
         --fedora* )
             SERIES_NAME=fedora
-            SERIES_REL=${$1##--fedora}
+            SERIES_REL=${1##--fedora}
             RPM_PREP=(--define "dist .fc${SERIES_NAME}" --define "fedora ${SERIES_REL}" --define "fc${SERIES_REL} 1")
             ;;
+        -* )
+            usage
+            echo "ERROR: dunno what to do with $1"
+            exit -1 ;;
         *.src.rpm ) SRPM=$1 ;;
         * )
-            if [ -n "$VTAG" ] ; then
+            if [ -z "$VTAG" ] ; then
                 VTAG=$1
             else
                 usage
                 echo "ERROR: dunno what to do with $1"
                 exit -1
             fi
-            pushd $LINUX_DIR >/dev/null
-            if ! git show-ref --verify --quiet refs/tags/${1} ; then
-                echo "ERROR: invalid vTAG reference: $VTAG does not exist in $LINUX_DIR"
-                exit -2
-            fi
-            popd >/dev/null
             ;;
     esac
     shift
-fi
+done
 
 # get full path for the file since we're going to be cd-ing around
 if [ -f $SRPM ] ; then
@@ -62,6 +61,25 @@ else
     echo "can't find file: $SRPM"
     usage
     exit -2
+fi
+
+if [ -z "$VTAG" ] ; then
+    usage
+    echo "ERROR: you did not specify the Linux tree vTAG to create a branch at for this import"
+    exit -1
+else
+    pushd $LINUX_DIR >/dev/null
+    if ! git show-ref --verify --quiet refs/tags/${VTAG} ; then
+        echo "ERROR: invalid vTAG reference: $VTAG does not exist in $LINUX_DIR"
+        exit -2
+    fi
+    popd >/dev/null
+fi
+
+if [ -z "$SERIES_NAME" ] ; then
+    usage
+    echo "ERROR: you did not specify a known --seriesN flag (ie, --fedora14)"
+    exit -1
 fi
 
 set -e
