@@ -32,13 +32,11 @@ TARFILE		= .tar.gz
 # *_BRANCH	- default branch that shoule be checked out
 # *_GIT		- git repository url for this module
 
-linux_TAGVER	= 3.2.1
-linux_BASE	= v$(linux_TAGVER)
-linux_BRANCH	= linux-3.2.y
-linux_HEAD	= $(linux_BRANCH)
-linux_PREFIX	= linux-$(linux_TAGVER)/
-linux_GIT	= $(shell $(get_fetch_base))/linux.git
+include linux.vers
+# defines for archive building
 linux_TAR	= linux-$(linux_TAGVER)
+linux_PREFIX	= $(linux_TAR)/
+linux_GIT	= $(shell $(get_fetch_base))/linux.git
 
 MODULES_UPDATE	= $(addsuffix /.update,$(MODULES))
 MODULES_NAMES	= $(foreach m,$(MODULES),$(if $($(m)_TAR),$($(m)_TAR),$(m)))
