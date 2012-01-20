@@ -33,7 +33,9 @@ while [ $# -gt 0 ] ; do
         --fedora* )
             SERIES_NAME=fedora
             SERIES_REL=${1##--fedora}
-            RPM_PREP=(--define "dist .fc${SERIES_NAME}" --define "fedora ${SERIES_REL}" --define "fc${SERIES_REL} 1")
+            RPM_PREP=( --define "dist .fc${SERIES_REL}" \
+                --define "fedora ${SERIES_REL}" \
+                --define "fc${SERIES_REL} 1" )
             ;;
         -* )
             usage
@@ -110,7 +112,7 @@ sed -i -e "s/local patch=/export patch=/" $SOURCEDIR/kernel.spec
 
 # now prep the tree
 export PATH=$TOPDIR/scripts:$PATH
-rpmbuild "${rpmopts[@]}" "${RPM_PREP[@]}" -bp --nodeps --target=i686,x86_64 --quiet $SOURCEDIR/kernel.spec
+rpmbuild "${rpmopts[@]}" "${RPM_PREP[@]}" -bp --nodeps --target=i686,x86_64 $SOURCEDIR/kernel.spec
 exit 0
 
 MYBRANCH=$(git rev-parse --abbrev-ref HEAD)
