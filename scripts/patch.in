@@ -1,0 +1,79 @@
+#!/bin/bash
+#
+# build up a git repo while appling the fedora kernel patches
+# Author: Cristian Gafton <gafton@amazon.com>
+
+trap 'echo "script exited with ERROR: $BASH_COMMAND"' ERR
+set -e -x
+
+DEFAULT_AUTHOR="RPM Patch <kernel@fedoraproject.org>"
+
+LINUX_DIR=@@LINUX_DIR@@
+VTAG=@@VTAG@@
+TAGVER=@@TAGVER@@
+UPSTREAM=@@UPSTREAM@@
+
+function init_tree {
+    # clone out the stable linux tree
+    local b=$(basename $(pwd -P))
+    pushd ..
+    rm -rf $b.git
+    git clone --no-hardlinks $LINUX_DIR $b.git
+    cd $b.git
+    local branch="${UPSTREAM}/${TAGVER}/master"
+    local tag="${UPSTREAM}/${TAGVER}/start"
+    git checkout -b $branch $VTAG
+    popd
+    # now bring over changes from the unpacked tree
+    rsync -aH ../$b.git/.git/ ./.git/
+    rm -rf ../$b.git
+    # now add the changes done by our unpacking...
+    git add .
+    git commit --quiet --allow-empty -m "start import into $branch"
+    git tag $tag
+}
+
+function clean_tree {
+    if [ ! -d .git ] ; then
+        init_tree
+    fi
+    git clean -fdx
+}
+
+function commit_tree {
+    local msg=${1:-"added patch from stdin"}
+    # try to figure out what the patch did...
+    git add .
+    # also marked as removed in git the stuff that was removed...
+    git status --short | grep -E '^.?D' | awk '{print $2}' | xargs -r git rm
+    local z=$(git status --short)
+    if [ -n "${z}" ] ; then 
+        cat <<EOF | git commit -s --author="$DEFAULT_AUTHOR" --file=-
+${msg}
+
+$(sed -n -r -e '0,/^(--$|diff -)/p;' <$ptmp)
+EOF
+    fi
+}
+
+# capture the stdin into a temp file
+ptmp=$(mktemp $RPM_SOURCE_DIR/pXXXXXX)
+trap "rm -f $ptmp" 0 9 15
+sed '/\S/,$!d;' >$ptmp
+
+clean_tree
+
+if [ -n "$patch" ] ; then
+    if ! git am $ptmp ; then
+        if [ -d .git/rebase-apply ] ; then
+            git am --abort
+        fi
+        git clean -fdx
+        /usr/bin/patch -p1 -F1 <$ptmp
+        commit_tree "imported patch: $patch"
+    fi
+else
+    /usr/bin/patch -p1 -F1 <$ptmp
+    commit_tree
+fi
+rm -f $ptmp
