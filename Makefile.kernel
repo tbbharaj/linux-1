@@ -64,7 +64,7 @@ $(SOURCEDIR)/%.tar.gz: %.tar | $(SOURCEDIR)
 $(MODULES) :
 	$(GIT) clone $$($@_GIT) $@
 
-$(addsuffix .tar,$(MODULES)) : %.tar : %/.git Makefile.kernel Makefile | $(SOURCEDIR)
+$(addsuffix .tar,$(MODULES)) : %.tar : % %/.git Makefile.kernel Makefile | $(SOURCEDIR)
 	$(GIT) archive --format=tar --prefix $($*_PREFIX) --remote=$* $($*_BASE) > $@
 
 # these targets are required to rename the vanilla $module.tar to the desired
