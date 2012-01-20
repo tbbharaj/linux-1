@@ -91,7 +91,7 @@ SOURCEDIR=$TOPDIR/${SERIES_NAME}
 
 declare -a rpmopts=(--define "_topdir $TOPDIR" --define "_ntopdir %{_topdir}" --define "_builddir %{_topdir}" \
     --define "_sourcedir ${SOURCEDIR}" --define "_specdir ${SOURCEDIR}" --define "_rpmdir %{_topdir}" \
-    --define "_srcrpmdir %{_topdir}")
+    --define "_srcrpmdir %{_topdir}" --define "__spec_prep_post $TOPDIR/scripts/patch --finish" )
 
 echo "Cleaning up work environment..."
 #git clean -f -x -d
@@ -112,7 +112,7 @@ sed -i -e "s/local patch=/export patch=/" $SOURCEDIR/kernel.spec
 
 # now prep the tree
 export PATH=$TOPDIR/scripts:$PATH
-rpmbuild "${rpmopts[@]}" "${RPM_PREP[@]}" -bp --nodeps --target=i686,x86_64 $SOURCEDIR/kernel.spec
+rpmbuild "${rpmopts[@]}" "${RPM_PREP[@]}" -bp --nodeps --target=x86_64 $SOURCEDIR/kernel.spec
 exit 0
 
 MYBRANCH=$(git rev-parse --abbrev-ref HEAD)

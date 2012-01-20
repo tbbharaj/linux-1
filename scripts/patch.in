@@ -13,6 +13,17 @@ VTAG=@@VTAG@@
 TAGVER=@@TAGVER@@
 UPSTREAM=@@UPSTREAM@@
 
+PATCH_ARGS=
+FINISH=
+while [ $# -gt 0 ] ; do
+    case $1 in
+        -p* | -F* | -R ) PATCH_ARGS="$PATCH_ARGS $1" ;;
+        --finish ) FINISH=$1 ;;
+        * ) echo "Ignoring patch option: $1" ;;
+    esac
+    shift
+done
+
 function init_tree {
     # clone out the stable linux tree
     local b=$(basename $(pwd -P))
@@ -20,12 +31,12 @@ function init_tree {
     rm -rf $b.git
     git clone --no-hardlinks $LINUX_DIR $b.git
     cd $b.git
-    local branch="${UPSTREAM}/${TAGVER}/master"
+    local branch="${UPSTREAM}/${TAGVER}"
     local tag="${UPSTREAM}/${TAGVER}/start"
     git checkout -b $branch $VTAG
     popd
     # now bring over changes from the unpacked tree
-    rsync -aH ../$b.git/.git/ ./.git/
+    rsync -aH --delete-after ../$b.git/.git/ ./.git/
     rm -rf ../$b.git
     # now add the changes done by our unpacking...
     git add .
@@ -47,21 +58,48 @@ function commit_tree {
     # also marked as removed in git the stuff that was removed...
     git status --short | grep -E '^.?D' | awk '{print $2}' | xargs -r git rm
     local z=$(git status --short)
+    local phead=
+    if [ -n "$ptmp" ] ; then
+        phead=$(sed -n -r -e '0,/^(--$|diff -|--- )/p;' <$ptmp | \
+            sed -r -e 's/^(.*)$/#    \1/')
+    fi
     if [ -n "${z}" ] ; then 
         cat <<EOF | git commit -s --author="$DEFAULT_AUTHOR" --file=-
 ${msg}
 
-$(sed -n -r -e '0,/^(--$|diff -)/p;' <$ptmp)
+$(git diff --cached --stat)
+${phead}
 EOF
     fi
 }
 
+function commit_tree_wrap {
+    local msg=$1
+    if [ $(git status --short|wc -l) -gt 0 ] ; then
+        commit_tree "${msg}"
+    fi
+}
+
+if [ -n "$FINISH" ] ; then
+    ptmp=
+    pushd linux-${VTAG##v}* && \
+        commit_tree_wrap "finalized prep"
+    clean_tree
+    exit 0
+fi
+
 # capture the stdin into a temp file
 ptmp=$(mktemp $RPM_SOURCE_DIR/pXXXXXX)
 trap "rm -f $ptmp" 0 9 15
-sed '/\S/,$!d;' >$ptmp
+sed -e '/\S/,$!d;' >$ptmp
 
-clean_tree
+# attempt to save the state of tree changes done via non-patch actions (such
+# as copying stuff in between patches, etc)
+if [ -d .git ] ; then
+    commit_tree_wrap "pre-patch tree changes $patch"
+else
+    clean_tree
+fi
 
 if [ -n "$patch" ] ; then
     if ! git am $ptmp ; then
@@ -69,11 +107,12 @@ if [ -n "$patch" ] ; then
             git am --abort
         fi
         git clean -fdx
-        /usr/bin/patch -p1 -F1 <$ptmp
+        /usr/bin/patch $PATCH_ARGS <$ptmp
         commit_tree "imported patch: $patch"
     fi
 else
-    /usr/bin/patch -p1 -F1 <$ptmp
+    /usr/bin/patch $PATCH_ARGS <$ptmp
     commit_tree
 fi
 rm -f $ptmp
+clean_tree
