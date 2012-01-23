@@ -96,10 +96,11 @@ declare -a rpmopts=(--define "_topdir $TOPDIR" --define "_ntopdir %{_topdir}" --
 echo "Cleaning up work environment..."
 #git clean -f -x -d
 mkdir -p ${SERIES_NAME}
-git ls-files -z ${SERIES_NAME} | xargs -r0 git rm --quiet
+git ls-files -z ${SERIES_NAME} | egrep -v -zZ '.gitignore' | xargs -r0 git rm --quiet --force
 
 echo "Unpacking source rpm $SRPM..."
 rpm  "${rpmopts[@]}" "${RPM_PREP[@]}" -Uvh --quiet $SRPM 2>/dev/null
+make upload FILES="*gz *bz2 *xz *tar" SOURCEDIR=${SERIES_NAME}
 
 echo "Creating patch script $TOPDIR/scripts/patch..."
 sed -e "s#@@LINUX_DIR@@#$LINUX_DIR#" \
@@ -113,6 +114,7 @@ sed -i -e "s/local patch=/export patch=/" $SOURCEDIR/kernel.spec
 # now prep the tree
 export PATH=$TOPDIR/scripts:$PATH
 rpmbuild "${rpmopts[@]}" "${RPM_PREP[@]}" -bp --nodeps --target=x86_64 $SOURCEDIR/kernel.spec
+
 exit 0
 
 MYBRANCH=$(git rev-parse --abbrev-ref HEAD)
