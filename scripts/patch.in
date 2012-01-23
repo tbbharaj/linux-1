@@ -24,6 +24,10 @@ while [ $# -gt 0 ] ; do
     shift
 done
 
+# defines we will capture later in the linux.vars file
+BRANCH="${UPSTREAM}/${TAGVER}"
+TAG="${UPSTREAM}/${TAGVER}/start"
+
 function init_tree {
     # clone out the stable linux tree
     local b=$(basename $(pwd -P))
@@ -31,9 +35,7 @@ function init_tree {
     rm -rf $b.git
     git clone --no-hardlinks $LINUX_DIR $b.git
     cd $b.git
-    local branch="${UPSTREAM}/${TAGVER}"
-    local tag="${UPSTREAM}/${TAGVER}/start"
-    git checkout -b $branch $VTAG
+    git checkout -b $BRANCH $VTAG
     popd
     # now bring over changes from the unpacked tree
     rsync -aH --delete-after ../$b.git/.git/ ./.git/
@@ -41,7 +43,7 @@ function init_tree {
     # now add the changes done by our unpacking...
     git add .
     git commit --quiet --allow-empty -m "start import into $branch"
-    git tag $tag
+    git tag $TAG
 }
 
 function clean_tree {
@@ -82,9 +84,19 @@ function commit_tree_wrap {
 
 if [ -n "$FINISH" ] ; then
     ptmp=
+    topdir=$(git rev-parse --show-toplevel)
     pushd linux-${VTAG##v}* && \
         commit_tree_wrap "finalized prep"
     clean_tree
+    # generate the linux.vers file
+    popd
+    echo "Updating the linux.vers file..."
+    cat >${topdir}/linux.vers <<EOF
+linux_TAGVER	= ${VTAG##v}
+linux_BASE	= ${TAG}
+linux_BRANCH	= ${BRANCH}
+linux_HEAD	= $$(linux_BRANCH)
+EOF
     exit 0
 fi
 
