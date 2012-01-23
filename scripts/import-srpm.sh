@@ -111,9 +111,15 @@ sed -e "s#@@LINUX_DIR@@#$LINUX_DIR#" \
 chmod 755 $TOPDIR/scripts/patch
 sed -i -e "s/local patch=/export patch=/" $SOURCEDIR/kernel.spec
 
+# commit this series to the currenbt branch
+git add ${SERIES_NAME}
+
 # now prep the tree
 export PATH=$TOPDIR/scripts:$PATH
 rpmbuild "${rpmopts[@]}" "${RPM_PREP[@]}" -bp --nodeps --target=x86_64 $SOURCEDIR/kernel.spec
+
+git commit --allow-empty -m "imported source rpm ${SERIES_NAME}${SERIES_REL} ${TAGVER}"
+git tag -m "imported source rpm ${SERIES_NAME}${SERIES_REL} ${TAGVER}" "${SERIES_NAME}${SERIES_REL}/${TAGVER}"
 
 exit 0
 
