@@ -75,7 +75,7 @@ function commit_tree {
     local phead=
     if [ -n "$ptmp" ] ; then
         phead=$(sed -n -r -e '0,/^(--$|diff -|--- )/p;' <$ptmp | \
-            sed -r -e 's/^(.*)$/#    \1/')
+            sed -r -e 's/^(.*)$/  \1/')
     fi
     if [ -n "${z}" ] ; then 
         cat <<EOF | git commit -s --author="$DEFAULT_AUTHOR" --file=-
