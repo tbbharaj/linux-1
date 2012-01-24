@@ -91,7 +91,7 @@ SOURCEDIR=$TOPDIR/${SERIES_NAME}
 
 declare -a rpmopts=(--define "_topdir $TOPDIR" --define "_ntopdir %{_topdir}" --define "_builddir %{_topdir}" \
     --define "_sourcedir ${SOURCEDIR}" --define "_specdir ${SOURCEDIR}" --define "_rpmdir %{_topdir}" \
-    --define "_srcrpmdir %{_topdir}" --define "__spec_prep_post $TOPDIR/scripts/patch --finish" )
+    --define "_srcrpmdir %{_topdir}" )
 
 echo "Cleaning up work environment..."
 #git clean -f -x -d
@@ -101,6 +101,7 @@ git ls-files -z ${SERIES_NAME} | egrep -v -zZ '.gitignore' | xargs -r0 git rm --
 echo "Unpacking source rpm $SRPM..."
 rpm  "${rpmopts[@]}" "${RPM_PREP[@]}" -Uvh --quiet $SRPM 2>/dev/null
 make upload FILES="*gz *bz2 *xz *tar" SOURCEDIR=${SERIES_NAME}
+git add sources
 
 echo "Creating patch script $TOPDIR/scripts/patch..."
 sed -e "s#@@LINUX_DIR@@#$LINUX_DIR#" \
@@ -114,12 +115,38 @@ sed -i -e "s/local patch=/export patch=/" $SOURCEDIR/kernel.spec
 # commit this series to the currenbt branch
 git add ${SERIES_NAME}
 
+# this sets up the git tree for the import
+function spec_prep_pre {
+    cat <<EOF
+%__spec_prep_pre %{___build_pre}\\
+\\
+$TOPDIR/scripts/patch --start\\
+%{nil}
+
+EOF
+}
+
+# this commits and cleans up the prepped tree
+function spec_prep_post {
+    cat <<EOF
+%__spec_prep_post $TOPDIR/scripts/patch --finish\\
+%{___build_post}\\
+%{nil}
+
+EOF
+}
+
 # now prep the tree
 export PATH=$TOPDIR/scripts:$PATH
-rpmbuild "${rpmopts[@]}" "${RPM_PREP[@]}" -bp --nodeps --target=x86_64 $SOURCEDIR/kernel.spec
+rpmbuild "${rpmopts[@]}" "${RPM_PREP[@]}" \
+    --define "$(spec_prep_pre)" \
+    --define "$(spec_prep_post)" \
+    -bp --nodeps --target=x86_64 $SOURCEDIR/kernel.spec
+git add linux.vers
 
-git commit --allow-empty -m "imported source rpm ${SERIES_NAME}${SERIES_REL} ${TAGVER}"
-git tag -m "imported source rpm ${SERIES_NAME}${SERIES_REL} ${TAGVER}" "${SERIES_NAME}${SERIES_REL}/${TAGVER}"
+TAG="${SERIES_NAME}${SERIES_REL}/${TAGVER}"
+git commit --allow-empty --quiet -m "imported source rpm ${TAG}"
+git tag -m "imported source rpm ${TAG}" --force "${TAG}"
 
 exit 0
 

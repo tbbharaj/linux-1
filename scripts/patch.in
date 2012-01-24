@@ -3,7 +3,16 @@
 # build up a git repo while appling the fedora kernel patches
 # Author: Cristian Gafton <gafton@amazon.com>
 
-trap 'echo "script exited with ERROR: $BASH_COMMAND"' ERR
+# color in the output helps a lot with parsing
+_grn="$(echo -en '\033[1;32m')"  # green
+_red="$(echo -en '\033[1;31m')"  # red
+_yel="$(echo -en '\033[1;33m')"  # yellow
+_def="$(echo -en '\033[0;39m')"  # normal
+say_red()    { echo -e "${_red}${1:-}${_def}" ; }
+say_green()  { echo -e "${_grn}${1:-}${_def}" ; }
+say_yellow() { echo -e "${_yel}${1:-}${_def}" ; }
+
+trap 'say_red "script exited with ERROR: $BASH_COMMAND"' ERR
 set -e -x
 
 DEFAULT_AUTHOR="RPM Patch <kernel@fedoraproject.org>"
@@ -14,12 +23,13 @@ TAGVER=@@TAGVER@@
 UPSTREAM=@@UPSTREAM@@
 
 PATCH_ARGS=
-FINISH=
+STAGE=patch
 while [ $# -gt 0 ] ; do
     case $1 in
         -p* | -F* | -R ) PATCH_ARGS="$PATCH_ARGS $1" ;;
-        --finish ) FINISH=$1 ;;
-        * ) echo "Ignoring patch option: $1" ;;
+        --start ) STAGE=start ;;
+        --finish ) STAGE=finish ;;
+        * ) say_yellow "Ignoring patch option: $1" ;;
     esac
     shift
 done
@@ -28,7 +38,7 @@ done
 BRANCH="${UPSTREAM}/${TAGVER}"
 TAG="${UPSTREAM}/${TAGVER}/start"
 
-function init_tree {
+function start_tree {
     # clone out the stable linux tree
     local b=$(basename $(pwd -P))
     pushd ..
@@ -47,9 +57,6 @@ function init_tree {
 }
 
 function clean_tree {
-    if [ ! -d .git ] ; then
-        init_tree
-    fi
     git clean -fdx
 }
 
@@ -75,56 +82,67 @@ EOF
     fi
 }
 
-function commit_tree_wrap {
+function commit_tree_if_needed {
     local msg=$1
     if [ $(git status --short|wc -l) -gt 0 ] ; then
         commit_tree "${msg}"
     fi
 }
 
-if [ -n "$FINISH" ] ; then
+function finish_tree {
     ptmp=
     topdir=$(git rev-parse --show-toplevel)
     pushd linux-${VTAG##v}* && \
-        commit_tree_wrap "finalized prep"
+        commit_tree_if_needed "finalized prep"
     clean_tree
     # generate the linux.vers file
     popd
-    echo "Updating the linux.vers file..."
+    say_green "Updating the linux.vers file..."
     cat >${topdir}/linux.vers <<EOF
 linux_TAGVER	= ${VTAG##v}
 linux_BASE	= ${TAG}
 linux_BRANCH	= ${BRANCH}
-linux_HEAD	= $$(linux_BRANCH)
+linux_HEAD	= \$(linux_BRANCH)
 EOF
-    exit 0
-fi
+}
 
-# capture the stdin into a temp file
-ptmp=$(mktemp $RPM_SOURCE_DIR/pXXXXXX)
-trap "rm -f $ptmp" 0 9 15
-sed -e '/\S/,$!d;' >$ptmp
-
-# attempt to save the state of tree changes done via non-patch actions (such
-# as copying stuff in between patches, etc)
-if [ -d .git ] ; then
-    commit_tree_wrap "pre-patch tree changes $patch"
-else
+function patch_tree {
+    # attempt to save the state of tree changes done via non-patch actions
+    # (such as copying stuff in between patches, etc)
+    commit_tree_if_needed "pre-patch tree changes $patch"
     clean_tree
-fi
 
-if [ -n "$patch" ] ; then
-    if ! git am $ptmp ; then
-        if [ -d .git/rebase-apply ] ; then
-            git am --abort
+    if [ -n "$patch" ] ; then
+        if ! git am $ptmp ; then
+            if [ -d .git/rebase-apply ] ; then
+                git am --abort
+            fi
+            clean_tree
+            /usr/bin/patch $PATCH_ARGS <$ptmp
+            commit_tree "imported patch: $patch"
         fi
-        git clean -fdx
+    else
         /usr/bin/patch $PATCH_ARGS <$ptmp
-        commit_tree "imported patch: $patch"
+        commit_tree
     fi
-else
-    /usr/bin/patch $PATCH_ARGS <$ptmp
-    commit_tree
-fi
-rm -f $ptmp
-clean_tree
+}
+
+###
+### MAIN
+###
+case $STAGE in
+    start ) start_tree ;;
+    finish ) finish_tree ;;
+    patch )
+        # capture the stdin into a temp file
+        ptmp=$(mktemp $RPM_SOURCE_DIR/pXXXXXX)
+        trap "rm -f $ptmp" 0 9 15
+        sed -e '/\S/,$!d;' >$ptmp
+        patch_tree
+        rm -f $ptmp
+        clean_tree
+        ;;
+    * )
+        say_red "ERROR: unknonw stage: '$STAGE'"
+        exit -1
+esac
