@@ -138,6 +138,9 @@ case $STAGE in
         ptmp=$(mktemp $RPM_SOURCE_DIR/pXXXXXX)
         trap "rm -f $ptmp" 0 9 15
         sed -e '/\S/,$!d;' >$ptmp
+        if [ ! -d .git ] ; then
+            start_tree
+        fi
         patch_tree
         rm -f $ptmp
         clean_tree

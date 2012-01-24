@@ -139,7 +139,6 @@ EOF
 # now prep the tree
 export PATH=$TOPDIR/scripts:$PATH
 rpmbuild "${rpmopts[@]}" "${RPM_PREP[@]}" \
-    --define "$(spec_prep_pre)" \
     --define "$(spec_prep_post)" \
     -bp --nodeps --target=x86_64 $SOURCEDIR/kernel.spec
 git add linux.vers
