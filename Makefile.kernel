@@ -60,7 +60,7 @@ $(SOURCEDIR)/%.tar.gz: %.tar | $(SOURCEDIR)
 	gzip -f -c $< > $@
 
 $(MODULES) :
-	$(GIT) clone $$($@_GIT) $@
+	$(GIT) clone --no-hardlinks $($@_GIT) $@
 
 $(addsuffix .tar,$(MODULES)) : %.tar : % %/.git Makefile.kernel Makefile | $(SOURCEDIR)
 	$(GIT) archive --format=tar --prefix $($*_PREFIX) --remote=$* $($*_BASE) > $@
