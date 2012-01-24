@@ -45,6 +45,19 @@ function start_tree {
     rm -rf $b.git
     git clone --no-hardlinks $LINUX_DIR $b.git
     cd $b.git
+    # check that the branch does not already exists
+    if ! git show-ref --verify --quiet refs/tags/$VTAG ; then
+        say_red "Can not find tag $VTAG"
+        exit -1
+    fi
+    if git show-ref --verify --quiet refs/remotes/origin/$BRANCH ; then
+        say_red "Branch $BRANCH already exists"
+        exit -1
+    fi
+    if git show-ref --verify --quiet refs/tags/$TAG ; then
+        say_red "Tag $TAG already exists"
+        exit -1
+    fi
     git checkout -b $BRANCH $VTAG
     popd
     # safety check
