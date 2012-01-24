@@ -26,7 +26,7 @@ PATCH_ARGS=
 STAGE=patch
 while [ $# -gt 0 ] ; do
     case $1 in
-        -p* | -F* | -R ) PATCH_ARGS="$PATCH_ARGS $1" ;;
+        -p* | -F* | -R | -s ) PATCH_ARGS="$PATCH_ARGS $1" ;;
         --start ) STAGE=start ;;
         --finish ) STAGE=finish ;;
         * ) say_yellow "Ignoring patch option: $1" ;;
