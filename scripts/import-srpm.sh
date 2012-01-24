@@ -8,6 +8,15 @@
 TOPDIR=$(git rev-parse --show-toplevel)
 LINUX_DIR=$TOPDIR/linux
 
+# color in the output helps a lot with parsing
+_grn="$(echo -en '\033[1;32m')"  # green
+_red="$(echo -en '\033[1;31m')"  # red
+_yel="$(echo -en '\033[1;33m')"  # yellow
+_def="$(echo -en '\033[0;39m')"  # normal
+say_red()    { echo -e "${_red}${1:-}${_def}" ; }
+say_green()  { echo -e "${_grn}${1:-}${_def}" ; }
+say_yellow() { echo -e "${_yel}${1:-}${_def}" ; }
+
 function usage {
     cat <<EOF
 Usage : $0 --<series> <src.rpm> <vTAG>
@@ -39,7 +48,7 @@ while [ $# -gt 0 ] ; do
             ;;
         -* )
             usage
-            echo "ERROR: dunno what to do with $1"
+            say_red "ERROR: dunno what to do with $1"
             exit -1 ;;
         *.src.rpm ) SRPM=$1 ;;
         * )
@@ -47,7 +56,7 @@ while [ $# -gt 0 ] ; do
                 VTAG=$1
             else
                 usage
-                echo "ERROR: dunno what to do with $1"
+                say_red "ERROR: dunno what to do with $1"
                 exit -1
             fi
             ;;
@@ -58,21 +67,21 @@ done
 # get full path for the file since we're going to be cd-ing around
 if [ -f $SRPM ] ; then
     SRPM="$(cd $(dirname $SRPM) && pwd -P)/$(basename $SRPM)"
-    echo "Importing kernel src.rpm $SRPM"
+    say_green "Importing kernel src.rpm $SRPM"
 else
-    echo "can't find file: $SRPM"
+    say_red "can't find file: $SRPM"
     usage
     exit -2
 fi
 
 if [ -z "$VTAG" ] ; then
     usage
-    echo "ERROR: you did not specify the Linux tree vTAG to create a branch at for this import"
+    say_red "ERROR: you did not specify the Linux tree vTAG to create a branch at for this import"
     exit -1
 else
     pushd $LINUX_DIR >/dev/null
     if ! git show-ref --verify --quiet refs/tags/${VTAG} ; then
-        echo "ERROR: invalid vTAG reference: $VTAG does not exist in $LINUX_DIR"
+        say_red "ERROR: invalid vTAG reference: $VTAG does not exist in $LINUX_DIR"
         exit -2
     fi
     popd >/dev/null
@@ -80,30 +89,37 @@ fi
 
 if [ -z "$SERIES_NAME" ] ; then
     usage
-    echo "ERROR: you did not specify a known --seriesN flag (ie, --fedora14)"
+    say_red "ERROR: you did not specify a known --seriesN flag (ie, --fedora14)"
     exit -1
 fi
 
-set -e
+trap 'say_red "script exited with ERROR: $BASH_COMMAND"' ERR
+set -e -x
+
 # grab the tag we're going to use
 TAGVER=$(rpm -qp --qf '%{VERSION}-%{RELEASE}' $SRPM 2>/dev/null)
 SOURCEDIR=$TOPDIR/${SERIES_NAME}
+TAG="${SERIES_NAME}${SERIES_REL}/${TAGVER}"
+if git show-ref --verify --quiet refs/tags/${TAG} ; then
+    say_red "ERROR: tag ${TAG} already exists"
+    exit -1
+fi
 
 declare -a rpmopts=(--define "_topdir $TOPDIR" --define "_ntopdir %{_topdir}" --define "_builddir %{_topdir}" \
     --define "_sourcedir ${SOURCEDIR}" --define "_specdir ${SOURCEDIR}" --define "_rpmdir %{_topdir}" \
     --define "_srcrpmdir %{_topdir}" )
 
-echo "Cleaning up work environment..."
+say_yellow "Cleaning up work environment..."
 #git clean -f -x -d
 mkdir -p ${SERIES_NAME}
 git ls-files -z ${SERIES_NAME} | egrep -v -zZ '.gitignore' | xargs -r0 git rm --quiet --force
 
-echo "Unpacking source rpm $SRPM..."
+say_yellow "Unpacking source rpm $SRPM..."
 rpm  "${rpmopts[@]}" "${RPM_PREP[@]}" -Uvh --quiet $SRPM 2>/dev/null
 make upload FILES="*gz *bz2 *xz *tar" SOURCEDIR=${SERIES_NAME}
 git add sources
 
-echo "Creating patch script $TOPDIR/scripts/patch..."
+say_yellow "Creating patch script $TOPDIR/scripts/patch..."
 sed -e "s#@@LINUX_DIR@@#$LINUX_DIR#" \
     -e "s#@@VTAG@@#$VTAG#" \
     -e "s#@@UPSTREAM@@#${SERIES_NAME}${SERIES_REL}#" \
@@ -143,9 +159,10 @@ rpmbuild "${rpmopts[@]}" "${RPM_PREP[@]}" \
     -bp --nodeps --target=x86_64 $SOURCEDIR/kernel.spec
 git add linux.vers
 
-TAG="${SERIES_NAME}${SERIES_REL}/${TAGVER}"
 git commit --allow-empty --quiet -m "imported source rpm ${TAG}"
 git tag -m "imported source rpm ${TAG}" --force "${TAG}"
+
+say_green "Import of $SRPM tagged as $TAG"
 
 exit 0
 
@@ -172,5 +189,4 @@ git tag -f fedora/$TAG
 popd
 
 
-echo "Import of $SRPM tagged as fedora/$TAG"
 git repack -d && git submodule --quiet foreach git repack -d
