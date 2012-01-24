@@ -47,6 +47,11 @@ function start_tree {
     cd $b.git
     git checkout -b $BRANCH $VTAG
     popd
+    # safety check
+    if [ -d ./.git/ ] ; then
+        say_red "ERROR: attempting to override internal .git directory with ../$b.git/.git/"
+        exit -2
+    fi
     # now bring over changes from the unpacked tree
     rsync -aH --delete-after ../$b.git/.git/ ./.git/
     rm -rf ../$b.git
