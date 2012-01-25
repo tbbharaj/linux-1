@@ -117,7 +117,7 @@ function finish_tree {
         git push origin --tags
     # generate the linux.vers file
     popd
-    say_green "Updating the linux.vers file..."
+    say_yellow "Updating the linux.vers file..."
     cat >${topdir}/linux.vers <<EOF
 linux_TAGVER	= ${VTAG##v}
 linux_BASE	= ${TAG}
