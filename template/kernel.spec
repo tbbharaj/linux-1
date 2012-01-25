@@ -410,7 +410,6 @@ Source40: config-x86_64-generic
 
 Source200: perf
 
-
 # __PATCHFILE_TEMPLATE__
 
 BuildRoot: %{_tmppath}/kernel-%{KVERREL}-root
@@ -622,13 +621,11 @@ ApplyOptionalPatch()
     ApplyPatch $patch ${1+"$@"}
   fi
 }
-
 # we don't want a .config file when building firmware: it just confuses the build system
 %define build_firmware \
    mv .config .config.firmware_save \
    make INSTALL_FW_PATH=$RPM_BUILD_ROOT/lib/firmware firmware_install \
    mv .config.firmware_save .config
-
 # First we unpack the kernel tarball.
 # If this isn't the first make prep, we use links to the existing clean tarball
 # which speeds things up quite a bit.
