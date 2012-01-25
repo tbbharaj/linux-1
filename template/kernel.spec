@@ -51,7 +51,6 @@ Summary: The Linux kernel
 # which yields a base_sublevel of 21.
 %define base_sublevel 34
 %define stablerev 7
-
 %define rpmversion 2.6.%{base_sublevel}%{?stablerev:.%{stablerev}}
 
 # What parts do we want to build?  We must build at least one kernel.
