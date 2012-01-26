@@ -403,7 +403,6 @@ Source14: find-provides
 Source15: kconfig.py
 
 Source19: Makefile.config
-
 Source20: config-generic
 Source30: config-x86-generic
 Source40: config-x86_64-generic
