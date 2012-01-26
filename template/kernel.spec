@@ -854,7 +854,7 @@ cp $RPM_SOURCE_DIR/config-* .
 cp %{SOURCE15} .
 
 # Dynamically generate kernel .config files from config-* files
-make -f %{SOURCE20} VERSION=%{version} configs
+make -f %{SOURCE20} VERSION=%{version} config
 
 #if a rhel kernel, apply the rhel config options
 %if 0%{?rhel}
