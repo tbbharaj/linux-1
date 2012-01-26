@@ -36,7 +36,6 @@ done
 
 # defines we will capture later in the linux.vars file
 BRANCH="${UPSTREAM}/${TAGVER}"
-TAG="${UPSTREAM}/${TAGVER}/start"
 
 function add_changes {
     # try to figure out what the patch did...
@@ -78,10 +77,6 @@ function start_tree {
         say_red "Branch $BRANCH already exists"
         exit -1
     fi
-    if git show-ref --verify --quiet refs/tags/$TAG ; then
-        say_red "Tag $TAG already exists"
-        exit -1
-    fi
     git checkout -b $BRANCH $VTAG
     popd
     # safety check
@@ -92,8 +87,6 @@ function start_tree {
     # now bring over changes from the unpacked tree
     rsync -aH --delete-after ../$b.git/.git/ ./.git/
     rm -rf ../$b.git
-    #git commit --quiet --allow-empty -m "start import into $branch"
-    #git tag $TAG
     git_stash
 }
 
@@ -140,7 +133,7 @@ function finish_tree {
     say_yellow "Updating the linux.vers file..."
     cat >${topdir}/linux.vers <<EOF
 linux_TAGVER	= ${VTAG##v}
-linux_BASE	= ${TAG}
+linux_BASE	= v\$(linux_TAGVER)
 linux_BRANCH	= ${BRANCH}
 linux_HEAD	= \$(linux_BRANCH)
 EOF
