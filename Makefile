@@ -9,6 +9,7 @@ VENDOR		:= GOBI
 # these are specific for tis module and have to be defined before Makefile.common is ingested
 SPECFILE	= template/kernel.spec
 BUILDVAR	= buildid
+CHANGELOGS	= $(SPECFILE) srpm
 
 define find-makefile-common
 $(firstword $(foreach d,. common ../common,$(if $(wildcard $(d)/Makefile.common),$(d)/Makefile.common)))
