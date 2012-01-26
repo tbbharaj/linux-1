@@ -3,11 +3,6 @@
 
 Summary: The Linux kernel
 
-# For a stable, released kernel, released_kernel should be 1. For rawhide
-# and/or a kernel built from an rc or git snapshot, released_kernel should
-# be 0.
-%global released_kernel 1
-
 # Save original buildid for later if it's defined
 %if 0%{?buildid:1}
 %global orig_buildid %{buildid}
@@ -56,30 +51,12 @@ Summary: The Linux kernel
 # which yields a base_sublevel of 21.
 %define base_sublevel 34
 
-## If this is a released kernel ##
-%if 0%{?released_kernel}
-
 # Do we have a -stable update to apply?
 %define stable_update 7
-# Set rpm version accordingly
-%if 0%{?stable_update}
 %define stablerev .%{stable_update}
 %define stable_base %{stable_update}
-%endif
-%define rpmversion 2.6.%{base_sublevel}%{?stablerev}
 
-## The not-released-kernel case ##
-%else
-# The next upstream release sublevel (base_sublevel+1)
-%define upstream_sublevel %(echo $((%{base_sublevel} + 1)))
-# The rc snapshot level
-%define rcrev 0
-# The git snapshot level
-%define gitrev 0
-# Set rpm version accordingly
-%define rpmversion 2.6.%{upstream_sublevel}
-%endif
-# Nb: The above rcrev and gitrev values automagically define Patch00 and Patch01 below.
+%define rpmversion 2.6.%{base_sublevel}%{?stablerev}
 
 # What parts do we want to build?  We must build at least one kernel.
 # These are the kernels that are built IF the architecture allows it.
@@ -119,11 +96,7 @@ Summary: The Linux kernel
 
 # Build the kernel-doc package, but don't fail the build if it botches.
 # Here "true" means "continue" and "false" means "fail the build".
-%if 0%{?released_kernel}
 %define doc_build_fail true
-%else
-%define doc_build_fail true
-%endif
 
 %define rawhide_skip_docs 0
 %if 0%{?rawhide_skip_docs}
@@ -156,26 +129,7 @@ Summary: The Linux kernel
 %define with_vanilla %{?_with_vanilla: 1} %{?!_with_vanilla: 0}
 
 # pkg_release is what we'll fill in for the rpm Release: field
-%if 0%{?released_kernel}
-
 %define pkg_release %{fedora_build}%{?stable_rctag}%{?buildid}%{?dist}
-
-%else
-
-# non-released_kernel
-%if 0%{?rcrev}
-%define rctag .rc%rcrev
-%else
-%define rctag .rc0
-%endif
-%if 0%{?gitrev}
-%define gittag .git%gitrev
-%else
-%define gittag .git0
-%endif
-%define pkg_release 0.%{fedora_build}%{?rctag}%{?gittag}%{?buildid}%{?dist}
-
-%endif
 
 # The kernel tarball/base version
 %define kversion 2.6.%{base_sublevel}
@@ -542,31 +496,6 @@ Source40: config-x86_64-generic
 Source200: perf
 
 
-# For a stable release kernel
-%if 0%{?stable_update}
-%if 0%{?stable_base}
-%define    stable_patch_00  patch-2.6.%{base_sublevel}.%{stable_base}.bz2
-Patch00: %{stable_patch_00}
-%endif
-
-# non-released_kernel case
-# These are automagically defined by the rcrev and gitrev values set up
-# near the top of this spec file.
-%else
-%if 0%{?rcrev}
-Patch00: patch-2.6.%{upstream_sublevel}-rc%{rcrev}.bz2
-%if 0%{?gitrev}
-Patch01: patch-2.6.%{upstream_sublevel}-rc%{rcrev}-git%{gitrev}.bz2
-%endif
-%else
-# pre-{base_sublevel+1}-rc1 case
-%if 0%{?gitrev}
-Patch00: patch-2.6.%{base_sublevel}-git%{gitrev}.bz2
-%endif
-%endif
-%endif
-
-
 # __PATCHFILE_TEMPLATE__
 
 BuildRoot: %{_tmppath}/kernel-%{KVERREL}-root
@@ -828,24 +757,7 @@ ApplyOptionalPatch()
 # which speeds things up quite a bit.
 
 # Update to latest upstream.
-%if 0%{?released_kernel}
 %define vanillaversion 2.6.%{base_sublevel}
-# non-released_kernel case
-%else
-%if 0%{?rcrev}
-%define vanillaversion 2.6.%{upstream_sublevel}-rc%{rcrev}
-%if 0%{?gitrev}
-%define vanillaversion 2.6.%{upstream_sublevel}-rc%{rcrev}-git%{gitrev}
-%endif
-%else
-# pre-{base_sublevel+1}-rc1 case
-%if 0%{?gitrev}
-%define vanillaversion 2.6.%{base_sublevel}-git%{gitrev}
-%else
-%define vanillaversion 2.6.%{base_sublevel}
-%endif
-%endif
-%endif
 
 # %{vanillaversion} : the full version name, e.g. 2.6.35-rc6-git3
 # %{kversion}       : the base version, e.g. 2.6.34
@@ -932,11 +844,6 @@ cp -rl vanilla-%{vanillaversion} linux-%{kversion}.%{_target_cpu}
 
 cd linux-%{kversion}.%{_target_cpu}
 tar xfz %{SOURCE1}
-
-# released_kernel with possible stable updates
-%if 0%{?stable_base}
-ApplyPatch %{stable_patch_00}
-%endif
 
 %if %{using_upstream_branch}
 ### BRANCH APPLY ###
