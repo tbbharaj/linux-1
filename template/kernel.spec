@@ -61,16 +61,10 @@ Summary: The Linux kernel
 
 # Do we have a -stable update to apply?
 %define stable_update 7
-# Is it a -stable RC?
-%define stable_rc 0
 # Set rpm version accordingly
 %if 0%{?stable_update}
 %define stablerev .%{stable_update}
 %define stable_base %{stable_update}
-%if 0%{?stable_rc}
-# stable RCs are incremental patches, so we need the previous stable patch
-%define stable_base %(echo $((%{stable_update} - 1)))
-%endif
 %endif
 %define rpmversion 2.6.%{base_sublevel}%{?stablerev}
 
@@ -164,9 +158,6 @@ Summary: The Linux kernel
 # pkg_release is what we'll fill in for the rpm Release: field
 %if 0%{?released_kernel}
 
-%if 0%{?stable_rc}
-%define stable_rctag .rc%{stable_rc}
-%endif
 %define pkg_release %{fedora_build}%{?stable_rctag}%{?buildid}%{?dist}
 
 %else
@@ -557,10 +548,6 @@ Source200: perf
 %define    stable_patch_00  patch-2.6.%{base_sublevel}.%{stable_base}.bz2
 Patch00: %{stable_patch_00}
 %endif
-%if 0%{?stable_rc}
-%define    stable_patch_01  patch-2.6.%{base_sublevel}.%{stable_update}-rc%{stable_rc}.bz2
-Patch01: %{stable_patch_01}
-%endif
 
 # non-released_kernel case
 # These are automagically defined by the rcrev and gitrev values set up
@@ -949,9 +936,6 @@ tar xfz %{SOURCE1}
 # released_kernel with possible stable updates
 %if 0%{?stable_base}
 ApplyPatch %{stable_patch_00}
-%endif
-%if 0%{?stable_rc}
-ApplyPatch %{stable_patch_01}
 %endif
 
 %if %{using_upstream_branch}
