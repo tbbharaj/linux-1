@@ -38,6 +38,30 @@ done
 BRANCH="${UPSTREAM}/${TAGVER}"
 TAG="${UPSTREAM}/${TAGVER}/start"
 
+function add_changes {
+    # try to figure out what the patch did...
+    git add .
+    # also marked as removed in git the stuff that was removed...
+    git status --short | grep -E '^.?D' | awk '{print $2}' | xargs -r git rm
+}
+
+function git_unstash {
+    # undo a previous stash to keep the state of the tree clean
+    while  [ -n "$(git stash list)" ] ; do
+        git stash pop --quiet
+    done
+}
+
+function git_stash {
+    # attempt to save the state of tree changes done via non-patch actions
+    # (such as copying stuff in between patches, etc)
+    add_changes
+    if [ $(git status --short|wc -l) -gt 0 ] ; then
+        # stash the changes away
+        git stash
+    fi
+}
+
 function start_tree {
     # clone out the stable linux tree
     local b=$(basename $(pwd -P))
@@ -68,13 +92,9 @@ function start_tree {
     # now bring over changes from the unpacked tree
     rsync -aH --delete-after ../$b.git/.git/ ./.git/
     rm -rf ../$b.git
-    # now add the changes done by our unpacking...
-    git add .
     #git commit --quiet --allow-empty -m "start import into $branch"
     #git tag $TAG
-    if [ $(git status --short|wc -l) -gt 0 ] ; then
-        git stash
-    fi
+    git_stash
 }
 
 function clean_tree {
@@ -83,10 +103,7 @@ function clean_tree {
 
 function commit_tree {
     local msg=${1:-"added patch from stdin"}
-    # try to figure out what the patch did...
-    git add .
-    # also marked as removed in git the stuff that was removed...
-    git status --short | grep -E '^.?D' | awk '{print $2}' | xargs -r git rm
+    add_changes
     local z=$(git status --short)
     local phead=
     if [ -n "$ptmp" ] ; then
@@ -130,23 +147,8 @@ EOF
 }
 
 function patch_tree {
-    # undo a previous stash to keep the state of the tree clean
-    while  [ -n "$(git stash list)" ] ; do
-        git stash pop --quiet
-    done
-
-    # attempt to save the state of tree changes done via non-patch actions
-    # (such as copying stuff in between patches, etc)
-    if [ $(git status --short|wc -l) -gt 0 ] ; then
-        # handle new/changed files
-        git add .
-        # handle removed files
-        git status --short | grep -E '^.?D' | awk '{print $2}' | xargs -r git rm
-        # stash the changes away
-        git stash
-    fi
+    git_stash
     clean_tree
-
     if [ -n "$patch" ] ; then
         if ! git am $ptmp ; then
             if [ -d .git/rebase-apply ] ; then
@@ -160,6 +162,7 @@ function patch_tree {
         /usr/bin/patch $PATCH_ARGS <$ptmp
         commit_tree
     fi
+    git_unstash
 }
 
 ###
