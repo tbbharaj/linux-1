@@ -903,7 +903,7 @@ do
   mv $i .config
   Arch=`head -1 .config | cut -b 3-`
 %if %{with_oldconfig}
-  make ARCH=$Arch %{oldconfig_target} > /dev/null
+  make ARCH=$Arch %{oldconfig_target}
 %endif
   echo "# $Arch" > configs/$i
   cat .config >> configs/$i
