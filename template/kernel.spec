@@ -14,6 +14,8 @@ Source20: config-generic
 Source21: config-x86_32-generic
 Source22: config-x86_64-generic
 
+# __PATCHFILE_TEMPLATE__
+
 BuildRoot: %{_tmppath}/%{name}-%{PACKAGE_VERSION}-root
 Provides: kernel-drm kernel-3.2.1
 %define __spec_install_post /usr/lib/rpm/brp-compress || :
@@ -35,7 +37,31 @@ building most standard programs and are also needed for rebuilding the
 glibc package.
 
 %prep
+patch_command='patch -p1 -F1 -s'
+ApplyPatch()
+{
+  local patch=$1
+  shift
+  if [ ! -f $RPM_SOURCE_DIR/$patch ]; then
+    exit 1
+  fi
+  if ! egrep "^Patch[0-9]+: $patch\$" %{_specdir}/${RPM_PACKAGE_NAME%%%%%{?variant}}.spec ; then
+    if [ "${patch:0:10}" != "patch-2.6." ] ; then
+      echo "ERROR: Patch  $patch  not listed as a source patch in specfile"
+      exit 1
+    fi
+  fi 2>/dev/null
+  case "$patch" in
+    *.bz2) bunzip2 < "$RPM_SOURCE_DIR/$patch" | $patch_command ${1+"$@"} ;;
+    *.gz) gunzip < "$RPM_SOURCE_DIR/$patch" | $patch_command ${1+"$@"} ;;
+    *) $patch_command ${1+"$@"} < "$RPM_SOURCE_DIR/$patch" ;;
+  esac
+}
+
 %setup -q -n linux-%{version}
+
+# __APPLYFILE_TEMPLATE__
+
 # Drop some necessary files from the source dir into the buildroot
 cp $RPM_SOURCE_DIR/config-*generic .
 cp %{SOURCE10} .
