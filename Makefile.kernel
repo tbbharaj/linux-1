@@ -10,9 +10,7 @@ endif
 #
 # Author: Cristian Gafton <gafton@amazon.com>
 #
-
-MODULES		= linux
-TARFILE		= .tar.gz
+TAREXT		= .tar.gz
 
 # This is used to generate files for a src.rpm file containing a "vanilla"
 # linux kernel archive plus patches.
@@ -38,19 +36,12 @@ linux_TAR	= linux-$(linux_TAGVER)
 linux_PREFIX	= $(linux_TAR)/
 linux_GIT	= $(shell $(get_fetch_base))/linux.git
 
-MODULES_UPDATE	= $(addsuffix /.update,$(MODULES))
-MODULES_NAMES	= $(foreach m,$(MODULES),$(if $($(m)_TAR),$($(m)_TAR),$(m)))
-MODULES_FILES	= $(addprefix $(SOURCEDIR)/,$(addsuffix $(TARFILE),$(MODULES_NAMES)))
-MODULES_TAR	= $(addsuffix .tar,$(MODULES_NAMES))
-
 %/.update : %/.git Makefile.kernel Makefile | %
 	pushd $* ; $(GIT) clean -f -d -x
 	pushd $* ; $(if $($*_BRANCH),$(call checkout-branch,$($*_BRANCH)),true)
 	touch $@
 
-#sources : $(MODULES_UPDATE)
-
-sources : $(MODULES_FILES)
+sources : $(SOURCEDIR)/$(linux_TAR)$(TAREXT)
 
 .SECONDEXPANSION:
 $(SOURCEDIR)/%.tar.bz2: %.tar | $(SOURCEDIR)
@@ -59,14 +50,11 @@ $(SOURCEDIR)/%.tar.bz2: %.tar | $(SOURCEDIR)
 $(SOURCEDIR)/%.tar.gz: %.tar | $(SOURCEDIR)
 	gzip -f -c $< > $@
 
-$(MODULES) :
+# extracting source code...
+linux :
 	$(GIT) clone --no-hardlinks $($@_GIT) $@
-
-$(addsuffix .tar,$(MODULES)) : %.tar : % %/.git Makefile.kernel Makefile | $(SOURCEDIR)
+linux.tar : %.tar : % %/.git Makefile.kernel Makefile | $(SOURCEDIR)
 	$(GIT) archive --format=tar --prefix $($*_PREFIX) --remote=$* $($*_BASE) > $@
-
-# these targets are required to rename the vanilla $module.tar to the desired
-# tarfile name. one for each module needing it.
 $(linux_TAR).tar : linux.tar
 	ln -sf $< $@
 
@@ -77,7 +65,7 @@ HEADLOG		= $(SOURCEDIR)/head.log
 APPLYLOG	= $(SOURCEDIR)/apply.log
 PATCHLOG	= $(SOURCEDIR)/patch.log
 
-GITDIRS	= $(addsuffix /.git,$(MODULES))
+GITDIRS		= linux/.git
 
 $(CUSTOMSPEC) : $(HEADLOG) $(APPLYLOG) $(PATCHLOG)
 
@@ -97,7 +85,7 @@ endef
 $(HEADLOG): $(GITDIRS) $(MAKEFILE_LIST)
 	TZ=UTC echo "* $$(date +'%a %b %d %Y') Builder <builder@amazon.com>" > $@
 	$(call get_changelist,.,kernel) >> $@
-	$(foreach m,$(MODULES),$(call get_changelist,$(m),$(m),$($(m)_BASE),$($(m)_HEAD)) >>$@ ; ) true
+	$(call get_changelist,linux,linux,$(linux_BASE),$(linux_HEAD)) >>$@
 
 $(PATCHLOG) :
 	echo $@
@@ -111,17 +99,17 @@ clean ::
 define replace_changelog
 $(call get_specfile_changelog,$<) > .cl.spec
 $(call get_gitlog_changelog,$(CHANGELOGS)) > .cl.gitlog
-$(foreach m,$(MODULES),pushd $(m)>/dev/null; $(call get_gitlog_changelog,,$($(m)_BASE),$($(m)_HEAD)) > ../.cl.$(m); popd>/dev/null ;) true
-$(find-common-dir)/sort-changelog.py .cl.spec .cl.gitlog $(addprefix ./.cl.,$(MODULES)) > .cl && \
-	rm -f .cl.spec .cl.gitlog $(addprefix ./.cl.,$(MODULES))
+pushd linux >/dev/null; $(call get_gitlog_changelog,,$(linux_BASE),$(linux_HEAD)) > ../.cl.linux; popd>/dev/null
+$(find-common-dir)/sort-changelog.py .cl.spec .cl.gitlog .cl.linux > .cl && \
+	rm -f .cl.spec .cl.gitlog .cl.linux
 sed -i -e "/^%changelog/Iq" $@
 sed -i -e "/^%changelog/ r .cl" $@ && rm -f .cl
 sed -i -e "/^%changelog/ r $(HEADLOG)" $@ && rm -f $(HEADLOG)
 endef
 
 clean ::
-	rm -fv $(MODULES_FILES) $(MODULES_TAR) $(addsuffix .tar,$(MODULES))
+	rm -fv linux.tar $(linux_TAR) *$(TAREXT)
 
-.SECONDARY : $(MODULES_TAR)
+.SECONDARY : $(linux_TAR)
 
 .PHONY:
