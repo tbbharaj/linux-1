@@ -124,6 +124,10 @@ function finish_tree {
     ptmp=
     topdir=$(git rev-parse --show-toplevel)
     pushd linux-${VTAG##v}*
+    # clean up the state of the extra files put in the tree by the spec file
+    # prep process
+    add_changes
+    git reset
     git push origin HEAD && \
         git push origin --tags
     # generate the linux.vers file
