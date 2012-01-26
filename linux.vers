@@ -1,4 +1,4 @@
-linux_TAGVER	= 3.2.1
+linux_TAGVER	= 3.2
 linux_BASE	= v$(linux_TAGVER)
 linux_BRANCH	= linux-3.2.y
 linux_HEAD	= $(linux_BRANCH)

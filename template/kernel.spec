@@ -1,12 +1,12 @@
 Name: kernel
 Summary: The Linux Kernel
-Version: 3.2.1
+Version: 3.2
 Release: 1%{?dist}
 License: GPL
 Group: System Environment/Kernel
 Vendor: The Linux Community
 URL: http://www.kernel.org
-Source: linux-3.2.1.tar.gz
+Source: linux-%{version}.tar.gz
 
 Source10: kconfig.py
 Source11: Makefile.config
