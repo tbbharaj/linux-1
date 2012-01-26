@@ -1,5 +1,3 @@
-%define dist __DIST_TEMPLATE__
-
 # We have to override the new %%install behavior because, well... the kernel is special.
 %global __spec_install_pre %%{___build_pre}
 
@@ -1627,4 +1625,3 @@ fi
 
 
 %changelog
-# __CHANGELOG_TEMPLATE__
