@@ -149,6 +149,7 @@ EOF
 function patch_tree {
     git_stash
     clean_tree
+    say_yellow "processing patch ${patch:-from stdin}"
     if [ -n "$patch" ] ; then
         if ! git am $ptmp ; then
             if [ -d .git/rebase-apply ] ; then
