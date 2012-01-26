@@ -70,6 +70,48 @@ $(addsuffix .tar,$(MODULES)) : %.tar : % %/.git Makefile.kernel Makefile | $(SOU
 $(linux_TAR).tar : linux.tar
 	ln -sf $< $@
 
+#
+# KERNEL SRC/RPM BUILDING SUPPORT
+#
+HEADLOG	= .cl.head
+
+GITDIRS	= $(addsuffix /.git,$(MODULES))
+
+$(CUSTOMSPEC) : $(HEADLOG)
+
+# extract the top level changelog entry that summarizes the makeup of this build
+# $1 : the directory to change to
+# $2 : what name to use for this module
+# $3..$4 : git commit id range, if any
+define get_changelist
+{ TZ=UTC ; \
+pushd $(1)>/dev/null ; \
+$(GIT) log --date=short --format=tformat:"  - $(2)/%H $(if $(3),$(3)..$(4):)" $(4) -1 ; \
+$(GIT) log --format=tformat:"    - [%h] %s (%ae)" $(if $(3),$(3)..$(4),-1) ; \
+echo ; \
+popd >/dev/null ; }
+endef
+
+$(HEADLOG): $(GITDIRS) $(MAKEFILE_LIST)
+	TZ=UTC echo "* $$(date +'%a %b %d %Y') Builder <builder@amazon.com>" > $@
+	$(call get_changelist,.,kernel) >> $@
+	$(foreach m,$(MODULES),$(call get_changelist,$(m),$(m),$($(m)_BASE),$($(m)_HEAD)) >>$@ ; ) true
+
+clean ::
+	rm -fv $(HEADLOG)
+
+# redefine spec file generation to include git logs from submodules
+define replace_changelog
+$(call get_specfile_changelog,$<) > .cl.spec
+$(call get_gitlog_changelog,$(CHANGELOGS)) > .cl.gitlog
+$(foreach m,$(MODULES),pushd $(m)>/dev/null; $(call get_gitlog_changelog,,$($(m)_BASE),$($(m)_HEAD)) > ../.cl.$(m); popd>/dev/null ;) true
+$(find-common-dir)/sort-changelog.py .cl.spec .cl.gitlog $(addprefix ./.cl.,$(MODULES)) > .cl && \
+	rm -f .cl.spec .cl.gitlog $(addprefix ./.cl.,$(MODULES))
+sed -i -e "/^%changelog/Iq" $@
+sed -i -e "/^%changelog/ r .cl" $@ && rm -f .cl
+sed -i -e "/^%changelog/ r $(HEADLOG)" $@ && rm -f $(HEADLOG)
+endef
+
 clean ::
 	rm -fv $(MODULES_FILES) $(MODULES_TAR) $(addsuffix .tar,$(MODULES))
 
