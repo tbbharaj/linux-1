@@ -114,6 +114,11 @@ add-patches :  $(CUSTOMSPEC) $(APPLYLOG) $(PATCHLOG)
 		-e '/__APPLYFILE_TEMPLATE__/ r $(APPLYLOG)' \
 		$(CUSTOMSPEC)
 
+git-push : git-push-linux
+
+git-push-linux : linux/.git
+	pushd linux ; git push origin $(linux_BRANCH):refs/heads/$(linux_BRANCH) ; git push origin --tags ; popd
+
 clean ::
 	rm -fv linux.tar $(linux_TAR) *$(TAREXT)
 
