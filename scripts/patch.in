@@ -70,8 +70,11 @@ function start_tree {
     rm -rf ../$b.git
     # now add the changes done by our unpacking...
     git add .
-    git commit --quiet --allow-empty -m "start import into $branch"
-    git tag $TAG
+    #git commit --quiet --allow-empty -m "start import into $branch"
+    #git tag $TAG
+    if [ $(git status --short|wc -l) -gt 0 ] ; then
+        git stash
+    fi
 }
 
 function clean_tree {
@@ -127,9 +130,21 @@ EOF
 }
 
 function patch_tree {
+    # undo a previous stash to keep the state of the tree clean
+    while  [ -n "$(git stash list)" ] ; do
+        git stash pop
+    done
+
     # attempt to save the state of tree changes done via non-patch actions
     # (such as copying stuff in between patches, etc)
-    commit_tree_if_needed "pre-patch tree changes $patch"
+    if [ $(git status --short|wc -l) -gt 0 ] ; then
+        # handle new/changed files
+        git add .
+        # handle removed files
+        git status --short | grep -E '^.?D' | awk '{print $2}' | xargs -r git rm
+        # stash the changes away
+        git stash
+    fi
     clean_tree
 
     if [ -n "$patch" ] ; then
