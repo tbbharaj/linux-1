@@ -67,7 +67,7 @@ PATCHLOG	= $(SOURCEDIR)/patch.log
 
 GITDIRS		= linux/.git
 
-$(CUSTOMSPEC) : $(HEADLOG) $(APPLYLOG) $(PATCHLOG)
+$(CUSTOMSPEC) : $(HEADLOG)
 
 # extract the top level changelog entry that summarizes the makeup of this build
 # $1 : the directory to change to
@@ -87,10 +87,11 @@ $(HEADLOG): $(GITDIRS) $(MAKEFILE_LIST)
 	$(call get_changelist,.,kernel) >> $@
 	$(call get_changelist,linux,linux,$(linux_BASE),$(linux_HEAD)) >>$@
 
-$(PATCHLOG) :
-	echo $@
+$(PATCHLOG) : linux/.git $(MAKEFILE_LIST)
+	cd linux ; git format-patch -k -o $(SOURCEDIR) -N $(linux_BASE)..$(linux_HEAD) >$@
+	sed -i "s,$(SOURCEDIR)/,,; s/^\(....\)-/Patch\1: \1-/" $@
 $(APPLYLOG) : $(PATCHLOG)
-	echo >$@
+	sed "s,.*:,ApplyPatch," <$< >$@
 
 clean ::
 	rm -fv $(HEADLOG) $(APPLYLOG) $(PATCHLOG)
@@ -107,9 +108,16 @@ sed -i -e "/^%changelog/ r .cl" $@ && rm -f .cl
 sed -i -e "/^%changelog/ r $(HEADLOG)" $@ && rm -f $(HEADLOG)
 endef
 
+sources : add-patches | $(CUSTOMSPEC)
+add-patches :  $(CUSTOMSPEC) $(APPLYLOG) $(PATCHLOG)
+	sed -i  -e '/__PATCHFILE_TEMPLATE__/ r $(PATCHLOG)' \
+		-e '/__APPLYFILE_TEMPLATE__/ r $(APPLYLOG)' \
+		$(CUSTOMSPEC)
+
 clean ::
 	rm -fv linux.tar $(linux_TAR) *$(TAREXT)
 
 .SECONDARY : $(linux_TAR)
 
 .PHONY:
+
