@@ -73,11 +73,13 @@ $(linux_TAR).tar : linux.tar
 #
 # KERNEL SRC/RPM BUILDING SUPPORT
 #
-HEADLOG	= .cl.head
+HEADLOG		= $(SOURCEDIR)/head.log
+APPLYLOG	= $(SOURCEDIR)/apply.log
+PATCHLOG	= $(SOURCEDIR)/patch.log
 
 GITDIRS	= $(addsuffix /.git,$(MODULES))
 
-$(CUSTOMSPEC) : $(HEADLOG)
+$(CUSTOMSPEC) : $(HEADLOG) $(APPLYLOG) $(PATCHLOG)
 
 # extract the top level changelog entry that summarizes the makeup of this build
 # $1 : the directory to change to
@@ -97,8 +99,13 @@ $(HEADLOG): $(GITDIRS) $(MAKEFILE_LIST)
 	$(call get_changelist,.,kernel) >> $@
 	$(foreach m,$(MODULES),$(call get_changelist,$(m),$(m),$($(m)_BASE),$($(m)_HEAD)) >>$@ ; ) true
 
+$(PATCHLOG) :
+	echo $@
+$(APPLYLOG) : $(PATCHLOG)
+	echo >$@
+
 clean ::
-	rm -fv $(HEADLOG)
+	rm -fv $(HEADLOG) $(APPLYLOG) $(PATCHLOG)
 
 # redefine spec file generation to include git logs from submodules
 define replace_changelog
