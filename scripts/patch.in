@@ -132,7 +132,7 @@ EOF
 function patch_tree {
     # undo a previous stash to keep the state of the tree clean
     while  [ -n "$(git stash list)" ] ; do
-        git stash pop
+        git stash pop --quiet
     done
 
     # attempt to save the state of tree changes done via non-patch actions
