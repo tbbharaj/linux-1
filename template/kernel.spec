@@ -477,7 +477,7 @@ BuildRequires: rpm-build >= 4.4.2.1-4
 %define debuginfo_args --strict-build-id
 %endif
 
-Source0: ftp://ftp.kernel.org/pub/linux/kernel/v2.6/linux-%{kversion}.tar.bz2
+Source0: linux-%{kversion}.tar.gz
 Source1: linux-%{kversion}-patches.tar.gz
 
 Source11: genkey
