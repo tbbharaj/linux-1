@@ -123,9 +123,7 @@ function commit_tree_if_needed {
 function finish_tree {
     ptmp=
     topdir=$(git rev-parse --show-toplevel)
-    pushd linux-${VTAG##v}* && \
-        commit_tree_if_needed "finalized prep"
-    clean_tree
+    pushd linux-${VTAG##v}*
     git push origin HEAD && \
         git push origin --tags
     # generate the linux.vers file
