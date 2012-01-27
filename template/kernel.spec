@@ -74,7 +74,7 @@ Summary: The Linux kernel
 # kernel-smp (only valid for ppc 32-bit)
 %define with_smp       %{?_without_smp:       0} %{?!_without_smp:       0}
 # kernel-debug
-%define with_debug     %{?_without_debug:     0} %{?!_without_debug:     1}
+%define with_debug     %{?_without_debug:     0} %{?!_without_debug:     0}
 # kernel-doc
 %define with_doc       %{?_without_doc:       0} %{?!_without_doc:       1}
 # kernel-headers
@@ -118,7 +118,7 @@ Summary: The Linux kernel
 # Set debugbuildsenabled to 1 for production (build separate debug kernels)
 #  and 0 for rawhide (all kernels are debug kernels).
 # See also 'make debug' and 'make release'.
-%define debugbuildsenabled 1
+%define debugbuildsenabled 0
 
 # do we want the oldconfig run over the config files (when regenerating
 # configs this should be avoided in order to save duplicate work...)
@@ -447,13 +447,10 @@ Source11: genkey
 Source14: find-provides
 Source15: kconfig.py
 
-Source20: Makefile.config
-Source21: config-debug-generic
-Source22: config-nodebug-generic
-Source23: config-generic
+Source19: Makefile.config
 
+Source20: config-generic
 Source30: config-x86-generic
-
 Source40: config-x86_64-generic
 
 Source200: perf
@@ -817,7 +814,7 @@ cp $RPM_SOURCE_DIR/config-* .
 cp %{SOURCE15} .
 
 # Dynamically generate kernel .config files from config-* files
-make -f %{SOURCE20} VERSION=%{version} config
+make -f %{SOURCE19} VERSION=%{version} config
 
 #if a rhel kernel, apply the rhel config options
 %if 0%{?rhel}
