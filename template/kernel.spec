@@ -172,9 +172,6 @@ Summary: The Linux kernel
 %endif
 %define debuginfodir /usr/lib/debug
 
-# amazon: default kernel already has PAE enabled, so we don't need a special build
-%define with_pae 0
-
 # if requested, only build base kernel
 %if %{with_baseonly}
 %define with_smp 0
@@ -193,7 +190,6 @@ Summary: The Linux kernel
 %define with_up 0
 %endif
 %define with_smp 0
-%define with_pae 0
 %define with_perftool 0
 %endif
 
@@ -309,15 +305,9 @@ Summary: The Linux kernel
 %ifarch %nobuildarches
 %define with_up 0
 %define with_smp 0
-%define with_pae 0
 %define with_debuginfo 0
 %define with_perftool 0
 %define _enable_debug_packages 0
-%endif
-
-%define with_pae_debug 0
-%if %{with_pae}
-%define with_pae_debug %{with_debug}
 %endif
 
 #
@@ -595,29 +585,6 @@ hyperthreading technology.
 Install the kernel-smp package if your machine uses two or more CPUs.
 
 
-%define variant_summary The Linux kernel compiled for PAE capable machines
-%kernel_variant_package PAE
-%description PAE
-This package includes a version of the Linux kernel with support for up to
-64GB of high memory. It requires a CPU with Physical Address Extensions (PAE).
-The non-PAE kernel can only address up to 4GB of memory.
-Install the kernel-PAE package if your machine has more than 4GB of memory.
-
-
-%define variant_summary The Linux kernel compiled with extra debugging enabled for PAE capable machines
-%kernel_variant_package PAEdebug
-Obsoletes: kernel-PAE-debug
-%description PAEdebug
-This package includes a version of the Linux kernel with support for up to
-64GB of high memory. It requires a CPU with Physical Address Extensions (PAE).
-The non-PAE kernel can only address up to 4GB of memory.
-Install the kernel-PAE package if your machine has more than 4GB of memory.
-
-This variant of the kernel has numerous debugging options enabled.
-It should only be installed when trying to gather additional information
-on kernel bugs, as some of these options impact performance noticably.
-
-
 %define variant_summary The Linux kernel compiled with extra debugging enabled
 %kernel_variant_package debug
 %description debug
@@ -634,7 +601,7 @@ on kernel bugs, as some of these options impact performance noticably.
 %prep
 # do a few sanity-checks for --with *only builds
 %if %{with_baseonly}
-%if !%{with_up}%{with_pae}
+%if !%{with_up}
 echo "Cannot build --with baseonly, up build is disabled"
 exit 1
 %endif
@@ -1138,14 +1105,6 @@ cd linux-%{kversion}.%{_target_cpu}
 BuildKernel %make_target %kernel_image debug
 %endif
 
-%if %{with_pae_debug}
-BuildKernel %make_target %kernel_image PAEdebug
-%endif
-
-%if %{with_pae}
-BuildKernel %make_target %kernel_image PAE
-%endif
-
 %if %{with_up}
 BuildKernel %make_target %kernel_image
 %endif
@@ -1350,14 +1309,8 @@ fi}\
 %kernel_variant_preun smp
 %kernel_variant_post -v smp
 
-%kernel_variant_preun PAE
-%kernel_variant_post -v PAE -r (kernel|kernel-smp)
-
 %kernel_variant_preun debug
 %kernel_variant_post -v debug
-
-%kernel_variant_post -v PAEdebug -r (kernel|kernel-smp)
-%kernel_variant_preun PAEdebug
 
 if [ -x /sbin/ldconfig ]
 then
@@ -1471,8 +1424,5 @@ fi
 %kernel_variant_files %{with_up}
 %kernel_variant_files %{with_smp} smp
 %kernel_variant_files %{with_debug} debug
-%kernel_variant_files %{with_pae} PAE
-%kernel_variant_files %{with_pae_debug} PAEdebug
-
 
 %changelog
