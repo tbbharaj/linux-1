@@ -50,13 +50,9 @@ Summary: The Linux kernel
 # on top of -- for example, 2.6.22-rc7-git1 starts with a 2.6.21 base,
 # which yields a base_sublevel of 21.
 %define base_sublevel 34
+#define stablerev 7
 
-# Do we have a -stable update to apply?
-%define stable_update 7
-%define stablerev .%{stable_update}
-%define stable_base %{stable_update}
-
-%define rpmversion 2.6.%{base_sublevel}%{?stablerev}
+%define rpmversion 2.6.%{base_sublevel}%{?stablerev:.%{stablerev}}
 
 # What parts do we want to build?  We must build at least one kernel.
 # These are the kernels that are built IF the architecture allows it.
@@ -129,7 +125,7 @@ Summary: The Linux kernel
 %define with_vanilla %{?_with_vanilla: 1} %{?!_with_vanilla: 0}
 
 # pkg_release is what we'll fill in for the rpm Release: field
-%define pkg_release %{fedora_build}%{?stable_rctag}%{?buildid}%{?dist}
+%define pkg_release %{fedora_build}%{?buildid}%{?dist}
 
 # The kernel tarball/base version
 %define kversion 2.6.%{base_sublevel}
@@ -157,7 +153,6 @@ Summary: The Linux kernel
 
 %define using_upstream_branch 0
 %if 0%{?upstream_branch:1}
-%define stable_update 0
 %define using_upstream_branch 1
 %define variant -%{upstream_branch}%{?variant_fedora}
 %define pkg_release 0.%{fedora_build}%{upstream_branch_tag}%{?buildid}%{?dist}
@@ -897,7 +892,7 @@ BuildKernel() {
     echo BUILDING A KERNEL FOR ${Flavour} %{_target_cpu}...
 
     # make sure EXTRAVERSION says what we want it to say
-    perl -p -i -e "s/^EXTRAVERSION.*/EXTRAVERSION = %{?stablerev}-%{release}.%{_target_cpu}${Flavour:+.${Flavour}}/" Makefile
+    perl -p -i -e "s/^EXTRAVERSION.*/EXTRAVERSION = %{?stablerev:.{stablerev}-}%{release}.%{_target_cpu}${Flavour:+.${Flavour}}/" Makefile
 
     # if pre-rc1 devel kernel, must fix up SUBLEVEL for our versioning scheme
     %if !0%{?rcrev}
