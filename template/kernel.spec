@@ -272,13 +272,6 @@ Summary: The Linux kernel
 %define kernel_image_elf 1
 %endif
 
-%ifarch ia64
-%define all_arch_configs kernel-%{version}-ia64*.config
-%define image_install_path boot/efi/EFI/redhat
-%define make_target compressed
-%define kernel_image vmlinux.gz
-%endif
-
 %ifarch %{arm}
 %define all_arch_configs kernel-%{version}-arm*.config
 %define image_install_path boot
@@ -406,7 +399,7 @@ Version: %{rpmversion}
 Release: %{pkg_release}
 # DO NOT CHANGE THE 'ExclusiveArch' LINE TO TEMPORARILY EXCLUDE AN ARCHITECTURE BUILD.
 # SET %%nobuildarches (ABOVE) INSTEAD
-ExclusiveArch: noarch %{all_x86} x86_64 ppc ppc64 ia64  %{arm}
+ExclusiveArch: noarch %{all_x86} x86_64 ppc ppc64 %{arm}
 ExclusiveOS: Linux
 
 %kernel_reqprovconf
