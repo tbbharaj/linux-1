@@ -108,7 +108,7 @@ sed -i -e "/^%changelog/ r .cl" $@ && rm -f .cl
 sed -i -e "/^%changelog/ r $(HEADLOG)" $@ && rm -f $(HEADLOG)
 endef
 
-sources : add-patches | $(CUSTOMSPEC)
+specfile sources : add-patches | $(CUSTOMSPEC)
 add-patches :  $(CUSTOMSPEC) $(APPLYLOG) $(PATCHLOG)
 	sed -i  -e '/__PATCHFILE_TEMPLATE__/ r $(PATCHLOG)' \
 		-e '/__APPLYFILE_TEMPLATE__/ r $(APPLYLOG)' \
