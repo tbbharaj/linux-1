@@ -267,15 +267,6 @@ Summary: The Linux kernel
 %define kernel_image_elf 1
 %endif
 
-%ifarch s390x
-%define asmarch s390
-%define hdrarch s390
-%define all_arch_configs kernel-%{version}-s390x.config
-%define image_install_path boot
-%define make_target image
-%define kernel_image arch/s390/boot/image
-%endif
-
 %ifarch sparc64
 %define asmarch sparc
 %define all_arch_configs kernel-%{version}-sparc64*.config
@@ -341,7 +332,7 @@ Summary: The Linux kernel
 
 # We don't build a kernel on i386; we only do kernel-headers there,
 # and we no longer build for 31bit s390. Same for 32bit sparc and arm.
-%define nobuildarches i386 i486 i586 s390 sparc %{arm}
+%define nobuildarches i386 i486 i586 sparc %{arm}
 
 %ifarch %nobuildarches
 %define with_up 0
@@ -436,7 +427,7 @@ Version: %{rpmversion}
 Release: %{pkg_release}
 # DO NOT CHANGE THE 'ExclusiveArch' LINE TO TEMPORARILY EXCLUDE AN ARCHITECTURE BUILD.
 # SET %%nobuildarches (ABOVE) INSTEAD
-ExclusiveArch: noarch %{all_x86} x86_64 ppc ppc64 ia64 sparc sparc64 s390 s390x alpha alphaev56 %{arm}
+ExclusiveArch: noarch %{all_x86} x86_64 ppc ppc64 ia64 sparc sparc64 alpha alphaev56 %{arm}
 ExclusiveOS: Linux
 
 %kernel_reqprovconf
