@@ -206,11 +206,6 @@ Summary: The Linux kernel
 
 # Overrides for generic default options
 
-# only ppc and alphav56 need separate smp kernels
-%ifnarch ppc alphaev56
-%define with_smp 0
-%endif
-
 # don't do debug builds on anything but i686 and x86_64
 %ifnarch i686 x86_64
 %define with_debug 0
@@ -236,7 +231,7 @@ Summary: The Linux kernel
 %endif
 
 # sparse blows up on ppc64 alpha and sparc64
-%ifarch ppc64 ppc alpha sparc64
+%ifarch ppc64 ppc sparc64
 %define with_sparse 0
 %endif
 
@@ -291,13 +286,6 @@ Summary: The Linux kernel
 %define image_install_path boot/efi/EFI/redhat
 %define make_target compressed
 %define kernel_image vmlinux.gz
-%endif
-
-%ifarch alpha alphaev56
-%define all_arch_configs kernel-%{version}-alpha*.config
-%define image_install_path boot
-%define make_target vmlinux
-%define kernel_image vmlinux
 %endif
 
 %ifarch %{arm}
@@ -427,7 +415,7 @@ Version: %{rpmversion}
 Release: %{pkg_release}
 # DO NOT CHANGE THE 'ExclusiveArch' LINE TO TEMPORARILY EXCLUDE AN ARCHITECTURE BUILD.
 # SET %%nobuildarches (ABOVE) INSTEAD
-ExclusiveArch: noarch %{all_x86} x86_64 ppc ppc64 ia64 sparc sparc64 alpha alphaev56 %{arm}
+ExclusiveArch: noarch %{all_x86} x86_64 ppc ppc64 ia64 sparc sparc64  %{arm}
 ExclusiveOS: Linux
 
 %kernel_reqprovconf
