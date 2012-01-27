@@ -3,8 +3,10 @@
 # Makefle for re-generating the config-* files when options change
 
 RPMBUILD        = /usr/bin/rpmbuild
-RPMDEFINES      = ntopdir builddir sourcedir specdir rpmdir srcrpmdir
-RPM             = $(RPMBUILD) --define "_topdir $(SOURCEDIR)" $(foreach def,$(RPMDEFINES),--define "_$(def) %{_topdir}")
+RPMDEFINES_top  = ntopdir builddir specdir rpmdir srcrpmdir
+RPMDEFINES_srpm = sourcedir
+RPM             = $(RPMBUILD) --define "_topdir $(CURDIR)" $(foreach def,$(RPMDEFINES_top),--define "_$(def) %{_topdir}") \
+		  $(foreach def,$(RPMDEFINES_srpm),--define "_$(def) $(SOURCEDIR)")
 
 KCONFIG         = $(SOURCEDIR)/kconfig.py
 MAKECONFIG	= $(SOURCEDIR)/Makefile.config

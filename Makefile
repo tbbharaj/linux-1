@@ -33,6 +33,6 @@ else
 include Makefile.kernel
 
 reconfig reconfig-prep :: Makefile.reconfig sources
-	make -f $< $@ SOURCEDIR=$(SOURCEDIR) SPECFILE=$(CUSTOMSPEC)
+	$(MAKE) -f $< $@ SOURCEDIR=$(SOURCEDIR) SPECFILE=$(CUSTOMSPEC)
 
 endif
