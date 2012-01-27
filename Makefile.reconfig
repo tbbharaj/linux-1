@@ -12,7 +12,8 @@ KCONFIG         = $(SOURCEDIR)/kconfig.py
 MAKECONFIG	= $(SOURCEDIR)/Makefile.config
 CONFIGS         = config-generic config-x86_32-generic config-x86_64-generic
 
-KVERSION        = 3.2.1
+include linux.vers
+KVERSION        = $(linux_TAGVER)
 KARCH		= $(shell uname -m)
 
 KBUILD		= $(firstword $(wildcard $(SOURCEDIR)/linux-$(KVERSION)))
