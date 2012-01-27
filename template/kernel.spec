@@ -230,8 +230,8 @@ Summary: The Linux kernel
 %define with_bootwrapper 0
 %endif
 
-# sparse blows up on ppc64 alpha and sparc64
-%ifarch ppc64 ppc sparc64
+# sparse blows up on ppc64 
+%ifarch ppc64 ppc
 %define with_sparse 0
 %endif
 
@@ -260,15 +260,6 @@ Summary: The Linux kernel
 %define make_target vmlinux
 %define kernel_image vmlinux
 %define kernel_image_elf 1
-%endif
-
-%ifarch sparc64
-%define asmarch sparc
-%define all_arch_configs kernel-%{version}-sparc64*.config
-%define make_target image
-%define kernel_image arch/sparc/boot/image
-%define image_install_path boot
-%define with_perftool 0
 %endif
 
 %ifarch ppc
@@ -319,8 +310,8 @@ Summary: The Linux kernel
 # Which is a BadThing(tm).
 
 # We don't build a kernel on i386; we only do kernel-headers there,
-# and we no longer build for 31bit s390. Same for 32bit sparc and arm.
-%define nobuildarches i386 i486 i586 sparc %{arm}
+# and we no longer build for 31bit s390. Same for 32bit and arm.
+%define nobuildarches i386 i486 i586 %{arm}
 
 %ifarch %nobuildarches
 %define with_up 0
@@ -415,11 +406,11 @@ Version: %{rpmversion}
 Release: %{pkg_release}
 # DO NOT CHANGE THE 'ExclusiveArch' LINE TO TEMPORARILY EXCLUDE AN ARCHITECTURE BUILD.
 # SET %%nobuildarches (ABOVE) INSTEAD
-ExclusiveArch: noarch %{all_x86} x86_64 ppc ppc64 ia64 sparc sparc64  %{arm}
+ExclusiveArch: noarch %{all_x86} x86_64 ppc ppc64 ia64  %{arm}
 ExclusiveOS: Linux
 
 %kernel_reqprovconf
-%ifarch x86_64 sparc64
+%ifarch x86_64
 Obsoletes: kernel-smp
 %endif
 
