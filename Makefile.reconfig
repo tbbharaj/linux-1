@@ -16,8 +16,8 @@ CONFIGS         = config-generic config-x86_32-generic config-x86_64-generic
 include linux.vers
 KVERSION        = $(linux_TAGVER)
 KARCH		= $(shell uname -m)
-
-KBUILD		= $(firstword $(wildcard linux-$(KVERSION)))
+KERNEL_KVER     = kernel-$(KVERSION).*
+KBUILD          = $(firstword $(wildcard $(KERNEL_KVER)/linux-$(KVERSION)*.$(KARCH)))
 
 # this target regenerates the config-* files after re-running them through "make oldconfig"
 reconfig : reconfig-clean $(KCONFIG) $(CONFIGS)
@@ -41,6 +41,7 @@ $(NEWCONFIGS) : reconfig-newconfigs
 ifeq ($(KBUILD),)
 reconfig-clean:
 	@echo "Could not find a suitable prepped linux kernel tree to perform config work"
+	@echo "Looking after $(KERNEL_KVER)/linux-$(KVERSION)*.$(KARCH)"
 	@echo "You should probably run 'make reconfig-prep' first"
 	@exit -1
 else
