@@ -123,11 +123,13 @@ clean ::
 
 # redefine spec file generation to include git logs from submodules
 define replace_changelog
+>.cl.spec
+>.cl.gitlog
+>.cl.linux
 $(call get_specfile_changelog,$<) > .cl.spec
 $(call get_gitlog_changelog,$(CHANGELOGS)) > .cl.gitlog
-pushd linux >/dev/null; $(call get_gitlog_changelog,,$(linux_BASE),$(linux_HEAD)) > ../.cl.linux; popd>/dev/null
-$(find-common-dir)/sort-changelog.py .cl.spec .cl.gitlog .cl.linux > .cl && \
-	rm -f .cl.spec .cl.gitlog .cl.linux
+#pushd linux >/dev/null; $(call get_gitlog_changelog,,$(linux_PATCH_BASE),$(linux_PATCH_HEAD)) > ../.cl.linux; popd>/dev/null
+$(find-common-dir)/sort-changelog.py .cl.spec .cl.gitlog .cl.linux > .cl && rm -f .cl.spec .cl.gitlog .cl.linux
 sed -i -e "/^%changelog/Iq" $@
 sed -i -e "/^%changelog/ r .cl" $@ && rm -f .cl
 sed -i -e "/^%changelog/ r $(HEADLOG)" $@ && rm -f $(HEADLOG)
