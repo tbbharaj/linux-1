@@ -1,3 +1,5 @@
+%global kversion 3.2.2
+
 Name: kernel
 Summary: The Linux Kernel
 Version: 3.2
@@ -19,7 +21,7 @@ Source22: config-x86_64-generic
 # __PATCHFILE_TEMPLATE__
 
 BuildRoot: %{_tmppath}/%{name}-%{PACKAGE_VERSION}-root
-Provides: kernel-drm kernel-3.2.1
+Provides: kernel-drm kernel-%{kversion}
 %define __spec_install_post /usr/lib/rpm/brp-compress || :
 %define debug_package %{nil}
 
@@ -97,15 +99,15 @@ mkdir -p $RPM_BUILD_ROOT/boot $RPM_BUILD_ROOT/lib/modules
 mkdir -p $RPM_BUILD_ROOT/lib/firmware
 
 INSTALL_MOD_PATH=$RPM_BUILD_ROOT make %{?_smp_mflags} KBUILD_SRC= modules_install
-cp $KBUILD_IMAGE $RPM_BUILD_ROOT/boot/vmlinuz-3.2.1
+cp $KBUILD_IMAGE $RPM_BUILD_ROOT/boot/vmlinuz-%{kversion}
 
 make %{?_smp_mflags} INSTALL_HDR_PATH=$RPM_BUILD_ROOT/usr headers_install
-cp System.map $RPM_BUILD_ROOT/boot/System.map-3.2.1
-cp .config $RPM_BUILD_ROOT/boot/config-3.2.1
+cp System.map $RPM_BUILD_ROOT/boot/System.map-%{kversion}
+cp .config $RPM_BUILD_ROOT/boot/config-%{kversion}
 
 cp vmlinux vmlinux.orig
 bzip2 -9 vmlinux
-mv vmlinux.bz2 $RPM_BUILD_ROOT/boot/vmlinux-3.2.1.bz2
+mv vmlinux.bz2 $RPM_BUILD_ROOT/boot/vmlinux-%{kversion}.bz2
 mv vmlinux.orig vmlinux
 
 %clean
@@ -114,7 +116,7 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr (-, root, root)
 %dir /lib/modules
-/lib/modules/3.2.1
+/lib/modules/%{kversion}
 /lib/firmware
 /boot/*
 
