@@ -3,3 +3,4 @@ linux_TAR_BASE         = v$(linux_TAGVER)
 linux_PATCH_BASE       = v3.2.1
 linux_BRANCH           = linux-3.2.y
 linux_PATCH_HEAD       = $(linux_BRANCH)
+linux_TAG              = kernel-$(linux_TAGVER)/$(BUILDID)

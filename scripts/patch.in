@@ -134,10 +134,11 @@ function finish_tree {
     popd
     say_yellow "Updating the linux.vers file..."
     cat >${topdir}/linux.vers <<EOF
-linux_TAGVER	= ${VTAG##v}
-linux_BASE	= v\$(linux_TAGVER)
-linux_BRANCH	= ${BRANCH}
-linux_HEAD	= \$(linux_BRANCH)
+linux_TAGVER	 = ${VTAG##v}
+linux_TAR_BASE	 = v\$(linux_TAGVER)
+linux_PATCH_BASE = \$(linux_TAR_BASE)
+linux_BRANCH	 = ${BRANCH}
+linux_PATCH_HEAD = \$(linux_BRANCH)
 EOF
 }
 
