@@ -894,13 +894,6 @@ BuildKernel() {
     # make sure EXTRAVERSION says what we want it to say
     perl -p -i -e "s/^EXTRAVERSION.*/EXTRAVERSION = %{?stablerev:.{stablerev}-}%{release}.%{_target_cpu}${Flavour:+.${Flavour}}/" Makefile
 
-    # if pre-rc1 devel kernel, must fix up SUBLEVEL for our versioning scheme
-    %if !0%{?rcrev}
-    %if 0%{?gitrev}
-    perl -p -i -e 's/^SUBLEVEL.*/SUBLEVEL = %{upstream_sublevel}/' Makefile
-    %endif
-    %endif
-
     # and now to start the build process
 
     make -s mrproper
