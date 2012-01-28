@@ -75,7 +75,9 @@ ApplyPatch()
 }
 
 %setup -q -a1 -n linux-%{version}
-for p in `cat linux-%{version}-patches.tar.list` ; do
+patch_list=$(basename %{SOURCE1})
+patch_list=${patch_list%.*}.list
+for p in `cat $patch_list` ; do
   ApplyNoCheckPatch ${p}
 done
 
