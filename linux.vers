@@ -1,4 +1,5 @@
-linux_TAGVER	= 3.2
-linux_BASE	= v$(linux_TAGVER)
-linux_BRANCH	= linux-3.2.y
-linux_HEAD	= $(linux_BRANCH)
+linux_TAGVER           = 3.2
+linux_TAR_BASE         = v$(linux_TAGVER)
+linux_PATCH_BASE       = v3.2.1
+linux_BRANCH           = linux-3.2.y
+linux_PATCH_HEAD       = $(linux_BRANCH)

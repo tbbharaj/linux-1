@@ -6,7 +6,9 @@ License: GPL
 Group: System Environment/Kernel
 Vendor: The Linux Community
 URL: http://www.kernel.org
-Source: linux-%{version}.tar.gz
+
+Source0: linux-%{version}.tar.gz
+Source1: linux-%{version}-patches.tar.gz
 
 Source10: kconfig.py
 Source11: Makefile.config
@@ -38,6 +40,18 @@ glibc package.
 
 %prep
 patch_command='patch -p1 -F1 -s'
+
+ApplyNoCheckPatch()
+{
+  local patch=$1
+  shift
+  case "$patch" in
+    *.bz2) bunzip2 < "$RPM_SOURCE_DIR/$patch" | $patch_command ${1+"$@"} ;;
+    *.gz) gunzip < "$RPM_SOURCE_DIR/$patch" | $patch_command ${1+"$@"} ;;
+    *) $patch_command ${1+"$@"} < $patch ;;
+  esac
+}
+
 ApplyPatch()
 {
   local patch=$1
@@ -58,7 +72,10 @@ ApplyPatch()
   esac
 }
 
-%setup -q -n linux-%{version}
+%setup -q -a1 -n linux-%{version}
+for p in `cat linux-%{version}-patches.tar.list` ; do
+  ApplyNoCheckPatch ${p}
+done
 
 # __APPLYFILE_TEMPLATE__
 
