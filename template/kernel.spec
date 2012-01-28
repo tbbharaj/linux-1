@@ -63,12 +63,8 @@ Summary: The Linux kernel
 # Use either --without <opt> in your rpmbuild command or force values
 # to 0 in here to disable them.
 #
-# amazon: "up" in this case is teh standard kernel we compile with SMP
-# support, so we disable the smp kernel flavor --gafton
 # standard kernel
 %define with_up        %{?_without_up:        0} %{?!_without_up:        1}
-# kernel-smp (only valid for ppc 32-bit)
-%define with_smp       %{?_without_smp:       0} %{?!_without_smp:       0}
 # kernel-debug
 %define with_debug     %{?_without_debug:     0} %{?!_without_debug:     0}
 # kernel-doc
@@ -269,7 +265,6 @@ Summary: The Linux kernel
 
 %ifarch %nobuildarches
 %define with_up 0
-%define with_smp 0
 %define with_debuginfo 0
 %define with_perftool 0
 %define _enable_debug_packages 0
@@ -1048,10 +1043,6 @@ BuildKernel %make_target %kernel_image debug
 BuildKernel %make_target %kernel_image
 %endif
 
-%if %{with_smp}
-BuildKernel %make_target %kernel_image smp
-%endif
-
 %if %{with_doc}
 # Make the HTML and man pages.
 make -s %{?_smp_mflags} htmldocs mandocs || %{doc_build_fail}
@@ -1361,7 +1352,6 @@ fi
 
 
 %kernel_variant_files %{with_up}
-%kernel_variant_files %{with_smp} smp
 %kernel_variant_files %{with_debug} debug
 
 %changelog
