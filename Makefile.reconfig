@@ -16,7 +16,7 @@ include linux.vers
 KVERSION        = $(linux_TAGVER)
 KARCH		= $(shell uname -m)
 
-KBUILD		= $(firstword $(wildcard $(SOURCEDIR)/linux-$(KVERSION)))
+KBUILD		= $(firstword $(wildcard linux-$(KVERSION)))
 
 # this target regenerates the config-* files after re-running them through "make oldconfig"
 reconfig : reconfig-clean $(KCONFIG) $(CONFIGS)
