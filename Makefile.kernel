@@ -155,6 +155,33 @@ update-sources : $(CUSTOMSPEC) tarballs $(MAKEFILE_LIST)
 	sed -i -r -e "s/^Source0:.*$$/Source0: $(linux_TAR_ball)$(TAREXT)/i" \
 		  -e "s/^Source1:.*$$/Source1: $(linux_PATCH_ball)$(TAREXT)/i" $<
 
+# check if the tag exists both in local and remote sites and optionally blow it away
+define check-or-delete-tag
+if $(GIT) show-ref --verify --quiet refs/tags/$(1) ; then \
+	$(if $(FORCE)$(3),$(GIT) tag -d $(1),echo "ERROR: tag $(1) already exists in `pwd`" ; exit -1 ); \
+fi ; \
+$(GIT) fetch origin --tags ; \
+if $(GIT) show-ref --verify --quiet refs/tags/$(1) ; then \
+	$(if $(FORCE)$(3),$(GIT) tag -d $(1); $(GIT) push origin :refs/tags/$(1),\
+		echo "ERROR: tag $(1) already exists on remote site" ; exit -1 ); \
+fi
+endef
+
+# create the tag here
+define add-tag
+$(call check-or-delete-tag,$(1),$(2)) ; \
+git tag $(1) $(if $(2),$(2),HEAD)
+endef
+
+tag : linux-update | linux
+	$(call add-tag,$(linux_TAG))
+	pushd linux >/dev/null ; $(call add-tag,$(linux_TAG),$(linux_PATCH_HEAD)) ; popd >/dev/null
+force-tag :
+	$(MAKE) tag FORCE=1
+delete-tag : | linux
+	$(call check-or-delete-tag,$(linux_TAG),,delete)
+	pushd linux >/dev/null ; $(call check-or-delete-tag,$(linux_TAG),,delete) ; popd >/dev/null
+
 git-push : git-push-linux
 
 git-push-linux : linux
