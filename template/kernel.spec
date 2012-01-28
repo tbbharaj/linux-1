@@ -99,15 +99,6 @@ Summary: The Linux kernel
 %define with_doc 0
 %endif
 
-# Additional options for user-friendly one-off kernel building:
-#
-# Only build the base kernel (--with baseonly):
-%define with_baseonly  %{?_with_baseonly:     1} %{?!_with_baseonly:     0}
-# Only build the smp kernel (--with smponly):
-%define with_smponly   %{?_with_smponly:      1} %{?!_with_smponly:      0}
-# Only build the debug kernel (--with dbgonly):
-%define with_dbgonly   %{?_with_dbgonly:      1} %{?!_with_dbgonly:      0}
-
 # should we do C=1 builds with sparse
 %define with_sparse	%{?_with_sparse:      1} %{?!_with_sparse:      0}
 
@@ -166,27 +157,6 @@ Summary: The Linux kernel
 %define _enable_debug_packages 0
 %endif
 %define debuginfodir /usr/lib/debug
-
-# if requested, only build base kernel
-%if %{with_baseonly}
-%define with_smp 0
-%define with_debug 0
-%endif
-
-# if requested, only build smp kernel
-%if %{with_smponly}
-%define with_up 0
-%define with_debug 0
-%endif
-
-# if requested, only build debug kernel
-%if %{with_dbgonly}
-%if %{debugbuildsenabled}
-%define with_up 0
-%endif
-%define with_smp 0
-%define with_perftool 0
-%endif
 
 %define all_x86 i386 i686
 
@@ -594,21 +564,6 @@ on kernel bugs, as some of these options impact performance noticably.
 
 
 %prep
-# do a few sanity-checks for --with *only builds
-%if %{with_baseonly}
-%if !%{with_up}
-echo "Cannot build --with baseonly, up build is disabled"
-exit 1
-%endif
-%endif
-
-%if %{with_smponly}
-%if !%{with_smp}
-echo "Cannot build --with smponly, smp build is disabled"
-exit 1
-%endif
-%endif
-
 # more sanity checking; do it quietly
 if [ "%{patches}" != "%%{patches}" ] ; then
   for patch in %{patches} ; do
