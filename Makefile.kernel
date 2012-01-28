@@ -57,11 +57,6 @@ linux_PATCH_ball = linux-$(linux_TAGVER)-patches
 
 linux_GIT	= $(shell $(get_fetch_base))/linux.git
 
-%/.update : %/.git Makefile.kernel Makefile | %
-	pushd $* ; $(GIT) clean -f -d -x
-	pushd $* ; $(if $($*_BRANCH),$(call checkout-branch,$($*_BRANCH)),true)
-	touch $@
-
 tarballs : $(addprefix $(SOURCEDIR)/,$(addsuffix $(TAREXT),$(linux_TAR_ball) $(linux_PATCH_ball)))
 sources : tarballs
 
@@ -71,12 +66,29 @@ $(SOURCEDIR)/%.tar.bz2: %.tar | $(SOURCEDIR)
 $(SOURCEDIR)/%.tar.gz: %.tar | $(SOURCEDIR)
 	gzip -f -c $< > $@
 
+# encapsulate the logi around preparing the linux tree for work
+define linux-update
+b=$$($(GIT) rev-parse --abbrev-ref HEAD) ; \
+if [ "$${b}" != "$(linux_BRANCH)" ] ; then \
+  if $(GIT) show-ref --verify --quiet refs/heads/$(linux_BRANCH) ; then \
+	$(GIT) checkout $(linux_BRANCH) ; \
+  elif $(GIT) show-ref --verify --quiet refs/remotes/origin/$(linux_BRANCH) ; then \
+	$(GIT) checkout -t origin/$(linux_BRANCH) ; \
+  else \
+	echo "ERROR: branch $(linux_BRANCH) seems to be invalid for linux" ; exit -1 ; \
+  fi ; \
+fi
+endef
+
 # extracting source code...
 linux :
 	$(GIT) clone --no-hardlinks $($@_GIT) $@
-$(linux_TAR_ball).tar : linux/.git $(MAKEFILE_LIST) | linux
+linux-update : linux
+	$(if $(linux_BRANCH), pushd linux ; $(linux-update) )
+
+$(linux_TAR_ball).tar : linux-update $(MAKEFILE_LIST) | linux
 	$(GIT) archive --format=tar --prefix $(linux_PREFIX)/ --remote=linux $(linux_TAR_BASE) > $@
-$(linux_PATCH_ball).tar : linux/.git $(MAKEFILE_LIST) | linux
+$(linux_PATCH_ball).tar : linux-update $(MAKEFILE_LIST) | linux
 	pushd linux ; $(GIT) format-patch -N -k -o $(SOURCEDIR) $(linux_TAR_BASE)..$(linux_PATCH_BASE) | \
 	xargs -r -l1 basename >$(SOURCEDIR)/$@.list ; \
 	popd ; \
@@ -88,8 +100,6 @@ $(linux_PATCH_ball).tar : linux/.git $(MAKEFILE_LIST) | linux
 HEADLOG		= $(SOURCEDIR)/head.log
 APPLYLOG	= $(SOURCEDIR)/apply.log
 PATCHLOG	= $(SOURCEDIR)/patch.log
-
-GITDIRS		= linux/.git
 
 $(CUSTOMSPEC) : $(HEADLOG)
 
@@ -106,12 +116,12 @@ echo ; \
 popd >/dev/null ; }
 endef
 
-$(HEADLOG): $(GITDIRS) $(MAKEFILE_LIST)
+$(HEADLOG): linux-update $(MAKEFILE_LIST) | linux
 	TZ=UTC echo "* $$(date +'%a %b %d %Y') Builder <builder@amazon.com>" > $@
 	$(call get_changelist,.,kernel,HEAD^) >> $@
 	$(call get_changelist,linux,linux,$(linux_PATCH_BASE),$(linux_PATCH_HEAD)) >>$@
 
-$(PATCHLOG) : linux/.git $(MAKEFILE_LIST)
+$(PATCHLOG) : linux-update $(MAKEFILE_LIST) | linux
 	cd linux ; $(GIT) format-patch -k -o $(SOURCEDIR) -N $(linux_PATCH_BASE)..$(linux_PATCH_HEAD) |\
 		xargs -r -l1 basename >$@
 	sed -i "s/^\(....\)-/Patch\1: \1-/" $@
@@ -147,7 +157,7 @@ update-sources : $(CUSTOMSPEC) tarballs $(MAKEFILE_LIST)
 
 git-push : git-push-linux
 
-git-push-linux : linux/.git
+git-push-linux : linux
 	pushd linux ; $(GIT) push origin $(linux_BRANCH):refs/heads/$(linux_BRANCH) ; $(GIT) push origin --tags ; popd
 
 clean ::
