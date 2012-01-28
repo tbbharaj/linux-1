@@ -178,6 +178,9 @@ tag : linux-update | linux
 	pushd linux >/dev/null ; $(call add-tag,$(linux_TAG),$(linux_PATCH_HEAD)) ; popd >/dev/null
 force-tag :
 	$(MAKE) tag FORCE=1
+archive-tag : linux
+	$(call add-tag,archive/$(linux_TAG))
+	pushd linux >/dev/null ; $(call add-tag,,archive/$(linux_TAG),$(linux_PATCH_HEAD)) ; popd >/dev/null
 delete-tag : | linux
 	$(call check-or-delete-tag,$(linux_TAG),,delete)
 	pushd linux >/dev/null ; $(call check-or-delete-tag,$(linux_TAG),,delete) ; popd >/dev/null
