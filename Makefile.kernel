@@ -66,7 +66,12 @@ $(SOURCEDIR)/%.tar.bz2: %.tar | $(SOURCEDIR)
 $(SOURCEDIR)/%.tar.gz: %.tar | $(SOURCEDIR)
 	gzip -f -c $< > $@
 
-# encapsulate the logi around preparing the linux tree for work
+# encapsulate the logic around preparing the linux tree for work
+#
+# in a lot of cases the linux_BRANCH defines a branch that exists on origin/
+# but not on local, so creating a checkout of that branch ensures that the
+# branch is valid and it exists. It also allows us to do A..B ranges without
+# having to worry whether origin/ needs to be appended or not.
 define linux-update
 b=$$($(GIT) rev-parse --abbrev-ref HEAD) ; \
 if [ "$${b}" != "$(linux_BRANCH)" ] ; then \
@@ -145,13 +150,14 @@ sed -i -e "/^%changelog/ r .cl" $@ && rm -f .cl
 sed -i -e "/^%changelog/ r $(HEADLOG)" $@ && rm -f $(HEADLOG)
 endef
 
-specfile sources : add-patches | $(CUSTOMSPEC)
+specfile : add-patches | $(CUSTOMSPEC)
 add-patches :  $(CUSTOMSPEC) $(APPLYLOG) $(PATCHLOG)
 	sed -i  -e '/__PATCHFILE_TEMPLATE__/ r $(PATCHLOG)' \
 		-e '/__APPLYFILE_TEMPLATE__/ r $(APPLYLOG)' \
 		$(CUSTOMSPEC)
-specfile sources : update-sources | $(CUSTOMSPEC) tarballs
-update-sources : $(CUSTOMSPEC) tarballs $(MAKEFILE_LIST)
+
+specfile : update-sources | $(CUSTOMSPEC)
+update-sources : $(CUSTOMSPEC) $(MAKEFILE_LIST)
 	sed -i -r -e "s/^Source0:.*$$/Source0: $(linux_TAR_ball)$(TAREXT)/i" \
 		  -e "s/^Source1:.*$$/Source1: $(linux_PATCH_ball)$(TAREXT)/i" $<
 
