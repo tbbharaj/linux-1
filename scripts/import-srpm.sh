@@ -159,14 +159,14 @@ rpmbuild "${rpmopts[@]}" "${RPM_PREP[@]}" \
     -bp --nodeps --target=x86_64 $SOURCEDIR/kernel.spec
 # add the tag we'd like to use to tag this import
 cat >>linux.vers <<EOF
-linux_TAG       = ${TAG}/import
+linux_TAG        = ${TAG}/import
 EOF
 git add linux.vers
 
 git commit --allow-empty --quiet -m "imported source rpm ${TAG}"
-git tag -m "imported source rpm ${TAG}" --force "${TAG}"
+git tag -m "imported source rpm ${TAG}" --force "${TAG}/import"
 
-say_green "Import of $SRPM tagged as $TAG"
+say_green "Import of $SRPM tagged as $TAG/import"
 
 exit 0
 
