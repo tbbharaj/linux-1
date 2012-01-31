@@ -107,10 +107,6 @@ Summary: The Linux kernel
 # configs this should be avoided in order to save duplicate work...)
 %define with_oldconfig     %{?_without_oldconfig:      0} %{?!_without_oldconfig:      1}
 
-# Want to build a vanilla kernel build without any non-upstream patches?
-# (well, almost none, we need nonintconfig for build purposes). Default to 0 (off).
-%define with_vanilla %{?_with_vanilla: 1} %{?!_with_vanilla: 0}
-
 # pkg_release is what we'll fill in for the rpm Release: field
 %define pkg_release %{fedora_build}%{?buildid}%{?dist}
 
@@ -122,28 +118,6 @@ Summary: The Linux kernel
 %define KVERREL %{version}-%{release}.%{_target_cpu}
 %define hdrarch %_target_cpu
 %define asmarch %_target_cpu
-
-%if 0%{!?nopatches:1}
-%define nopatches 0
-%endif
-
-%if %{with_vanilla}
-%define nopatches 1
-%endif
-
-%if %{nopatches}
-%define with_bootwrapper 0
-%define variant -vanilla
-%else
-%define variant_fedora -fedora
-%endif
-
-%define using_upstream_branch 0
-%if 0%{?upstream_branch:1}
-%define using_upstream_branch 1
-%define variant -%{upstream_branch}%{?variant_fedora}
-%define pkg_release 0.%{fedora_build}%{upstream_branch_tag}%{?buildid}%{?dist}
-%endif
 
 %if !%{debugbuildsenabled}
 %define with_debug 0
@@ -237,18 +211,6 @@ Summary: The Linux kernel
 %define kernel_image vmlinux
 %endif
 
-%if %{nopatches}
-# XXX temporary until last vdso patches are upstream
-%define vdso_arches ppc ppc64
-%endif
-
-%if %{nopatches}%{using_upstream_branch}
-# Ignore unknown options in our config-* files.
-# Some options go with patches we're not applying.
-%define oldconfig_target loose_nonint_oldconfig
-%else
-%define oldconfig_target nonint_oldconfig
-%endif
 # amazon: don't use nonint config target - we want to know when our config files are
 # not complete
 %define oldconfig_target oldconfig
@@ -587,14 +549,12 @@ ApplyPatch()
   if [ ! -f $RPM_SOURCE_DIR/$patch ]; then
     exit 1
   fi
-%if !%{using_upstream_branch}
   if ! egrep "^Patch[0-9]+: $patch\$" %{_specdir}/${RPM_PACKAGE_NAME%%%%%{?variant}}.spec ; then
     if [ "${patch:0:10}" != "patch-2.6." ] ; then
       echo "ERROR: Patch  $patch  not listed as a source patch in specfile"
       exit 1
     fi
   fi 2>/dev/null
-%endif
   case "$patch" in
   *.bz2) bunzip2 < "$RPM_SOURCE_DIR/$patch" | $patch_command ${1+"$@"} ;;
   *.gz) gunzip < "$RPM_SOURCE_DIR/$patch" | $patch_command ${1+"$@"} ;;
@@ -712,10 +672,6 @@ cp -rl vanilla-%{vanillaversion} linux-%{kversion}.%{_target_cpu}
 
 cd linux-%{kversion}.%{_target_cpu}
 tar xfz %{SOURCE1}
-
-%if %{using_upstream_branch}
-### BRANCH APPLY ###
-%endif
 
 # Drop some necessary files from the source dir into the buildroot
 cp $RPM_SOURCE_DIR/config-* .
