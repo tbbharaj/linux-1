@@ -95,7 +95,7 @@ function clean_tree {
 }
 
 function commit_tree {
-    local msg=${1:-"added patch from stdin"}
+    local msg=${1:-"[${UPSTREAM}] patch from stdin"}
     add_changes
     local z=$(git status --short)
     local phead=
@@ -153,7 +153,7 @@ function patch_tree {
             fi
             clean_tree
             /usr/bin/patch $PATCH_ARGS <$ptmp
-            commit_tree "imported patch: $patch"
+            commit_tree "[${UPSTREAM}] patch ${patch%%.patch}"
         fi
     else
         /usr/bin/patch $PATCH_ARGS <$ptmp
