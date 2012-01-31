@@ -50,7 +50,7 @@ Summary: The Linux kernel
 # on top of -- for example, 2.6.22-rc7-git1 starts with a 2.6.21 base,
 # which yields a base_sublevel of 21.
 %define base_sublevel 34
-#define stablerev 7
+%define stablerev 7
 
 %define rpmversion 2.6.%{base_sublevel}%{?stablerev:.%{stablerev}}
 
