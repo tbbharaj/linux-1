@@ -1,5 +1,5 @@
-linux_TAGVER	 = 2.6.34.7
+linux_TAGVER	 = 2.6.35.11
 linux_TAR_BASE	 = v$(linux_TAGVER)
-linux_PATCH_BASE = v2.6.34.9
-linux_BRANCH	 = linux-2.6.34.y
+linux_PATCH_BASE = v2.6.35.13
+linux_BRANCH	 = linux-2.6.35.y
 linux_PATCH_HEAD = $(linux_BRANCH)
