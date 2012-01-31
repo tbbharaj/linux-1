@@ -45,8 +45,7 @@ TAREXT		= .tar.gz
 # Other module-specific defines are:
 # *_PREFIX	- the name of the top level directory for the tarball
 # *_TAR		- name of the tarball archive filename that will get generated
-# *_BRANCH	- default branch that shoule be checked out
-# *_GIT		- git repository url for this module
+# *_BRANCH	- default branch that should be checked out
 
 include linux.vers
 # defines for archive building
