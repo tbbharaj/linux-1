@@ -495,16 +495,6 @@ Group: System Environment/Kernel\
 
 # Now, each variant package.
 
-%define variant_summary The Linux kernel compiled for SMP machines
-%kernel_variant_package -n SMP smp
-%description smp
-This package includes a SMP version of the Linux kernel. It is
-required only on machines with two or more CPUs as well as machines with
-hyperthreading technology.
-
-Install the kernel-smp package if your machine uses two or more CPUs.
-
-
 %define variant_summary The Linux kernel compiled with extra debugging enabled
 %kernel_variant_package debug
 %description debug
@@ -1188,12 +1178,6 @@ fi}\
 #    /sbin/weak-modules --remove-kernel %{KVERREL}%{?1} || exit $?\
 #fi\
 %{nil}
-
-%kernel_variant_preun
-%kernel_variant_post -r kernel-smp
-
-%kernel_variant_preun smp
-%kernel_variant_post -v smp
 
 %kernel_variant_preun debug
 %kernel_variant_post -v debug
