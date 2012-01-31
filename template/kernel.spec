@@ -72,16 +72,14 @@ Summary: The Linux kernel
 %define with_headers   %{?_without_headers:   0} %{?!_without_headers:   1}
 # kernel-firmware
 %define with_firmware  %{?_with_firmware:     1} %{?!_with_firmware:     0}
-# tools/perf
-%define with_perftool  %{?_without_perftool:  0} %{?!_without_perftool:  0}
 # perf noarch subpkg
-%define with_perf      %{?_without_perf:      0} %{?!_without_perf:      0}
+%define with_perf      %{?_without_perf:      0} %{?!_without_perf:      1}
 # kernel-debuginfo
 %define with_debuginfo %{?_without_debuginfo: 0} %{?!_without_debuginfo: 1}
 # Want to build a the vsdo directories installed
-%define with_vdso_install %{?_without_vdso_install: 0} %{?!_without_vdso_install: 0}
+%define with_vdso_install %{?_without_vdso_install: 0} %{?!_without_vdso_install: 1}
 # Use dracut instead of mkinitrd for initrd image generation
-%define with_dracut       %{?_without_dracut:       0} %{?!_without_dracut:       0}
+%define with_dracut       %{?_without_dracut:       0} %{?!_without_dracut:       1}
 
 # Build the kernel-doc package, but don't fail the build if it botches.
 # Here "true" means "continue" and "false" means "fail the build".
@@ -142,13 +140,13 @@ Summary: The Linux kernel
 # only package docs noarch
 %ifnarch noarch
 %define with_doc 0
-%define with_perf 0
 %endif
 
 # don't build noarch kernels or headers (duh)
 %ifarch noarch
 %define with_up 0
 %define with_headers 0
+%define with_perf 0
 %define all_arch_configs kernel-%{version}-*.config
 %define with_firmware  %{?_with_firmware:     1} %{?!_with_firmware:     0}
 %endif
@@ -207,7 +205,7 @@ Summary: The Linux kernel
 # problems with the newer kernel or lack certain things that make
 # integration in the distro harder than needed.
 #
-%define package_conflicts initscripts < 7.23, udev < 063-6, iptables < 1.3.2-1, selinux-policy-targeted < 1.25.3-14, squashfs-tools < 4.0, wireless-tools < 29-3
+%define package_conflicts initscripts < 7.23, udev < 063-6, iptables < 1.3.2-1, selinux-policy-targeted < 1.25.3-14, squashfs-tools < 4.0
 
 # We moved the drm include files into kernel-headers, make sure there's
 # a recent enough libdrm-devel on the system that doesn't have those.
@@ -217,11 +215,11 @@ Summary: The Linux kernel
 # Packages that need to be installed before the kernel is, because the %%post
 # scripts use them.
 #
-%define kernel_prereq  fileutils, module-init-tools, initscripts >= 8.11.1-1
+%define kernel_prereq  fileutils, module-init-tools, initscripts >= 8.11.1-1, grubby >= 7.0.15-2.5
 %if %{with_dracut}
 %define initrd_prereq  dracut >= 001-7, grubby >= 7.0.10-1
 %else
-%define initrd_prereq  mkinitrd
+%define initrd_prereq  mkinitrd >= 6.0.91
 %endif
 
 #
@@ -243,9 +241,6 @@ Requires(pre): %{initrd_prereq}\
 Requires(pre): kernel-firmware >= %{rpmversion}-%{pkg_release}\
 %else\
 #Requires(pre): linux-firmware >= 20100806-2\
-%if %{with_perftool}\
-Requires(pre): elfutils-libs\
-%endif\
 %endif\
 Requires(post): /sbin/new-kernel-pkg\
 Requires(preun): /sbin/new-kernel-pkg\
@@ -283,17 +278,15 @@ Obsoletes: kernel-smp
 #
 BuildRequires: module-init-tools, patch >= 2.5.4, bash >= 2.03, sh-utils, tar
 BuildRequires: bzip2, findutils, gzip, m4, perl, make >= 3.78, diffutils, gawk
-#BuildRequires: gcc >= 3.4.2, binutils >= 2.12, redhat-rpm-config
-BuildRequires: gcc, binutils >= 2.12, system-rpm-config
+BuildRequires: gcc, binutils >= 2.12, system-rpm-config, gdb
 BuildRequires: net-tools
-%if %{with_doc}
 BuildRequires: xmlto, asciidoc
-%endif # with_doc
 %if %{with_sparse}
 BuildRequires: sparse >= 0.4.1
 %endif
-%if %{with_perftool}
-BuildRequires: elfutils-devel zlib-devel binutils-devel
+%if %{with_perf}
+# python-devel and perl(ExtUtils::Embed) are required for perf scripting
+BuildRequires: elfutils-devel zlib-devel binutils-devel newt-devel python-devel perl(ExtUtils::Embed)
 %endif
 BuildConflicts: rhbuildsys(DiskFree) < 500Mb
 
@@ -377,13 +370,14 @@ Group: Development/Debug
 This package is required by %{name}-debuginfo subpackages.
 It provides the kernel source files common to all builds.
 
+%if %{with_perf}
 %package -n perf
 Summary: Performance monitoring for the Linux kernel
 Group: Development/System
 License: GPLv2
 %description -n perf
-This package provides the supporting documentation for the perf tool
-shipped in each kernel image subpackage.
+This package provides the perf tool and the supporting documentation.
+%endif
 
 #
 # This macro creates a kernel-<subpackage>-debuginfo package.
@@ -416,6 +410,7 @@ Provides: kernel-devel = %{version}-%{release}%{?1:.%{1}}\
 Provides: kernel-devel-uname-r = %{KVERREL}%{?1:.%{1}}\
 AutoReqProv: no\
 Requires(pre): /usr/bin/find\
+Requires: perl\
 %description -n kernel%{?variant}%{?1:-%{1}}-devel\
 This package provides kernel headers and makefiles sufficient to build modules\
 against the %{?2:%{2} }kernel package.\
@@ -598,17 +593,17 @@ else
 fi
 
 # Now build the fedora kernel tree.
-if [ -d linux-%{kversion}.%{_target_cpu} ]; then
+if [ -d linux-%{KVERREL} ]; then
   # Just in case we ctrl-c'd a prep already
   rm -rf deleteme.%{_target_cpu}
   # Move away the stale away, and delete in background.
-  mv linux-%{kversion}.%{_target_cpu} deleteme.%{_target_cpu}
+  mv linux-%{KVERREL} deleteme.%{_target_cpu}
   rm -rf deleteme.%{_target_cpu} &
 fi
 
-cp -rl vanilla-%{vanillaversion} linux-%{kversion}.%{_target_cpu}
+cp -rl vanilla-%{vanillaversion} linux-%{KVERREL}
 
-cd linux-%{kversion}.%{_target_cpu}
+cd linux-%{KVERREL}
 tar xfz %{SOURCE1}
 
 # Drop some necessary files from the source dir into the buildroot
@@ -736,16 +731,6 @@ BuildKernel() {
     make -s ARCH=$Arch V=1 %{?_smp_mflags} $MakeTarget %{?sparse_mflags} %{?make_defines}
     make -s ARCH=$Arch V=1 %{?_smp_mflags} modules %{?sparse_mflags} %{?make_defines} || exit 1
 
-%if %{with_perftool}
-    pushd tools/perf
-# make sure the scripts are executable... won't be in tarball until 2.6.31 :/
-    chmod +x util/generate-cmdlist.sh util/PERF-VERSION-GEN
-    make -s V=1 NO_DEMANGLE=1 %{?_smp_mflags} perf %{?make_defines}
-    mkdir -p $RPM_BUILD_ROOT/usr/libexec/
-    install -m 755 perf $RPM_BUILD_ROOT/usr/libexec/perf.$KernelVer
-    popd
-%endif
-
     # Start installing the results
 %if %{with_debuginfo}
     mkdir -p $RPM_BUILD_ROOT%{debuginfodir}/boot
@@ -783,7 +768,7 @@ BuildKernel() {
 # fields.  In Xen guest kernels, the vDSO tells the dynamic linker to
 # search in nosegneg subdirectories and to match this extra hwcap bit
 # in the ld.so.cache file.
-hwcap 0 nosegneg"
+hwcap 1 nosegneg"
     fi
     if [ ! -s ldconfig-kernel.conf ]; then
       echo > ldconfig-kernel.conf "\
@@ -895,7 +880,7 @@ hwcap 0 nosegneg"
     rm -f modinfo modnames
 
     # remove files that will be auto generated by depmod at rpm -i time
-    for i in alias alias.bin ccwmap dep dep.bin ieee1394map inputmap isapnpmap ofmap pcimap seriomap symbols symbols.bin usbmap
+    for i in alias alias.bin builtin.bin ccwmap dep dep.bin ieee1394map inputmap isapnpmap ofmap pcimap seriomap symbols symbols.bin usbmap
     do
       rm -f $RPM_BUILD_ROOT/lib/modules/$KernelVer/modules.$i
     done
@@ -916,8 +901,9 @@ hwcap 0 nosegneg"
 # prepare directories
 rm -rf $RPM_BUILD_ROOT
 mkdir -p $RPM_BUILD_ROOT/boot
+mkdir -p $RPM_BUILD_ROOT%{_libexecdir}
 
-cd linux-%{kversion}.%{_target_cpu}
+cd linux-%{KVERREL}
 
 %if %{with_debug}
 BuildKernel %make_target %kernel_image debug
@@ -927,19 +913,20 @@ BuildKernel %make_target %kernel_image debug
 BuildKernel %make_target %kernel_image
 %endif
 
+%global perf_make \
+  make %{?_smp_mflags} -C tools/perf -s V=1 HAVE_CPLUS_DEMANGLE=1 prefix=%{_prefix}
+%if %{with_perf}
+%{perf_make} all
+%{perf_make} man || %{doc_build_fail}
+%endif
+
 %if %{with_doc}
 # Make the HTML and man pages.
-make -s %{?_smp_mflags} htmldocs mandocs || %{doc_build_fail}
+make -s htmldocs mandocs || %{doc_build_fail}
 
 # sometimes non-world-readable files sneak into the kernel source tree
 chmod -R a=rX Documentation
 find Documentation -type d | xargs chmod u+w
-%endif
-
-%if %{with_perf}
-pushd tools/perf
-make %{?_smp_mflags} man || %{doc_build_fail}
-popd
 %endif
 
 ###
@@ -969,7 +956,7 @@ popd
 
 %install
 
-cd linux-%{kversion}.%{_target_cpu}
+cd linux-%{KVERREL}
 
 %if %{with_doc}
 docdir=$RPM_BUILD_ROOT%{_datadir}/doc/kernel-doc-%{rpmversion}
@@ -987,25 +974,11 @@ ls $man9dir | grep -q '' || > $man9dir/BROKEN
 %endif # with_doc
 
 %if %{with_perf}
-# perf docs
-mandir=$RPM_BUILD_ROOT%{_datadir}/man
-man1dir=$mandir/man1
-pushd tools/perf/Documentation
-make -s install-man mandir=$mandir
-popd
-
-pushd $man1dir
-for d in *.1; do
- gzip $d;
-done
-popd
-
-# perf shell wrapper
-mkdir -p $RPM_BUILD_ROOT/usr/sbin/
-cp $RPM_SOURCE_DIR/perf $RPM_BUILD_ROOT/usr/sbin/perf
-chmod 0755 $RPM_BUILD_ROOT/usr/sbin/perf
-mkdir -p $RPM_BUILD_ROOT%{_datadir}/doc/perf
-%endif # with_perf
+# perf tool binary and supporting scripts/binaries
+%{perf_make} DESTDIR=$RPM_BUILD_ROOT install
+# perf man pages (note: implicit rpm magic compresses them later)
+%{perf_make} DESTDIR=$RPM_BUILD_ROOT install-man || %{doc_build_fail}
+%endif
 
 %if %{with_headers}
 # Install kernel headers
@@ -1154,9 +1127,10 @@ fi
 %if %{with_perf}
 %files -n perf
 %defattr(-,root,root)
-%{_datadir}/doc/perf
-/usr/sbin/perf
-%{_datadir}/man/man1/*
+%{_bindir}/perf
+%dir %{_libexecdir}/perf-core
+%{_libexecdir}/perf-core/*
+%{_mandir}/man[1-8]/*
 %endif
 
 # This is %%{image_install_path} on an arch where that includes ELF files,
@@ -1174,9 +1148,6 @@ fi
 %defattr(-,root,root)\
 /%{image_install_path}/%{?-k:%{-k*}}%{!?-k:vmlinuz}-%{KVERREL}%{?2:.%{2}}\
 /boot/System.map-%{KVERREL}%{?2:.%{2}}\
-%if %{with_perftool}\
-/usr/libexec/perf.%{KVERREL}%{?2:.%{2}}\
-%endif\
 #/boot/symvers-%{KVERREL}%{?2:.%{2}}.gz\
 /boot/config-%{KVERREL}%{?2:.%{2}}\
 %dir /lib/modules/%{KVERREL}%{?2:.%{2}}\
