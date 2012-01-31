@@ -57,6 +57,13 @@ linux_PATCH_ball = linux-$(linux_TAGVER)-patches
 
 linux_GIT	= $(shell $(get_fetch_base))/linux.git
 
+# update the method of computing the buildid
+define get_build_id
+kernel_id=$$($(GIT) describe --long | sed -re 's/^.+-([0-9]+)-[^-]+$$/\1/') ; \
+linux_id=$$(cd linux; $(GIT) describe --all --long $(linux_PATCH_HEAD)^ | sed -re 's/^.+-([0-9]+)-[^-]+$$/\1/') ; \
+echo "$${kernel_id:-0}.$${linux_id:-0}"
+endef
+
 tarballs : $(addprefix $(SOURCEDIR)/,$(addsuffix $(TAREXT),$(linux_TAR_ball) $(linux_PATCH_ball)))
 sources : tarballs
 
