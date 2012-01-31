@@ -43,14 +43,14 @@ Summary: The Linux kernel
 # reset this by hand to 1 (or to 0 and then use rpmdev-bumpspec).
 # scripts/rebase.sh should be made to do that for you, actually.
 #
-%global baserelease 57
+%global baserelease 1
 %global fedora_build %{baserelease}
 
 # base_sublevel is the kernel version we're starting with and patching
 # on top of -- for example, 2.6.22-rc7-git1 starts with a 2.6.21 base,
 # which yields a base_sublevel of 21.
-%define base_sublevel 34
-%define stablerev 7
+%define base_sublevel 38
+%define stablerev 8
 %define rpmversion 2.6.%{base_sublevel}%{?stablerev:.%{stablerev}}
 
 # What parts do we want to build?  We must build at least one kernel.
