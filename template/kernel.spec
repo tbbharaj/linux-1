@@ -37,21 +37,12 @@ Summary: The Linux kernel
 # building.  We used to call this fedora_build, but the magical name
 # baserelease is matched by the rpmdev-bumpspec tool, which you should use.
 #
-# We used to have some extra magic weirdness to bump this automatically,
-# but now we don't.  Just use: rpmdev-bumpspec -c 'comment for changelog'
-# When changing base_sublevel below or going from rc to a final kernel,
-# reset this by hand to 1 (or to 0 and then use rpmdev-bumpspec).
-# scripts/rebase.sh should be made to do that for you, actually.
-#
 %global baserelease 1
 %global fedora_build %{baserelease}
 
-# base_sublevel is the kernel version we're starting with and patching
-# on top of -- for example, 2.6.22-rc7-git1 starts with a 2.6.21 base,
-# which yields a base_sublevel of 21.
-%define base_sublevel 38
-%define stablerev 8
-%define rpmversion 2.6.%{base_sublevel}%{?stablerev:.%{stablerev}}
+# what kernel is it we are building
+%global kversion 3.1.6
+%define rpmversion %{kversion}
 
 # What parts do we want to build?  We must build at least one kernel.
 # These are the kernels that are built IF the architecture allows it.
@@ -104,9 +95,6 @@ Summary: The Linux kernel
 
 # pkg_release is what we'll fill in for the rpm Release: field
 %define pkg_release %{fedora_build}%{?buildid}%{?dist}
-
-# The kernel tarball/base version
-%define kversion %{rpmversion}
 
 %define make_target bzImage
 
@@ -497,7 +485,7 @@ ApplyPatch()
     exit 1
   fi
   if ! grep -E "^Patch[0-9]+: $patch\$" %{_specdir}/${RPM_PACKAGE_NAME%%%%%{?variant}}.spec ; then
-    if [ "${patch:0:10}" != "patch-2.6." ] ; then
+    if [ "${patch:0:8}" != "patch-3." ] ; then
       echo "ERROR: Patch  $patch  not listed as a source patch in specfile"
       exit 1
     fi
@@ -532,7 +520,7 @@ ApplyOptionalPatch()
 # which speeds things up quite a bit.
 
 # Update to latest upstream.
-%define vanillaversion 2.6.%{base_sublevel}
+%define vanillaversion %{kversion}
 
 # %%{vanillaversion} : the full version name, e.g. 2.6.35-rc6-git3
 # %%{kversion}       : the base version, e.g. 2.6.34

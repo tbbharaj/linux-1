@@ -4,7 +4,7 @@
 # Module created by 'gafton' on 2012-01-19
 
 NAME		:= kernel
-VENDOR		:= F15
+VENDOR		:= F16
 
 # these are specific for tis module and have to be defined before Makefile.common is ingested
 SPECFILE	= template/kernel.spec
