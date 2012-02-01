@@ -115,7 +115,7 @@ mkdir -p ${SERIES_NAME}
 git ls-files -z ${SERIES_NAME} | egrep -v -zZ '.gitignore' | xargs -r0 git rm --quiet --force
 
 say_yellow "Unpacking source rpm $SRPM..."
-rpm  "${rpmopts[@]}" "${RPM_PREP[@]}" -Uvh --quiet $SRPM 2>/dev/null
+rpm  "${rpmopts[@]}" -Uvh --quiet $SRPM 2>/dev/null
 make upload FILES="*gz *bz2 *xz *tar" SOURCEDIR=${SERIES_NAME}
 git add sources
 
