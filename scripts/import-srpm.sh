@@ -45,6 +45,9 @@ while [ $# -gt 0 ] ; do
             RPM_PREP=( --define "dist .fc${SERIES_REL}" \
                 --define "fedora ${SERIES_REL}" \
                 --define "fc${SERIES_REL} 1" )
+            case $SERIES_REL in
+                16 ) RPM_PREP=("${RPM_PREP[@]}" --without backports) ;;
+            esac
             ;;
         -* )
             usage
