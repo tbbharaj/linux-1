@@ -121,8 +121,8 @@ $(CUSTOMSPEC) : $(HEADLOG)
 define get_changelist
 { TZ=UTC ; \
 pushd $(1)>/dev/null ; \
-$(GIT) log --date=short --format=tformat:"  - $(2)/%H $(if $(3),$(3)..$(4):)" $(4) -1 ; \
-$(GIT) log --date=short --format=tformat:"    - [%h] [%ad] %s (%ae)" $(if $(3),$(3)..$(4),-10) ; \
+$(GIT) log --date=short --format=tformat:"- $(2)/%H $(if $(3),$(3)..$(4):)" $(4) -1 ; \
+$(GIT) log --date=short --format=tformat:"  + [%h] [%ad] %s (%ae)" $(if $(3),$(3)..$(4),-10) ; \
 echo ; \
 popd >/dev/null ; }
 endef
