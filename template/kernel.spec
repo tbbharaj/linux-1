@@ -1168,7 +1168,7 @@ fi
 %{expand:%%files %{?2}}\
 %defattr(-,root,root)\
 /%{image_install_path}/%{?-k:%{-k*}}%{!?-k:vmlinuz}-%{KVERREL}%{?2:.%{2}}\
-/boot/System.map-%{KVERREL}%{?2:.%{2}}\
+%attr(600,root,root) /boot/System.map-%{KVERREL}%{?2:.%{2}}\
 #/boot/symvers-%{KVERREL}%{?2:.%{2}}.gz\
 /boot/config-%{KVERREL}%{?2:.%{2}}\
 %dir /lib/modules/%{KVERREL}%{?2:.%{2}}\
