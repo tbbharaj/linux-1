@@ -1178,6 +1178,9 @@ fi}\
 #fi\
 %{nil}
 
+%kernel_variant_preun
+%kernel_variant_post
+
 %kernel_variant_preun debug
 %kernel_variant_post -v debug
 
