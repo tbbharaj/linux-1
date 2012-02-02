@@ -377,6 +377,20 @@ Group: Development/System
 License: GPLv2
 %description -n perf
 This package provides the perf tool and the supporting documentation.
+
+%package -n perf-debuginfo
+Summary: Debug information for package perf
+Group: Development/Debug
+Requires: %{name}-debuginfo-common-%{_target_cpu} = %{version}-%{release}
+AutoReqProv: no
+%description -n perf-debuginfo
+This package provides debug information for package perf.
+
+# Note that this pattern only works right to match the .build-id
+# symlinks because of the trailing nonmatching alternation and
+# the leading .*, because of find-debuginfo.sh's buggy handling
+# of matching the pattern against the symlinks file.
+%{expand:%%global debuginfo_args %{?debuginfo_args} -p '.*%%{_bindir}/perf(\.debug)?|.*%%{_libexecdir}/perf-core/.*|XXX' -o perf-debuginfo.list}
 %endif
 
 #
@@ -826,12 +840,14 @@ hwcap 1 nosegneg"
     # Copy .config to include/config/auto.conf so "make prepare" is unnecessary.
     cp $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/.config $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/include/config/auto.conf
 
+%if %{fancy_debuginfo}
     if test -s vmlinux.id; then
       cp vmlinux.id $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/vmlinux.id
     else
-      echo >&2 "*** WARNING *** no vmlinux build ID! ***"
+      echo >&2 "*** ERROR *** no vmlinux build ID! ***"
+      exit 1
     fi
-
+%endif
     #
     # save the vmlinux file for kernel debugging into the kernel-debuginfo rpm
     #
@@ -1131,6 +1147,11 @@ fi
 %dir %{_libexecdir}/perf-core
 %{_libexecdir}/perf-core/*
 %{_mandir}/man[1-8]/*
+
+%if %{with_debuginfo}
+%files -f perf-debuginfo.list -n perf-debuginfo
+%defattr(-,root,root)
+%endif
 %endif
 
 # This is %%{image_install_path} on an arch where that includes ELF files,
