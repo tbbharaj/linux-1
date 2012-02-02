@@ -299,9 +299,7 @@ BuildConflicts: rhbuildsys(DiskFree) < 500Mb
 
 %define fancy_debuginfo 0
 %if %{with_debuginfo}
-%if 0%{?fedora} >= 8 || 0%{?rhel} >= 6
 %define fancy_debuginfo 1
-%endif
 %endif
 
 %if %{fancy_debuginfo}
@@ -619,16 +617,6 @@ cp %{SOURCE15} .
 
 # Dynamically generate kernel .config files from config-* files
 make -f %{SOURCE19} VERSION=%{version} config
-
-#if a rhel kernel, apply the rhel config options
-%if 0%{?rhel}
-  for i in %{all_arch_configs}
-  do
-    mv $i $i.tmp
-    ./merge.pl config-rhel-generic $i.tmp > $i
-    rm $i.tmp
-  done
-%endif
 
 # apply the patches we had included in the -patches tarball
 patch_list=$(basename %{SOURCE1})
