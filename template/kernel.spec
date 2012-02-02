@@ -667,6 +667,8 @@ export HOSTCXX=g++
 
 %global make_defines CC=gcc HOSTCC=gcc HOSTCXX=g++
 
+export KBUILD_BUILD_HOST=$(hostname --short)
+
 BuildKernel() {
     MakeTarget=$1
     KernelImage=$2
