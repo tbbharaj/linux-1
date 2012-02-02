@@ -177,7 +177,8 @@ Summary: The Linux kernel
 %endif
 
 # Architectures we build tools/cpupower on
-%define cpupowerarchs %{ix86} x86_64 ppc ppc64
+#define cpupowerarchs %{ix86} x86_64 ppc ppc64
+%define cpupowerarchs none
 
 #
 # Three sets of minimum package version requirements in the form of Conflicts:
@@ -278,8 +279,12 @@ BuildRequires: sparse >= 0.4.1
 %endif
 %if %{with_tools}
 # python-devel and perl(ExtUtils::Embed) are required for perf scripting
-BuildRequires: elfutils-devel zlib-devel binutils-devel newt-devel python-devel perl(ExtUtils::Embed) pciutils-devel gettext
-%endif
+BuildRequires: elfutils-devel zlib-devel binutils-devel newt-devel python-devel perl(ExtUtils::Embed) gettext
+BuildRequires: python-devel
+%ifarch %{cpupowerarchs}
+BuildRequires: pciutils-devel
+%endif # cpupowerarchs
+%endif # tools
 BuildConflicts: rhbuildsys(DiskFree) < 500Mb
 
 %define fancy_debuginfo 0
@@ -371,6 +376,7 @@ Group: Development/System
 License: GPLv2
 Obsoletes: perf < 3.1.0-0.rc2.git7.2
 Provides:  perf = %{version}-%{release}
+%ifarch %{cpupowerarchs}
 Provides:  cpupowerutils = 1:009-0.6.p1
 Obsoletes: cpupowerutils < 1:009-0.6.p1
 Provides:  cpufreq-utils = 1:009-0.6.p1
@@ -378,6 +384,8 @@ Provides:  cpufrequtils = 1:009-0.6.p1
 Obsoletes: cpufreq-utils < 1:009-0.6.p1
 Obsoletes: cpufrequtils < 1:009-0.6.p1
 Obsoletes: cpuspeed < 1:1.5-16
+%endif # cpupowerarchs
+
 %description tools
 This package contains the tools/ directory from the kernel source
 - the perf tool and the supporting documentation.
@@ -387,8 +395,11 @@ Summary: Assortment of tools for the Linux kernel
 Group: Development/System
 License: GPLv2
 Requires: kernel-tools = %{version}-%{release}
+%ifarch %{cpupowerarchs}
 Provides:  cpupowerutils-devel = 1:009-0.6.p1
 Obsoletes: cpupowerutils-devel < 1:009-0.6.p1
+%endif # cpupower
+
 %description tools-devel
 This package contains the development files for the tools/ directory from
 the kernel source.
@@ -891,8 +902,8 @@ BuildKernel %make_target %kernel_image
 
 %if %{with_tools}
 # perf
-make %{?_smp_mflags} -C tools/perf -s V=1 HAVE_CPLUS_DEMANGLE=1 prefix=%{_prefix} all
-make %{?_smp_mflags} -C tools/perf -s V=1 prefix=%{_prefix} man || %{doc_build_fail}
+make %{?_smp_mflags} -C tools/perf -s V=1 HAVE_CPLUS_DEMANGLE=1 PYTHON=%{_python} prefix=%{_prefix} all
+make %{?_smp_mflags} -C tools/perf -s V=1 prefix=%{_prefix} PYTHON=%{_python} man || %{doc_build_fail}
 %ifarch %{cpupowerarchs}
 # cpupower
 # make sure version-gen.sh is executable.
@@ -902,14 +913,14 @@ make %{?_smp_mflags} -C tools/power/cpupower CPUFREQ_BENCH=false
     cd tools/power/cpupower/debug/i386
     make %{?_smp_mflags} centrino-decode powernow-k8-decode
     cd -
-%endif
+%endif # ix86
 %ifarch x86_64
     cd tools/power/cpupower/debug/x86_64
     make %{?_smp_mflags} centrino-decode powernow-k8-decode
     cd -
-%endif
-%endif
-%endif
+%endif # x86_64
+%endif # cpupowerarchs
+%endif # tools
 
 %if %{with_doc}
 # Make the HTML and man pages.
@@ -994,10 +1005,10 @@ rm -f $RPM_BUILD_ROOT/usr/include/asm*/irq.h
 
 %if %{with_tools}
 # perf tool binary and supporting scripts/binaries
-make -C tools/perf -s V=1 DESTDIR=$RPM_BUILD_ROOT HAVE_CPLUS_DEMANGLE=1 prefix=%{_prefix} install
+make -C tools/perf -s V=1 DESTDIR=$RPM_BUILD_ROOT HAVE_CPLUS_DEMANGLE=1 PYTHON=%{_python} prefix=%{_prefix} install
 
 # perf man pages (note: implicit rpm magic compresses them later)
-make -C tools/perf  -s V=1 DESTDIR=$RPM_BUILD_ROOT HAVE_CPLUS_DEMANGLE=1 prefix=%{_prefix} install-man || %{doc_build_fail}
+make -C tools/perf  -s V=1 DESTDIR=$RPM_BUILD_ROOT HAVE_CPLUS_DEMANGLE=1 PYTHON=%{_python} prefix=%{_prefix} install-man || %{doc_build_fail}
 
 %ifarch %{cpupowerarchs}
 make -C tools/power/cpupower DESTDIR=$RPM_BUILD_ROOT libdir=%{_libdir} mandir=%{_mandir} CPUFREQ_BENCH=false install
@@ -1020,8 +1031,10 @@ chmod 0755 %{buildroot}%{_libdir}/libcpupower.so*
 mkdir -p %{buildroot}%{_initddir} %{buildroot}%{_sysconfdir}/sysconfig
 install -m644 %{SOURCE2000} %{buildroot}%{_initddir}/cpupower
 install -m644 %{SOURCE2001} %{buildroot}%{_sysconfdir}/sysconfig/cpupower
-%endif
-%endif
+%endif # cpupowerarchs
+# just in case so the files list won't croak
+touch ../cpupower.lang
+%endif # tools
 
 %if %{with_firmware}
 %{build_firmware}
