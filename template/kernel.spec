@@ -188,7 +188,7 @@ Summary: The Linux kernel
 # First the general kernel 2.6 required versions as per
 # Documentation/Changes
 #
-%define kernel_dot_org_conflicts  ppp < 2.4.3-3, isdn4k-utils < 3.2-32, nfs-utils < 1.0.7-12, e2fsprogs < 1.37-4, util-linux < 2.12, jfsutils < 1.1.7-2, reiserfs-utils < 3.6.19-2, xfsprogs < 2.6.13-4, procps < 3.2.5-6.3, oprofile < 0.9.1-2
+%define kernel_dot_org_conflicts  ppp < 2.4.3-3, isdn4k-utils < 3.2-32, nfs-utils < 1.0.7-12, e2fsprogs < 1.37-4, util-linux < 2.12, jfsutils < 1.1.7-2, reiserfs-utils < 3.6.19-2, xfsprogs < 2.6.13-4, procps < 3.2.5-6.3, oprofile < 0.9.1-2, device-mapper-libs < 1.02.63-2, mdadm < 3.2.1-5
 
 #
 # Then a series of requirements that are distribution specific, either
@@ -206,12 +206,13 @@ Summary: The Linux kernel
 # Packages that need to be installed before the kernel is, because the %%post
 # scripts use them.
 #
-%define kernel_prereq  fileutils, module-init-tools, initscripts >= 8.11.1-1, grubby >= 7.0.15-2.5
+%define kernel_prereq  fileutils, module-init-tools >= 3.16-5, initscripts >= 8.11.1-1, grubby >= 7.0.15-2.5
 %if %{with_dracut}
 %define initrd_prereq  dracut >= 001-7, grubby >= 7.0.10-1
 %else
 %define initrd_prereq  mkinitrd >= 6.0.91
 %endif
+# XXX: fedora16 has a prereq grubby >= 8.3-1
 
 #
 # This macro does requires, provides, conflicts, obsoletes for a kernel package.
@@ -830,13 +831,13 @@ hwcap 1 nosegneg"
     }
 
     collect_modules_list networking \
-    			 'register_netdev|ieee80211_register_hw|usbnet_probe|phy_driver_register'
+                        'register_netdev|ieee80211_register_hw|usbnet_probe|phy_driver_register|rt(l_|2x00)(pci|usb)_probe'
     collect_modules_list block \
-    			 'ata_scsi_ioctl|scsi_add_host|scsi_add_host_with_dma|blk_init_queue|register_mtd_blktrans|scsi_esp_register|scsi_register_device_handler'
+                        'ata_scsi_ioctl|scsi_add_host|scsi_add_host_with_dma|blk_init_queue|register_mtd_blktrans|scsi_esp_register|scsi_register_device_handler'
     collect_modules_list drm \
-    			 'drm_open|drm_init'
+                        'drm_open|drm_init'
     collect_modules_list modesetting \
-    			 'drm_crtc_init'
+                        'drm_crtc_init'
 
     # detect missing or incorrect license tags
     rm -f modinfo
