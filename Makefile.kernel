@@ -47,6 +47,16 @@ TAREXT		= .tar.gz
 # *_TAR		- name of the tarball archive filename that will get generated
 # *_BRANCH	- default branch that should be checked out
 
+# obtain the proper way to reference a short ref - local or origin
+define git_ref
+pushd $(CURDIR)/linux >/dev/null ; \
+for ref in refs/tags/$(1) refs/heads/$(1) refs/remotes/origin/$(1) ; do \
+if $(GIT) show-ref --verify --quiet "$${ref}" ; then echo "$${ref}" ; ref='' ; break ; fi ; \
+done ; \
+if [ -n "$${ref}" ] ; then echo $(1) ; fi ; \
+popd >/dev/null
+endef
+
 include linux.vers
 # defines for archive building
 linux_PREFIX	= linux-$(linux_TAGVER)
@@ -56,10 +66,15 @@ linux_PATCH_ball = linux-$(linux_TAGVER)-patches
 
 linux_GIT	= $(shell $(get_fetch_base))/linux.git
 
+# These variables are dereferenced for ease of use
+TAR_BASE	= $(shell $(call git_ref,$(linux_TAR_BASE)))
+PATCH_BASE	= $(shell $(call git_ref,$(linux_PATCH_BASE)))
+PATCH_HEAD	= $(shell $(call git_ref,$(linux_PATCH_HEAD)))
+
 # update the method of computing the buildid
 define get_build_id
 kernel_id=$$($(GIT) describe --long | sed -re 's/^.+-([0-9]+)-[^-]+$$/\1/') ; \
-linux_id=$$(cd linux; $(GIT) describe --all --long $(linux_PATCH_HEAD)^ | sed -re 's/^.+-([0-9]+)-[^-]+$$/\1/') ; \
+linux_id=$$(cd linux; $(GIT) describe --all --long $(PATCH_HEAD)^ | sed -re 's/^.+-([0-9]+)-[^-]+$$/\1/') ; \
 echo "$${kernel_id:-0}.$${linux_id:-0}"
 endef
 
@@ -98,9 +113,9 @@ linux-update : linux
 	$(if $(linux_BRANCH), pushd linux ; $(linux-update) )
 
 $(linux_TAR_ball).tar : linux-update $(MAKEFILE_LIST) | linux
-	$(GIT) archive --format=tar --prefix $(linux_PREFIX)/ --remote=linux $(linux_TAR_BASE) > $@
+	$(GIT) archive --format=tar --prefix $(linux_PREFIX)/ --remote=linux $(TAR_BASE) > $@
 $(linux_PATCH_ball).tar : linux-update $(MAKEFILE_LIST) | linux
-	pushd linux ; $(GIT) format-patch -N -k -o $(SOURCEDIR) $(linux_TAR_BASE)..$(linux_PATCH_BASE) | \
+	pushd linux ; $(GIT) format-patch -N -k -o $(SOURCEDIR) $(TAR_BASE)..$(PATCH_BASE) | \
 	xargs -r -l1 basename >$(SOURCEDIR)/$@.list ; \
 	popd ; \
 	tar cf $@ -C $(SOURCEDIR) --remove-files --files-from=$(SOURCEDIR)/$@.list $@.list
@@ -130,10 +145,10 @@ endef
 $(HEADLOG): linux-update $(MAKEFILE_LIST) | linux
 	TZ=UTC echo "* $$(date +'%a %b %d %Y') Builder <builder@amazon.com>" > $@
 	$(call get_changelist,.,kernel,HEAD^) >> $@
-	$(call get_changelist,linux,linux,$(linux_PATCH_BASE),$(linux_PATCH_HEAD)) >>$@
+	$(call get_changelist,linux,linux,$(PATCH_BASE),$(PATCH_HEAD)) >>$@
 
 $(PATCHLOG) : linux-update $(MAKEFILE_LIST) | linux
-	cd linux ; $(GIT) format-patch -k -o $(SOURCEDIR) -N $(linux_PATCH_BASE)..$(linux_PATCH_HEAD) |\
+	cd linux ; $(GIT) format-patch -k -o $(SOURCEDIR) -N $(PATCH_BASE)..$(PATCH_HEAD) |\
 		xargs -r -l1 basename >$@
 	sed -i "s/^\(....\)-/Patch\1: \1-/" $@
 $(APPLYLOG) : $(PATCHLOG)
@@ -149,7 +164,7 @@ define replace_changelog
 >.cl.linux
 $(call get_specfile_changelog,$<) > .cl.spec
 $(call get_gitlog_changelog,$(CHANGELOGS)) > .cl.gitlog
-#pushd linux >/dev/null; $(call get_gitlog_changelog,,$(linux_PATCH_BASE),$(linux_PATCH_HEAD)) > ../.cl.linux; popd>/dev/null
+#pushd linux >/dev/null; $(call get_gitlog_changelog,,$(PATCH_BASE),$(PATCH_HEAD)) > ../.cl.linux; popd>/dev/null
 $(find-common-dir)/sort-changelog.py .cl.spec .cl.gitlog .cl.linux > .cl && rm -f .cl.spec .cl.gitlog .cl.linux
 sed -i -e "/^%changelog/Iq" $@
 sed -i -e "/^%changelog/ r .cl" $@ && rm -f .cl
@@ -187,12 +202,12 @@ endef
 
 tag : linux-update | linux
 	$(call add-tag,$(linux_TAG))
-	pushd linux >/dev/null ; $(call add-tag,$(linux_TAG),$(linux_PATCH_HEAD)) ; popd >/dev/null
+	pushd linux >/dev/null ; $(call add-tag,$(linux_TAG),$(PATCH_HEAD)) ; popd >/dev/null
 force-tag :
 	$(MAKE) tag FORCE=1
 archive-tag : linux
 	$(call add-tag,archive/$(linux_TAG))
-	pushd linux >/dev/null ; $(call add-tag,,archive/$(linux_TAG),$(linux_PATCH_HEAD)) ; popd >/dev/null
+	pushd linux >/dev/null ; $(call add-tag,,archive/$(linux_TAG),$(PATCH_HEAD)) ; popd >/dev/null
 delete-tag : | linux
 	$(call check-or-delete-tag,$(linux_TAG),,delete)
 	pushd linux >/dev/null ; $(call check-or-delete-tag,$(linux_TAG),,delete) ; popd >/dev/null
