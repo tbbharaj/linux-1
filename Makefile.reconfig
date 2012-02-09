@@ -5,7 +5,8 @@
 RPMBUILD        = /usr/bin/rpmbuild
 RPMDEFINES_top  = ntopdir builddir specdir rpmdir srcrpmdir
 RPMDEFINES_srpm = sourcedir
-RPM             = $(RPMBUILD) --define "_topdir $(CURDIR)" $(foreach def,$(RPMDEFINES_top),--define "_$(def) %{_topdir}") \
+RPM             = $(RPMBUILD) --nodeps --define "_topdir $(CURDIR)" \
+		  $(foreach def,$(RPMDEFINES_top),--define "_$(def) %{_topdir}") \
 		  $(foreach def,$(RPMDEFINES_srpm),--define "_$(def) $(SOURCEDIR)")
 
 KCONFIG         = $(SOURCEDIR)/kconfig.py
