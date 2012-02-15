@@ -129,7 +129,7 @@ Summary: The Linux kernel
 
 %if %{with_vdso_install}
 # These arches install vdso/ directories.
-%define vdso_arches %{all_x86} x86_64 ppc ppc64
+%define vdso_arches %{all_x86} x86_64
 %endif
 
 # Overrides for generic default options
@@ -153,11 +153,6 @@ Summary: The Linux kernel
 %define with_firmware  %{?_with_firmware:     1} %{?!_with_firmware:     0}
 %endif
 
-# sparse blows up on ppc64 
-%ifarch ppc64 ppc
-%define with_sparse 0
-%endif
-
 # Per-arch tweaks
 
 %ifarch %{all_x86}
@@ -173,26 +168,6 @@ Summary: The Linux kernel
 %define all_arch_configs kernel-%{version}-x86_64*.config
 %define image_install_path boot
 %define kernel_image arch/x86/boot/bzImage
-%endif
-
-%ifarch ppc64
-%define asmarch powerpc
-%define hdrarch powerpc
-%define all_arch_configs kernel-%{version}-ppc64*.config
-%define image_install_path boot
-%define make_target vmlinux
-%define kernel_image vmlinux
-%define kernel_image_elf 1
-%endif
-
-%ifarch ppc
-%define asmarch powerpc
-%define hdrarch powerpc
-%define all_arch_configs kernel-%{version}-ppc{-,.}*config
-%define image_install_path boot
-%define make_target vmlinux
-%define kernel_image vmlinux
-%define kernel_image_elf 1
 %endif
 
 %ifarch %{arm}
@@ -303,7 +278,7 @@ Version: %{rpmversion}
 Release: %{pkg_release}
 # DO NOT CHANGE THE 'ExclusiveArch' LINE TO TEMPORARILY EXCLUDE AN ARCHITECTURE BUILD.
 # SET %%nobuildarches (ABOVE) INSTEAD
-ExclusiveArch: noarch %{all_x86} x86_64 ppc ppc64 %{arm}
+ExclusiveArch: noarch %{all_x86} x86_64 %{arm}
 ExclusiveOS: Linux
 
 %kernel_reqprovconf
@@ -875,9 +850,6 @@ hwcap 0 nosegneg"
     fi
     rm -f $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/scripts/*.o
     rm -f $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/scripts/*/*.o
-%ifarch ppc
-    cp -a --parents arch/powerpc/lib/crtsavres.[So] $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/
-%endif
     if [ -d arch/%{asmarch}/include ]; then
       cp -a --parents arch/%{asmarch}/include $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/
     fi
