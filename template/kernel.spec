@@ -78,8 +78,6 @@ Summary: The Linux kernel
 %define with_perf      %{?_without_perf:      0} %{?!_without_perf:      0}
 # kernel-debuginfo
 %define with_debuginfo %{?_without_debuginfo: 0} %{?!_without_debuginfo: 1}
-# kernel-bootwrapper (for creating zImages from kernel + initrd)
-%define with_bootwrapper %{?_without_bootwrapper: 0} %{?!_without_bootwrapper: 0}
 # Want to build a the vsdo directories installed
 %define with_vdso_install %{?_without_vdso_install: 0} %{?!_without_vdso_install: 0}
 # Use dracut instead of mkinitrd for initrd image generation
@@ -153,11 +151,6 @@ Summary: The Linux kernel
 %define with_headers 0
 %define all_arch_configs kernel-%{version}-*.config
 %define with_firmware  %{?_with_firmware:     1} %{?!_with_firmware:     0}
-%endif
-
-# bootwrapper is only on ppc
-%ifnarch ppc ppc64
-%define with_bootwrapper 0
 %endif
 
 # sparse blows up on ppc64 
@@ -412,14 +405,6 @@ Provides: kernel-firmware = %{rpmversion}-%{pkg_release}
 %description firmware
 Kernel-firmware includes firmware files required for some devices to
 operate.
-
-%package bootwrapper
-Summary: Boot wrapper files for generating combined kernel + initrd images
-Group: Development/System
-Requires: gzip
-%description bootwrapper
-Kernel-bootwrapper contains the wrapper code which makes bootable "zImage"
-files combining both kernel and initial ramdisk.
 
 %package debuginfo-common-%{_target_cpu}
 Summary: Kernel source files used by %{name}-debuginfo packages
@@ -1096,10 +1081,6 @@ rm -f $RPM_BUILD_ROOT/usr/include/asm*/irq.h
 %{build_firmware}
 %endif
 
-%if %{with_bootwrapper}
-make DESTDIR=$RPM_BUILD_ROOT bootwrapper_install WRAPPER_OBJDIR=%{_libdir}/kernel-wrapper WRAPPER_DTSDIR=%{_libdir}/kernel-wrapper/dts
-%endif
-
 ###
 ### clean
 ###
@@ -1204,13 +1185,6 @@ fi
 %defattr(-,root,root)
 /lib/firmware/*
 %doc linux-%{kversion}.%{_target_cpu}/firmware/WHENCE
-%endif
-
-%if %{with_bootwrapper}
-%files bootwrapper
-%defattr(-,root,root)
-/usr/sbin/*
-%{_libdir}/kernel-wrapper
 %endif
 
 # only some architecture builds need kernel-doc
