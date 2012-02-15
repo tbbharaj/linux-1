@@ -183,6 +183,10 @@ update-sources : $(CUSTOMSPEC) $(MAKEFILE_LIST)
 		  -e "s/^Source1:.*$$/Source1: $(linux_PATCH_ball)$(TAREXT)/i" $<
 
 # check if the tag exists both in local and remote sites and optionally blow it away
+#
+# the only way to determine if a tag is set on remote is to delete it locally
+# and re-fetch the tags from remote - if it shows up afain as a refs/tags then
+# it needs to be deleted both locally and from remote
 define check-or-delete-tag
 if $(GIT) show-ref --verify --quiet refs/tags/$(1) ; then \
 	$(if $(FORCE)$(3),$(GIT) tag -d $(1),echo "ERROR: tag $(1) already exists in `pwd`" ; exit -1 ); \
@@ -193,6 +197,12 @@ if $(GIT) show-ref --verify --quiet refs/tags/$(1) ; then \
 		echo "ERROR: tag $(1) already exists on remote site" ; exit -1 ); \
 fi
 endef
+
+# TAG handling and creation
+# if linux_TAG is defined, use it.
+# if TAG is defined, use it.
+# otherwise construct a build/$branch_name/n-v-r tag
+linux_TAG	?= $(if $(TAG),$(TAG),build/$(shell $(get_current_branch))/$(shell $(get-spec-nvr)))
 
 # create the tag here
 define add-tag
@@ -205,9 +215,6 @@ tag : linux-update | linux
 	pushd linux >/dev/null ; $(call add-tag,$(linux_TAG),$(PATCH_HEAD)) ; popd >/dev/null
 force-tag :
 	$(MAKE) tag FORCE=1
-archive-tag : linux
-	$(call add-tag,archive/$(linux_TAG))
-	pushd linux >/dev/null ; $(call add-tag,,archive/$(linux_TAG),$(PATCH_HEAD)) ; popd >/dev/null
 delete-tag : | linux
 	$(call check-or-delete-tag,$(linux_TAG),,delete)
 	pushd linux >/dev/null ; $(call check-or-delete-tag,$(linux_TAG),,delete) ; popd >/dev/null

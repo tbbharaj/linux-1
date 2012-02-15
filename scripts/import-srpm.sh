@@ -100,10 +100,6 @@ set -e -x
 TAGVER=$(rpm -qp --qf '%{VERSION}-%{RELEASE}' $SRPM 2>/dev/null)
 SOURCEDIR=$TOPDIR/${SERIES_NAME}
 TAG="${SERIES_NAME}${SERIES_REL}/${TAGVER}"
-if git show-ref --verify --quiet refs/tags/${TAG} ; then
-    say_red "ERROR: tag ${TAG} already exists"
-    exit -1
-fi
 
 declare -a rpmopts=(--define "_topdir $TOPDIR" --define "_ntopdir %{_topdir}" --define "_builddir %{_topdir}" \
     --define "_sourcedir ${SOURCEDIR}" --define "_specdir ${SOURCEDIR}" --define "_rpmdir %{_topdir}" \
@@ -158,39 +154,7 @@ rpmbuild "${rpmopts[@]}" "${RPM_PREP[@]}" \
     --define "$(spec_prep_post)" \
     -bp --nodeps --target=x86_64 $SOURCEDIR/kernel.spec
 # add the tag we'd like to use to tag this import
-cat >>linux.vers <<EOF
-linux_TAG        = ${TAG}/import
-EOF
 git add linux.vers
 
 git commit --allow-empty --quiet -m "imported source rpm ${TAG}"
-git tag -m "imported source rpm ${TAG}" --force "${TAG}/import"
-
-say_green "Import of $SRPM tagged as $TAG/import"
-
-exit 0
-
-MYBRANCH=$(git rev-parse --abbrev-ref HEAD)
-
-pushd $PREPDIR
-git ls-files -z | egrep -zZ -v "^.pkginfo" | xargs -r0 git rm --quiet
-tar cf - -C $TOPDIR/kernel-2.6.[3-9][0-9]*/linux-2.6.*.i686 . | tar xf -
-tar cf - -C $TOPDIR/kernel-2.6.[3-9][0-9]*/linux-2.6.*.x86_64 . | tar xf -
-rm -f .config .config.old config-*
-git add .
-popd
-
-echo "Comitting work...."
-pushd $PREPDIR
-git commit -m "imported source rpm: $TAG"
-git tag -f fedora/$TAG
-popd
-
-pushd $TOPDIR
-git add prep
-git commit -m "imported source rpm: $TAG"
-git tag -f fedora/$TAG
-popd
-
-
-git repack -d && git submodule --quiet foreach git repack -d
+say_green "Import of $SRPM completed"

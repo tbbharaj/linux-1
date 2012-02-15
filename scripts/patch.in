@@ -137,8 +137,8 @@ function finish_tree {
 linux_TAGVER	 = ${VTAG##v}
 linux_TAR_BASE	 = v\$(linux_TAGVER)
 linux_PATCH_BASE = \$(linux_TAR_BASE)
-linux_BRANCH	 = ${BRANCH}
-linux_PATCH_HEAD = \$(linux_BRANCH)
+linux_PATCH_HEAD = ${BRANCH}
+linux_BRANCH	 = \$(linux_PATCH_HEAD)
 EOF
 }
 
