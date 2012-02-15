@@ -36,3 +36,8 @@ reconfig reconfig-prep :: Makefile.reconfig sources
 	$(MAKE) -f $< $@ SOURCEDIR=$(SOURCEDIR) SPECFILE=$(CUSTOMSPEC)
 
 endif
+
+SRPMS = kaos-source.amazon.com:/opt/mirrors/distro/fedora-17/source/k/kernel-3\*.src.rpm  \
+        kaos-source.amazon.com:/opt/mirrors/distro/fedora-17/updates/SRPMS/kernel-3\*.src.rpm
+mirror :
+	mkdir -p ../tmp/kernel ; $(foreach s,$(SRPMS),rsync -av $(s) ../tmp/kernel ; )
