@@ -170,14 +170,6 @@ Summary: The Linux kernel
 %define kernel_image arch/x86/boot/bzImage
 %endif
 
-%ifarch %{arm}
-%define all_arch_configs kernel-%{version}-arm*.config
-%define image_install_path boot
-%define hdrarch arm
-%define make_target vmlinux
-%define kernel_image vmlinux
-%endif
-
 # amazon: don't use nonint config target - we want to know when our config files are
 # not complete
 %define oldconfig_target oldconfig
@@ -188,9 +180,8 @@ Summary: The Linux kernel
 # us use the previous build of that package -- it'll just be completely AWOL.
 # Which is a BadThing(tm).
 
-# We don't build a kernel on i386; we only do kernel-headers there,
-# and we no longer build for 31bit s390. Same for 32bit and arm.
-%define nobuildarches i386 i486 i586 %{arm}
+# We don't build a kernel on i386; we only do kernel-headers there
+%define nobuildarches i386 i486 i586
 
 %ifarch %nobuildarches
 %define with_up 0
@@ -278,7 +269,7 @@ Version: %{rpmversion}
 Release: %{pkg_release}
 # DO NOT CHANGE THE 'ExclusiveArch' LINE TO TEMPORARILY EXCLUDE AN ARCHITECTURE BUILD.
 # SET %%nobuildarches (ABOVE) INSTEAD
-ExclusiveArch: noarch %{all_x86} x86_64 %{arm}
+ExclusiveArch: noarch %{all_x86} x86_64
 ExclusiveOS: Linux
 
 %kernel_reqprovconf
