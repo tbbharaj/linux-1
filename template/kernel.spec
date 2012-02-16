@@ -722,7 +722,7 @@ BuildKernel() {
     echo BUILDING A KERNEL FOR ${Flavour} %{_target_cpu}...
 
     # make sure EXTRAVERSION says what we want it to say
-    perl -p -i -e "s/^EXTRAVERSION.*/EXTRAVERSION = -%{release}.%{_target_cpu}${Flavour:+.${Flavour}}/" Makefile
+    perl -p -i -e "s/^EXTRAVERSION.*/EXTRAVERSION = %{?stablerev:.%{stablerev}}-%{release}.%{_target_cpu}${Flavour:+.${Flavour}}/" Makefile
 
     # and now to start the build process
 
