@@ -59,7 +59,7 @@ endef
 
 include linux.vers
 # defines for archive building
-linux_PREFIX	= linux-$(linux_TAGVER)
+linux_PREFIX	 ?= linux-$(linux_TAGVER)
 
 linux_TAR_ball	 = linux-$(linux_TAGVER)
 linux_PATCH_ball = linux-$(linux_TAGVER)-patches
