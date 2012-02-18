@@ -540,71 +540,14 @@ ApplyOptionalPatch()
 # Use kernel-%%{kversion}%%{?dist} as the top-level directory name
 # so we can prep different trees within a single git directory.
 
-# Build a list of the other top-level kernel tree directories.
-# This will be used to hardlink identical vanilla subdirs.
-sharedirs=$(find "$PWD" -maxdepth 1 -type d -name 'kernel-2.6.*' \
-            | grep -x -v "$PWD"/kernel-%{kversion}%{?dist}) ||:
-
-if [ ! -d kernel-%{kversion}%{?dist}/vanilla-%{vanillaversion} ]; then
-
-  if [ -d kernel-%{kversion}%{?dist}/vanilla-%{kversion} ]; then
-
-    # The base vanilla version already exists.
-    cd kernel-%{kversion}%{?dist}
-
-    # Any vanilla-* directories other than the base one are stale.
-    for dir in vanilla-*; do
-      [ "$dir" = vanilla-%{kversion} ] || rm -rf $dir &
-    done
-
-  else
-
-    rm -f pax_global_header
-    # Look for an identical base vanilla dir that can be hardlinked.
-    for sharedir in $sharedirs ; do
-      if [[ ! -z $sharedir  &&  -d $sharedir/vanilla-%{kversion} ]] ; then
-        break
-      fi
-    done
-    if [[ ! -z $sharedir  &&  -d $sharedir/vanilla-%{kversion} ]] ; then
-%setup -q -n kernel-%{kversion}%{?dist} -c -T
-      cp -rl $sharedir/vanilla-%{kversion} .
-    else
 %setup -q -n kernel-%{kversion}%{?dist} -c
-      mv linux-%{kversion} vanilla-%{kversion}
-    fi
-
-  fi
+mv linux-%{vanillaversion} vanilla-%{vanillaversion}
 
 %if "%{kversion}" != "%{vanillaversion}"
-
-  for sharedir in $sharedirs ; do
-    if [[ ! -z $sharedir  &&  -d $sharedir/vanilla-%{vanillaversion} ]] ; then
-      break
-    fi
-  done
-  if [[ ! -z $sharedir  &&  -d $sharedir/vanilla-%{vanillaversion} ]] ; then
-
-    cp -rl $sharedir/vanilla-%{vanillaversion} .
-
-  else
-
-    # Need to apply patches to the base vanilla version.
-    cp -rl vanilla-%{kversion} vanilla-%{vanillaversion}
-    cd vanilla-%{vanillaversion}
-
-    cd ..
-
-  fi
+# Need to apply patches to the base vanilla version.
+pushd vanilla-%{vanillaversion} && popd
 
 %endif
-
-else
-
-  # We already have all vanilla dirs, just change to the top-level directory.
-  cd kernel-%{kversion}%{?dist}
-
-fi
 
 # Now build the fedora kernel tree.
 if [ -d linux-%{KVERREL} ]; then
