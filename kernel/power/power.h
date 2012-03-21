@@ -1,3 +1,4 @@
+#include <linux/fs.h>
 #include <linux/suspend.h>
 #include <linux/suspend_ioctls.h>
 #include <linux/utsname.h>
@@ -227,25 +228,3 @@ enum {
 #define TEST_MAX	(__TEST_AFTER_LAST - 1)
 
 extern int pm_test_level;
-
-#ifdef CONFIG_SUSPEND_FREEZER
-static inline int suspend_freeze_processes(void)
-{
-	int error = freeze_processes();
-	return error ? : freeze_kernel_threads();
-}
-
-static inline void suspend_thaw_processes(void)
-{
-	thaw_processes();
-}
-#else
-static inline int suspend_freeze_processes(void)
-{
-	return 0;
-}
-
-static inline void suspend_thaw_processes(void)
-{
-}
-#endif
