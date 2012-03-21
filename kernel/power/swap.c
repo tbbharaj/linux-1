@@ -426,7 +426,7 @@ static int swap_writer_finish(struct swap_map_handle *handle,
 #define LZO_CMP_SIZE	(LZO_CMP_PAGES * PAGE_SIZE)
 
 /* Maximum number of threads for compression/decompression. */
-#define LZO_THREADS	3
+#define LZO_THREADS	1
 
 /* Minimum/maximum number of pages for read buffering. */
 #define LZO_MIN_RD_PAGES	1024
