@@ -664,12 +664,17 @@ int hibernate(void)
 	if (error)
 		goto Free_bitmaps;
 
-	error = hibernation_snapshot(hibernation_mode == HIBERNATION_PLATFORM);
+	error = freeze_supers();
 	if (error)
 		goto Thaw;
+
+	error = hibernation_snapshot(hibernation_mode == HIBERNATION_PLATFORM);
+	if (error)
+		goto Thaw_fs;
+
 	if (freezer_test_done) {
 		freezer_test_done = false;
-		goto Thaw;
+		goto Thaw_fs;
 	}
 
 	if (in_suspend) {
@@ -693,6 +698,8 @@ int hibernate(void)
 		pr_debug("PM: Image restored successfully.\n");
 	}
 
+ Thaw_fs:
+	thaw_supers();
  Thaw:
 	thaw_processes();
  Free_bitmaps:

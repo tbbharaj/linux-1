@@ -30,6 +30,48 @@
 
 #include "power.h"
 
+#ifdef CONFIG_SUSPEND_FREEZER
+
+static inline int suspend_freeze_processes(void)
+{
+	int error;
+
+	error = freeze_processes();
+	if (error)
+		return error;
+
+	error = freeze_supers();
+	if (error) {
+		thaw_processes();
+		return error;
+	}
+
+	error = freeze_kernel_threads();
+	if (error)
+		thaw_supers();
+
+	return error;
+}
+
+static inline void suspend_thaw_processes(void)
+{
+	thaw_supers();
+	thaw_processes();
+}
+
+#else /* !CONFIG_SUSPEND_FREEZER */
+
+static inline int suspend_freeze_processes(void)
+{
+	return 0;
+}
+
+static inline void suspend_thaw_processes(void)
+{
+}
+
+#endif /* !CONFIG_SUSPEND_FREEZER */
+
 const char *const pm_states[PM_SUSPEND_MAX] = {
 	[PM_SUSPEND_STANDBY]	= "standby",
 	[PM_SUSPEND_MEM]	= "mem",
