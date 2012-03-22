@@ -106,6 +106,10 @@ static unsigned long mmap_legacy_base(void)
 		return TASK_UNMAPPED_BASE + mmap_rnd();
 }
 
+#ifdef CONFIG_X86_32
+  #define SHLIB_BASE             0x00111000
+#endif
+
 /*
  * This function, called very early during the creation of a new
  * process VM image, sets up which VM layout function to use:
@@ -122,8 +126,10 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 #ifdef CONFIG_X86_32
 		if (!(current->personality & READ_IMPLIES_EXEC)
 		    && !(__supported_pte_mask & _PAGE_NX)
-		    && mmap_is_ia32())
+		    && mmap_is_ia32()) {
+			mm->shlib_base = SHLIB_BASE + mmap_rnd();
 			mm->get_unmapped_exec_area = arch_get_unmapped_exec_area;
+		}
 #endif
 		mm->unmap_area = arch_unmap_area_topdown;
 	}
