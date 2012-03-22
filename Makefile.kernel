@@ -159,11 +159,11 @@ clean ::
 
 # redefine spec file generation to include git logs from submodules
 define replace_changelog
->.cl.spec
->.cl.gitlog
->.cl.linux
-#$(call get_specfile_changelog,$(firstword $(wildcard $(CURDIR)/fedora/kernel.spec) $<)) > .cl.spec
-#$(call get_gitlog_changelog,$(CHANGELOGS)) > .cl.gitlog
+@>.cl.spec
+@>.cl.gitlog
+@>.cl.linux
+@#$(call get_specfile_changelog,$(firstword $(wildcard $(CURDIR)/fedora/kernel.spec) $<)) > .cl.spec
+@#$(call get_gitlog_changelog,$(CHANGELOGS)) > .cl.gitlog
 pushd linux >/dev/null; $(call get_gitlog_changelog,,$(TAR_BASE),$(PATCH_BASE)) > ../.cl.linux; popd>/dev/null
 $(find-common-dir)/sort-changelog.py .cl.spec .cl.gitlog .cl.linux > .cl && rm -f .cl.spec .cl.gitlog .cl.linux
 sed -i -e "/^%changelog/Iq" $@
