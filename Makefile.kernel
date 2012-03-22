@@ -138,7 +138,7 @@ define get_changelist
 pushd $(1)>/dev/null ; \
 $(GIT) log --date=short --format=tformat:"- $(2)/%H last changes:" $(4) -1 ; \
 $(GIT) log --date=short --format=tformat:"  + [%h] [%ad] %s (%ae)" \
-	$(if $(3),$(3)..$(4),--since=$$(date +'%Y-%m-%d' --date 'yesterday')) ; \
+	$(if $(3),$(3)..$(4),--since=$$(date +'%Y-%m-%d' --date 'yesterday') -7) ; \
 echo ; \
 popd >/dev/null ; }
 endef
