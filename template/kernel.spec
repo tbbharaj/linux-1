@@ -37,11 +37,11 @@ Summary: The Linux kernel
 # building.  We used to call this fedora_build, but the magical name
 # baserelease is matched by the rpmdev-bumpspec tool, which you should use.
 #
-%global baserelease 1
+%global baserelease __BASEREL__
 %global fedora_build %{baserelease}
 
 # what kernel is it we are building
-%global kversion 3.1.6
+%global kversion __KVERSION__
 %define rpmversion %{kversion}
 
 # What parts do we want to build?  We must build at least one kernel.

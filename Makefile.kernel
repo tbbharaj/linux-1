@@ -175,6 +175,8 @@ specfile : add-patches | $(CUSTOMSPEC)
 add-patches :  $(CUSTOMSPEC) $(APPLYLOG) $(PATCHLOG)
 	sed -i  -e '/__PATCHFILE_TEMPLATE__/ r $(PATCHLOG)' \
 		-e '/__APPLYFILE_TEMPLATE__/ r $(APPLYLOG)' \
+		-e 's/__BASEREL__/$(linux_BASEREL)/' \
+		-e 's/__KVERSION__/$(linux_TAGVER)/' \
 		$(CUSTOMSPEC)
 
 specfile : update-sources | $(CUSTOMSPEC)
