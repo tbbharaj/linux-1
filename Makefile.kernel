@@ -137,14 +137,15 @@ define get_changelist
 { export TZ=UTC ; \
 pushd $(1)>/dev/null ; \
 $(GIT) log --date=short --format=tformat:"- $(2)/%H last changes:" $(4) -1 ; \
-$(GIT) log --date=short --format=tformat:"  + [%h] [%ad] %s (%ae)" $(if $(3),$(3)..$(4),-10) ; \
+$(GIT) log --date=short --format=tformat:"  + [%h] [%ad] %s (%ae)" \
+	$(if $(3),$(3)..$(4),--since=$$(date +'%Y-%m-%d' --date 'yesterday')) ; \
 echo ; \
 popd >/dev/null ; }
 endef
 
 $(HEADLOG): linux-update $(MAKEFILE_LIST) | linux
 	echo "* $$(TZ=UTC date +'%a %b %d %Y') Builder <builder@amazon.com>" > $@
-	$(call get_changelist,.,kernel,,HEAD^) >> $@
+	$(call get_changelist,.,builder,,HEAD) >> $@
 	$(call get_changelist,linux,linux,$(PATCH_BASE),$(PATCH_HEAD)) >>$@
 
 $(PATCHLOG) : linux-update $(MAKEFILE_LIST) | linux
