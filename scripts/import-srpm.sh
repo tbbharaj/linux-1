@@ -157,6 +157,10 @@ rpmbuild "${rpmopts[@]}" "${RPM_PREP[@]}" \
     --define "$(spec_prep_post)" \
     -bp --nodeps --target=x86_64 $SOURCEDIR/kernel.spec
 # add the tag we'd like to use to tag this import
+_rel=$(rpm -qp --qf '%{RELEASE}' $SRPM 2>/dev/null)
+cat >>linux.vers <<EOF
+linux_BASEREL   = ${_rel%%.fc*}
+EOF
 git add linux.vers
 
 git commit --allow-empty --quiet -m "imported source rpm ${TAG}"
