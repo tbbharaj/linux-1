@@ -172,7 +172,16 @@ case $STAGE in
         # capture the stdin into a temp file
         ptmp=$(mktemp $RPM_SOURCE_DIR/pXXXXXX)
         trap "rm -f $ptmp" 0 9 15
-        sed -e '/\S/,$!d;' >$ptmp
+        if [ -n "$patch" -a -n "$PATCHIN" ] ; then 
+            case $patch in
+                *gz ) zcat $PATCHIN >$ptmp ;;
+                *bz2 ) bzcat $PATCHIN >$ptmp ;;
+                *xz ) xzcat $PATCHIN >$ptmp ;;
+                * ) sed -e '/\S/,$!d;' $PATCHIN >$ptmp ;;
+            esac
+        else
+            sed -e '/\S/,$!d;' >$ptmp
+        fi
         if [ ! -d .git ] ; then
             start_tree
         fi
