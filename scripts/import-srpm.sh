@@ -111,6 +111,18 @@ declare -a rpmopts=(--define "_topdir $TOPDIR" --define "_ntopdir %{_topdir}" --
 say_yellow "Cleaning up work environment..."
 #git clean -f -x -d
 mkdir -p ${SERIES_NAME}
+cat >>${SERIES_NAME}/.gitignore <<EOF
+*~
+*gz
+*bz2
+*xz
+*.tar
+*.bin
+*.orig
+*.rej
+EOF
+sort -u -o srpm/.gitignore srpm/.gitignore
+if [ -f ${SERIES_NAME}/.gitignore ] ; then sort -u -o ${SERIES_NAME}/.gitignore ${SERIES_NAME}/.gitignore ; fi
 git ls-files -z ${SERIES_NAME} | egrep -v -zZ '.gitignore' | xargs -r0 git rm --quiet --force
 
 say_yellow "Unpacking source rpm $SRPM..."
