@@ -157,7 +157,8 @@ EOF
 # this commits and cleans up the prepped tree
 function spec_prep_post {
     cat <<EOF
-%__spec_prep_post $TOPDIR/scripts/patch --finish\\
+%__spec_prep_post cd %{_builddir}/%{?buildsubdir:%{buildsubdir}}%{?!buildsubdir:%{name}-%{version}}\\
+$TOPDIR/scripts/patch --finish\\
 %{___build_post}\\
 %{nil}
 

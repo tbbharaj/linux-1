@@ -66,6 +66,7 @@ function start_tree {
     local b=$(basename $(pwd -P))
     pushd ..
     rm -rf $b.git
+    say_yellow "Cloning ${dir} for $b"
     git clone --no-hardlinks $LINUX_DIR $b.git
     cd $b.git
     # check that the branch does not already exists
