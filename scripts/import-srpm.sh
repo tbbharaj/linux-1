@@ -125,7 +125,8 @@ sed -e "s#@@LINUX_DIR@@#$LINUX_DIR#" \
     -e "s#@@TAGVER@@#${TAGVER}#" \
     <$TOPDIR/scripts/patch.in >$TOPDIR/scripts/patch
 chmod 755 $TOPDIR/scripts/patch
-sed -i -e "s/local patch=/export patch=/" $SOURCEDIR/kernel.spec
+SPECFILE=$(ls $SOURCEDIR/kernel*.spec|head -1)
+sed -i -e "s/local patch=/export patch=/" $SPECFILE
 
 # commit this series to the currenbt branch
 git add ${SERIES_NAME}
@@ -155,7 +156,7 @@ EOF
 export PATH=$TOPDIR/scripts:$PATH
 rpmbuild "${rpmopts[@]}" "${RPM_PREP[@]}" \
     --define "$(spec_prep_post)" \
-    -bp --nodeps --target=x86_64 $SOURCEDIR/kernel.spec
+    -bp --nodeps --target=x86_64 $SPECFILE
 # add the tag we'd like to use to tag this import
 _rel=$(rpm -qp --qf '%{RELEASE}' $SRPM 2>/dev/null)
 cat >>linux.vers <<EOF
