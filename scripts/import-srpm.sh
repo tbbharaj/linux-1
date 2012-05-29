@@ -128,8 +128,6 @@ mkdir -p ${SERIES_NAME} srpm
 
 say_yellow "Unpacking source rpm $SRPM..."
 rpm  "${rpmopts[@]}" -Uvh --quiet $SRPM 2>/dev/null
-make upload FILES="*gz *bz2 *xz *tar" SOURCEDIR=${SERIES_NAME}
-git add sources
 
 say_yellow "Creating patch script $TOPDIR/scripts/patch..."
 sed -e "s#@@LINUX_DIR@@#$LINUX_DIR#" \
