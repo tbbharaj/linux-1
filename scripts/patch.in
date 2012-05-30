@@ -104,9 +104,18 @@ function commit_tree {
         phead=$(sed -n -r -e '0,/^(--$|diff -|--- )/p;' <$ptmp | \
             sed -r -e 's/^(.*)$/  \1/')
     fi
+    local _author=
+    local _msg=
+    if [ -n "${phead}" ] ; then
+        local _author=$(sed -n -r -e '0,/^(--$|diff -|--- )/p;' <$ptmp | \
+            sed -r -e '/From: /!d;s|\s*From:\s*(.+)$|\1|' \
+                   -e 's|(\S)[<]|\1 <|')
+        local _msg=$(sed -n -r -e '0,/^(--$|diff -|--- )/p;' <$ptmp | \
+            sed -r -e '/Subject: /!d;s|\s*Subject:\s*(.+)$|\1|')
+    fi
     if [ -n "${z}" ] ; then 
-        cat <<EOF | git commit -s --author="$DEFAULT_AUTHOR" --file=-
-${msg}
+        cat <<EOF | git commit -s --author="${_author:-$DEFAULT_AUTHOR}" --file=-
+${_msg:-$msg}
 
 $(git diff --cached --stat)
 ${phead}
