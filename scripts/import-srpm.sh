@@ -146,7 +146,7 @@ git add ${SERIES_NAME}
 # this sets up the git tree for the import
 function spec_prep_pre {
     cat <<EOF
-%__spec_prep_pre %{___build_pre}\\
+__spec_prep_pre %{___build_pre}\\
 \\
 $TOPDIR/scripts/patch --start\\
 %{nil}
@@ -157,7 +157,7 @@ EOF
 # this commits and cleans up the prepped tree
 function spec_prep_post {
     cat <<EOF
-%__spec_prep_post cd %{_builddir}/%{?buildsubdir:%{buildsubdir}}%{?!buildsubdir:%{name}-%{version}}\\
+__spec_prep_post cd %{_builddir}/%{?buildsubdir:%{buildsubdir}}%{?!buildsubdir:%{name}-%{version}}\\
 $TOPDIR/scripts/patch --finish\\
 %{___build_post}\\
 %{nil}
