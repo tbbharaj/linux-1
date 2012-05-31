@@ -137,6 +137,7 @@ function finish_tree {
     pushd linux-*.${RPM_ARCH}
     # clean up the state of the extra files put in the tree by the spec file
     # prep process
+    make distclean
     add_changes
     git reset
     git push origin HEAD && \
