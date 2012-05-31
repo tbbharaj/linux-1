@@ -39,9 +39,10 @@ BRANCH="${UPSTREAM}/${TAGVER}"
 
 function add_changes {
     # try to figure out what the patch did...
-    git add .
+    find . \( -name \*.orig -o -name \*.rej \) -exec rm -fv {} \;
+    git add --all --force .
     # also marked as removed in git the stuff that was removed...
-    git status --short | grep -E '^.?D' | awk '{print $2}' | xargs -r git rm
+    git status --short | grep -E '^.D' | awk '{print $2}' | xargs -r git rm
 }
 
 function git_unstash {
