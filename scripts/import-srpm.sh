@@ -124,6 +124,7 @@ EOF
 sort -u -o srpm/.gitignore srpm/.gitignore
 if [ -f ${SERIES_NAME}/.gitignore ] ; then sort -u -o ${SERIES_NAME}/.gitignore ${SERIES_NAME}/.gitignore ; fi
 git ls-files -z ${SERIES_NAME} | egrep -v -zZ '.gitignore' | xargs -r0 git rm --quiet --force
+mkdir -p ${SERIES_NAME} srpm
 
 say_yellow "Unpacking source rpm $SRPM..."
 rpm  "${rpmopts[@]}" -Uvh --quiet $SRPM 2>/dev/null
