@@ -1738,8 +1738,7 @@ static void convert_pfn_mfn(void *v)
  * of the physical mapping once some sort of allocator has been set
  * up.
  */
-pgd_t * __init xen_setup_kernel_pagetable(pgd_t *pgd,
-					 unsigned long max_pfn)
+void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 {
 	pud_t *l3;
 	pmd_t *l2;
@@ -1800,8 +1799,6 @@ pgd_t * __init xen_setup_kernel_pagetable(pgd_t *pgd,
 
 	memblock_reserve(__pa(xen_start_info->pt_base),
 			 xen_start_info->nr_pt_frames * PAGE_SIZE);
-
-	return pgd;
 }
 #else	/* !CONFIG_X86_64 */
 static RESERVE_BRK_ARRAY(pmd_t, initial_kernel_pmd, PTRS_PER_PMD);
@@ -1844,8 +1841,7 @@ static void __init xen_write_cr3_init(unsigned long cr3)
 	pv_mmu_ops.write_cr3 = &xen_write_cr3;
 }
 
-pgd_t * __init xen_setup_kernel_pagetable(pgd_t *pgd,
-					 unsigned long max_pfn)
+void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 {
 	pmd_t *kernel_pmd;
 
@@ -1877,8 +1873,6 @@ pgd_t * __init xen_setup_kernel_pagetable(pgd_t *pgd,
 
 	memblock_reserve(__pa(xen_start_info->pt_base),
 			 xen_start_info->nr_pt_frames * PAGE_SIZE);
-
-	return initial_page_table;
 }
 #endif	/* CONFIG_X86_64 */
 

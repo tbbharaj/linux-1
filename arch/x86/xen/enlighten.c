@@ -1280,7 +1280,6 @@ asmlinkage void __init xen_start_kernel(void)
 {
 	struct physdev_set_iopl set_iopl;
 	int rc;
-	pgd_t *pgd;
 
 	if (!xen_start_info)
 		return;
@@ -1379,7 +1378,6 @@ asmlinkage void __init xen_start_kernel(void)
 	 */
 	pat_enabled = 0;
 #endif
-	pgd = (pgd_t *)xen_start_info->pt_base;
 
 	/* Don't do the full vcpu_info placement stuff until we have a
 	   possible map and a non-dummy shared_info. */
@@ -1389,7 +1387,8 @@ asmlinkage void __init xen_start_kernel(void)
 	early_boot_irqs_disabled = true;
 
 	xen_raw_console_write("mapping kernel into physical memory\n");
-	pgd = xen_setup_kernel_pagetable(pgd, xen_start_info->nr_pages);
+
+	xen_setup_kernel_pagetable((pgd_t *)xen_start_info->pt_base, xen_start_info->nr_pages);
 	xen_ident_map_ISA();
 
 	/* Allocate and initialize top and mid mfn levels for p2m structure */
