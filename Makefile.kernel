@@ -78,6 +78,14 @@ linux_id=$$(cd linux; $(GIT) describe --all --long $(PATCH_HEAD)^ | sed -re 's/^
 echo "$$(($${kernel_id:-0}+1)).$$(($${linux_id:-0}+1))"
 endef
 
+# redefine this from Makefile.common to be more kernel specific
+define generate-custom-specfile
+set -e -x ; \
+sed -e "1i%define $(BUILDVAR) $(shell $(get_build_id))\n" <$< >$@ ; \
+$(if $(SUBMODULE_SED),sed -i $(SUBMODULE_SED) $@)
+endef
+
+
 tarballs : $(addprefix $(SOURCEDIR)/,$(addsuffix $(TAREXT),$(linux_TAR_ball) $(linux_PATCH_ball)))
 sources : tarballs
 
@@ -179,7 +187,6 @@ specfile : add-patches | $(CUSTOMSPEC)
 add-patches :  $(CUSTOMSPEC) $(APPLYLOG) $(PATCHLOG)
 	sed -i  -e '/__PATCHFILE_TEMPLATE__/ r $(PATCHLOG)' \
 		-e '/__APPLYFILE_TEMPLATE__/ r $(APPLYLOG)' \
-		-e 's/__BASEREL__/$(linux_BASEREL)/' \
 		-e 's/__KVERSION__/$(linux_TAGVER)/' \
 		$(CUSTOMSPEC)
 

@@ -44,13 +44,6 @@ Summary: The Linux kernel
 %endif
 %endif
 
-# baserelease defines which build revision of this kernel version we're
-# building.  We used to call this fedora_build, but the magical name
-# baserelease is matched by the rpmdev-bumpspec tool, which you should use.
-#
-%global baserelease __BASEREL__
-%global fedora_build %{baserelease}
-
 # what kernel is it we are building
 %global kversion __KVERSION__
 %define rpmversion %{kversion}
@@ -100,7 +93,7 @@ Summary: The Linux kernel
 %define with_oldconfig     %{?_without_oldconfig:      0} %{?!_without_oldconfig:      1}
 
 # pkg_release is what we'll fill in for the rpm Release: field
-%define pkg_release %{fedora_build}%{?buildid}%{?dist}
+%define pkg_release %{?buildid}%{?dist}
 
 %define make_target bzImage
 
