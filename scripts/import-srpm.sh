@@ -25,6 +25,7 @@ valid options are:
     --fedora14    define and import a fedora14 package
     --fedora15    define and import a fedora15 package
     --fedora16    define and import a fedora16 package
+    --fedora17    define and import a fedora17 package
 * vTAG is a linux kernel tree version release base tag for the package being
   imported, ie, v2.6.39
 EOF
@@ -46,7 +47,7 @@ while [ $# -gt 0 ] ; do
                 --define "fedora ${SERIES_REL}" \
                 --define "fc${SERIES_REL} 1" )
             case $SERIES_REL in
-                16 ) RPM_PREP=("${RPM_PREP[@]}" --without backports) ;;
+                16 | 17 ) RPM_PREP=("${RPM_PREP[@]}" --without backports) ;;
             esac
             ;;
         -* )
