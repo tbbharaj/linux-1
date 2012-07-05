@@ -61,10 +61,10 @@ Summary: The Linux kernel
 %define with_doc       %{?_without_doc:       0} %{?!_without_doc:       1}
 # kernel-headers
 %define with_headers   %{?_without_headers:   0} %{?!_without_headers:   1}
-# kernel-firmware
-%define with_firmware  %{?_with_firmware:     1} %{?!_with_firmware:     0}
+# perf
+%define with_perf      %{?_without_perf:      0} %{?!_without_perf:      1}
 # tools
-%define with_tools     %{?_without_tools:     0} %{?!_without_tools:     1}
+%define with_tools     %{?_without_tools:     0} %{?!_without_tools:     0}
 # kernel-debuginfo
 %define with_debuginfo %{?_without_debuginfo: 0} %{?!_without_debuginfo: 1}
 # Want to build a the vsdo directories installed
@@ -75,11 +75,6 @@ Summary: The Linux kernel
 # Build the kernel-doc package, but don't fail the build if it botches.
 # Here "true" means "continue" and "false" means "fail the build".
 %define doc_build_fail true
-
-%define rawhide_skip_docs 0
-%if 0%{?rawhide_skip_docs}
-%define with_doc 0
-%endif
 
 # should we do C=1 builds with sparse
 %define with_sparse	%{?_with_sparse:      1} %{?!_with_sparse:      0}
@@ -135,8 +130,8 @@ Summary: The Linux kernel
 %define with_up 0
 %define with_headers 0
 %define with_tools 0
+%define with_perf 0
 %define all_arch_configs kernel-%{version}-*.config
-%define with_firmware  %{?_with_firmware:     1} %{?!_with_firmware:     0}
 %endif
 
 # Per-arch tweaks
@@ -172,12 +167,13 @@ Summary: The Linux kernel
 %ifarch %nobuildarches
 %define with_up 0
 %define with_debuginfo 0
+%define with_perf 0
 %define with_tools 0
 %define _enable_debug_packages 0
 %endif
 
 # Architectures we build tools/cpupower on
-#define cpupowerarchs %{ix86} x86_64 ppc ppc64
+#define cpupowerarchs %{ix86} x86_64
 %define cpupowerarchs none
 
 #
@@ -189,7 +185,7 @@ Summary: The Linux kernel
 # First the general kernel 2.6 required versions as per
 # Documentation/Changes
 #
-%define kernel_dot_org_conflicts  ppp < 2.4.3-3, isdn4k-utils < 3.2-32, nfs-utils < 1.0.7-12, e2fsprogs < 1.37-4, util-linux < 2.12, jfsutils < 1.1.7-2, reiserfs-utils < 3.6.19-2, xfsprogs < 2.6.13-4, procps < 3.2.5-6.3, oprofile < 0.9.1-2, device-mapper-libs < 1.02.63-2, mdadm < 3.2.1-5
+%define kernel_dot_org_conflicts  ppp < 2.4.3-3, isdn4k-utils < 3.2-32, nfs-utils < 1.2.5-7.fc17, e2fsprogs < 1.37-4, util-linux < 2.12, jfsutils < 1.1.7-2, reiserfs-utils < 3.6.19-2, xfsprogs < 2.6.13-4, procps < 3.2.5-6.3, oprofile < 0.9.1-2, device-mapper-libs < 1.02.63-2, mdadm < 3.2.1-5
 
 #
 # Then a series of requirements that are distribution specific, either
@@ -230,11 +226,7 @@ Provides: kernel-modeset = 1\
 Provides: kernel-uname-r = %{KVERREL}%{?1:.%{1}}\
 Requires(pre): %{kernel_prereq}\
 Requires(pre): %{initrd_prereq}\
-%if %{with_firmware}\
-Requires(pre): kernel-firmware >= %{rpmversion}-%{pkg_release}\
-%else\
-#Requires(pre): linux-firmware >= 20100806-2\
-%endif\
+#Requires(pre): linux-firmware >= 20120206\
 Requires(post): /sbin/new-kernel-pkg\
 Requires(preun): /sbin/new-kernel-pkg\
 Conflicts: %{kernel_dot_org_conflicts}\
@@ -277,15 +269,13 @@ BuildRequires: xmlto, asciidoc
 %if %{with_sparse}
 BuildRequires: sparse >= 0.4.1
 %endif
+%if %{with_perf}
+BuildRequires: elfutils-devel zlib-devel binutils-devel newt-devel python-devel perl(ExtUtils::Embed) bison
+%endif
 %if %{with_tools}
-# python-devel and perl(ExtUtils::Embed) are required for perf scripting
-BuildRequires: elfutils-devel zlib-devel binutils-devel newt-devel python-devel perl(ExtUtils::Embed) gettext
-BuildRequires: python-devel
-%ifarch %{cpupowerarchs}
-BuildRequires: pciutils-devel
-%endif # cpupowerarchs
+BuildRequires: pciutils-devel gettext
 %endif # tools
-BuildConflicts: rhbuildsys(DiskFree) < 500Mb
+BuildConflicts: rhbuildsys(DiskFree) < 3000Mb
 
 %define fancy_debuginfo 0
 %if %{with_debuginfo}
@@ -301,9 +291,8 @@ BuildRequires: rpm-build >= 4.4.2.1-4
 Source0: linux-%{kversion}.tar.gz
 Source1: linux-%{kversion}-patches.tar.gz
 
-Source11: genkey
-Source14: find-provides
 Source15: kconfig.py
+Source16: mod-extra.list
 
 Source19: Makefile.config
 Source20: config-generic
@@ -349,19 +338,6 @@ header files define structures and constants that are needed for
 building most standard programs and are also needed for rebuilding the
 glibc package.
 
-%package firmware
-Summary: Firmware files used by the Linux kernel
-Group: Development/System
-# This is... complicated.
-# Look at the WHENCE file.
-License: GPL+ and GPLv2+ and MIT and Redistributable, no modification permitted
-%if "x%{?variant}" != "x"
-Provides: kernel-firmware = %{rpmversion}-%{pkg_release}
-%endif
-%description firmware
-Kernel-firmware includes firmware files required for some devices to
-operate.
-
 %package debuginfo-common-%{_target_cpu}
 Summary: Kernel source files used by %{name}-debuginfo packages
 Group: Development/Debug
@@ -369,14 +345,35 @@ Group: Development/Debug
 This package is required by %{name}-debuginfo subpackages.
 It provides the kernel source files common to all builds.
 
+%if %{with_perf}
+%package -n perf
+Summary: Performance monitoring for the Linux kernel
+Group: Development/System
+License: GPLv2
+%description -n perf
+This package contains the perf tool, which enables performance monitoring
+of the Linux kernel.
+
+%package -n perf-debuginfo
+Summary: Debug information for package perf
+Group: Development/Debug
+Requires: %{name}-debuginfo-common-%{_target_cpu} = %{version}-%{release}
+AutoReqProv: no
+%description -n perf-debuginfo
+This package provides debug information for the perf package.
+
+# Note that this pattern only works right to match the .build-id
+# symlinks because of the trailing nonmatching alternation and
+# the leading .*, because of find-debuginfo.sh's buggy handling
+# of matching the pattern against the symlinks file.
+%{expand:%%global debuginfo_args %{?debuginfo_args} -p '.*%%{_bindir}/perf(\.debug)?|.*%%{_libexecdir}/perf-core/.*|.*%%{python_sitearch}/perf.so(\.debug)?|XXX' -o perf-debuginfo.list}
+%endif #perf
+
 %if %{with_tools}
 %package tools
 Summary: Assortment of tools for the Linux kernel
 Group: Development/System
 License: GPLv2
-Obsoletes: perf < 3.1.0-0.rc2.git7.2
-Provides:  perf = %{version}-%{release}
-%ifarch %{cpupowerarchs}
 Provides:  cpupowerutils = 1:009-0.6.p1
 Obsoletes: cpupowerutils < 1:009-0.6.p1
 Provides:  cpufreq-utils = 1:009-0.6.p1
@@ -384,11 +381,10 @@ Provides:  cpufrequtils = 1:009-0.6.p1
 Obsoletes: cpufreq-utils < 1:009-0.6.p1
 Obsoletes: cpufrequtils < 1:009-0.6.p1
 Obsoletes: cpuspeed < 1:1.5-16
-%endif # cpupowerarchs
 
 %description tools
 This package contains the tools/ directory from the kernel source
-- the perf tool and the supporting documentation.
+and the supporting documentation.
 
 %package tools-devel
 Summary: Assortment of tools for the Linux kernel
@@ -416,7 +412,7 @@ This package provides debug information for package kernel-tools.
 # symlinks because of the trailing nonmatching alternation and
 # the leading .*, because of find-debuginfo.sh's buggy handling
 # of matching the pattern against the symlinks file.
-+%{expand:%%global debuginfo_args %{?debuginfo_args} -p '.*%%{_bindir}/perf(\.debug)?|.*%%{_libexecdir}/perf-core/.*|.*%%{_bindir}/centrino-decode(\.debug)?|.*%%{_bindir}/powernow-k8-decode(\.debug)?|.*%%{_bindir}/cpupower(\.debug)?|.*%%{_libdir}/libcpupower.*|XXX' -o kernel-tools-debuginfo.list}
+%{expand:%%global debuginfo_args %{?debuginfo_args} -p '.*%%{_bindir}/centrino-decode(\.debug)?|.*%%{_bindir}/powernow-k8-decode(\.debug)?|.*%%{_bindir}/cpupower(\.debug)?|.*%%{_libdir}/libcpupower.*|XXX' -o kernel-tools-debuginfo.list}
 %endif
 
 #
@@ -457,6 +453,25 @@ against the %{?2:%{2} }kernel package.\
 %{nil}
 
 #
+# This macro creates a kernel-<subpackage>-modules-extra package.
+#	%%kernel_modules-extra_package <subpackage> <pretty-name>
+#
+%define kernel_modules-extra_package() \
+%package %{?1:%{1}-}modules-extra\
+Summary: Extra kernel modules to match the %{?2:%{2} }kernel\
+Group: System Environment/Kernel\
+Provides: kernel%{?1:-%{1}}-modules-extra-%{_target_cpu} = %{version}-%{release}\
+Provides: kernel-modules-extra-%{_target_cpu} = %{version}-%{release}%{?1:.%{1}}\
+Provides: kernel-modules-extra = %{version}-%{release}%{?1:.%{1}}\
+Provides: installonlypkg(kernel-module)\
+Provides: kernel-modules-extra-uname-r = %{KVERREL}%{?1:.%{1}}\
+Requires: kernel-uname-r = %{KVERREL}%{?1:.%{1}}\
+AutoReqProv: no\
+%description -n kernel%{?variant}%{?1:-%{1}}-modules-extra\
+This package provides less commonly used kernel modules for the %{?2:%{2} }kernel package.\
+%{nil}
+
+#
 # This macro creates a kernel-<subpackage> and its -devel and -debuginfo too.
 #	%%define variant_summary The Linux kernel compiled for <configuration>
 #	%%kernel_variant_package [-n <pretty-name>] <subpackage>
@@ -467,12 +482,14 @@ Summary: %{variant_summary}\
 Group: System Environment/Kernel\
 %kernel_reqprovconf\
 %{expand:%%kernel_devel_package %1 %{!?-n:%1}%{?-n:%{-n*}}}\
+%{expand:%%kernel_modules-extra_package %1 %{!?-n:%1}%{?-n:%{-n*}}}\
 %{expand:%%kernel_debuginfo_package %1}\
 %{nil}
 
 
 # First the auxiliary packages of the main kernel package.
 %kernel_devel_package
+%kernel_modules-extra_package
 %kernel_debuginfo_package
 
 
@@ -548,11 +565,7 @@ ApplyOptionalPatch()
     ApplyPatch $patch ${1+"$@"}
   fi
 }
-# we don't want a .config file when building firmware: it just confuses the build system
-%define build_firmware \
-   mv .config .config.firmware_save \
-   make INSTALL_FW_PATH=$RPM_BUILD_ROOT/lib/firmware firmware_install \
-   mv .config.firmware_save .config
+
 # First we unpack the kernel tarball.
 # If this isn't the first make prep, we use links to the existing clean tarball
 # which speeds things up quite a bit.
@@ -655,7 +668,7 @@ cd ..
 %define sparse_mflags	C=1
 %endif
 
-%if %{fancy_debuginfo}
+%if %{with_debuginfo}
 # This override tweaks the kernel makefiles so that we run debugedit on an
 # object before embedding it.  When we later run find-debuginfo.sh, it will
 # run debugedit again.  The edits it does change the build ID bits embedded
@@ -742,7 +755,7 @@ BuildKernel() {
 
     mkdir -p $RPM_BUILD_ROOT/lib/modules/$KernelVer
     # Override $(mod-fw) because we don't want it to install any firmware
-    # We'll do that ourselves with 'make firmware_install'
+    # we'll get it from the linux-firmware package and we don't want conflicts
     make -s ARCH=$Arch INSTALL_MOD_PATH=$RPM_BUILD_ROOT modules_install KERNELRELEASE=$KernelVer mod-fw=
 %ifarch %{vdso_arches}
     make -s ARCH=$Arch INSTALL_MOD_PATH=$RPM_BUILD_ROOT vdso_install KERNELRELEASE=$KernelVer
@@ -811,6 +824,7 @@ hwcap 1 nosegneg"
     # Copy .config to include/config/auto.conf so "make prepare" is unnecessary.
     cp $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/.config $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/include/config/auto.conf
 
+%if %{with_debuginfo}
 %if %{fancy_debuginfo}
     if test -s vmlinux.id; then
       cp vmlinux.id $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/vmlinux.id
@@ -818,14 +832,13 @@ hwcap 1 nosegneg"
       echo >&2 "*** ERROR *** no vmlinux build ID! ***"
       exit 1
     fi
-%endif
+%endif # fancy_debuginfo
     #
     # save the vmlinux file for kernel debugging into the kernel-debuginfo rpm
     #
-%if %{with_debuginfo}
     mkdir -p $RPM_BUILD_ROOT%{debuginfodir}/lib/modules/$KernelVer
     cp vmlinux $RPM_BUILD_ROOT%{debuginfodir}/lib/modules/$KernelVer
-%endif
+%endif #debuginfo
 
     find $RPM_BUILD_ROOT/lib/modules/$KernelVer -name "*.ko" -type f >modnames
 
@@ -866,6 +879,66 @@ hwcap 1 nosegneg"
 
     rm -f modinfo modnames
 
+    pushd $RPM_BUILD_ROOT/lib/modules/$KernelVer/
+    rm -rf modnames
+    find . -name "*.ko" -type f > modnames
+    # Look through all of the modules, and throw any that have a dependency in
+    # our list into the list as well.
+    rm -rf dep.list dep2.list
+    rm -rf req.list req2.list
+    cp %{SOURCE16} .
+    for dep in `cat modnames`
+    do
+      depends=`modinfo $dep | grep depends| cut -f2 -d":" | sed -e 's/^[ \t]*//'`
+      [ -z "$depends" ] && continue;
+      for mod in `echo $depends | sed -e 's/,/ /g'`
+      do
+        match=`grep "^$mod.ko" mod-extra.list` ||:
+        if [ -z "$match" ]
+        then
+          continue
+        else
+          # check if the module we're looking at is in mod-extra too.  if so
+          # we don't need to mark the dep as required
+          mod2=`basename $dep`
+          match2=`grep "^$mod2" mod-extra.list` ||:
+          if [ -n "$match2" ]
+          then
+            continue
+            #echo $mod2 >> notreq.list
+          else
+            echo $mod.ko >> req.list
+          fi
+        fi
+      done
+    done
+
+    sort -u req.list > req2.list
+    sort -u mod-extra.list > mod-extra2.list
+    join -v 1 mod-extra2.list req2.list > mod-extra3.list
+
+    for mod in `cat mod-extra3.list`
+    do
+      # get the path for the module
+      modpath=`grep /$mod modnames` ||:
+      [ -z "$modpath" ]  && continue;
+      echo $modpath >> dep.list
+    done
+
+    sort -u dep.list > dep2.list
+
+    # now move the modules into the extra/ directory
+    for mod in `cat dep2.list`
+    do
+      newpath=`dirname $mod | sed -e 's/kernel\//extra\//'`
+      mkdir -p $newpath
+      mv $mod $newpath
+    done
+
+    rm modnames dep.list dep2.list req.list req2.list
+    rm mod-extra.list mod-extra2.list mod-extra3.list
+    popd
+
     # remove files that will be auto generated by depmod at rpm -i time
     for i in alias alias.bin builtin.bin ccwmap dep dep.bin ieee1394map inputmap isapnpmap ofmap pcimap seriomap symbols symbols.bin usbmap
     do
@@ -900,10 +973,15 @@ BuildKernel %make_target %kernel_image debug
 BuildKernel %make_target %kernel_image
 %endif
 
-%if %{with_tools}
 # perf
-make %{?_smp_mflags} -C tools/perf -s V=1 HAVE_CPLUS_DEMANGLE=1 PYTHON=%{_python} prefix=%{_prefix} all
-make %{?_smp_mflags} -C tools/perf -s V=1 prefix=%{_prefix} PYTHON=%{_python} man || %{doc_build_fail}
+%global perf_make \
+  make %{?_smp_mflags} -C tools/perf -s V=1 EXTRA_CFLAGS="-Wno-error=array-bounds" HAVE_CPLUS_DEMANGLE=1 prefix=%{_prefix} PYTHON=%{_python}
+%if %{with_perf}
+%{perf_make} all
+%{perf_make} man || %{doc_build_fail}
+%endif
+
+%if %{with_tools}
 %ifarch %{cpupowerarchs}
 # cpupower
 # make sure version-gen.sh is executable.
@@ -919,6 +997,14 @@ make %{?_smp_mflags} -C tools/power/cpupower CPUFREQ_BENCH=false
     make %{?_smp_mflags} centrino-decode powernow-k8-decode
     cd -
 %endif # x86_64
+%ifarch %{ix86} x86_64
+   cd tools/power/x86/x86_energy_perf_policy/
+   make
+   cd -
+   cd tools/power/x86/turbostat
+   make
+   cd -
+%endif #turbostat/x86_energy_perf_policy
 %endif # cpupowerarchs
 %endif # tools
 
@@ -938,19 +1024,20 @@ find Documentation -type d | xargs chmod u+w
 # This macro is used by %%install, so we must redefine it before that.
 %define debug_package %{nil}
 
+%if %{with_debuginfo}
 %if %{fancy_debuginfo}
 %define __debug_install_post \
   /usr/lib/rpm/find-debuginfo.sh %{debuginfo_args} %{_builddir}/%{?buildsubdir}\
 %{nil}
-%endif
+%endif # fancy_debuginfo
 
-%if %{with_debuginfo}
 %ifnarch noarch
 %global __debug_package 1
 %files -f debugfiles.list debuginfo-common-%{_target_cpu}
 %defattr(-,root,root)
-%endif
-%endif
+%endif # noarch
+
+%endif # debuginfo
 
 ###
 ### install
@@ -1003,13 +1090,16 @@ rm -f $RPM_BUILD_ROOT/usr/include/asm*/io.h
 rm -f $RPM_BUILD_ROOT/usr/include/asm*/irq.h
 %endif
 
-%if %{with_tools}
+%if %{with_perf}
 # perf tool binary and supporting scripts/binaries
-make -C tools/perf -s V=1 DESTDIR=$RPM_BUILD_ROOT HAVE_CPLUS_DEMANGLE=1 PYTHON=%{_python} prefix=%{_prefix} install
-
+%{perf_make} DESTDIR=$RPM_BUILD_ROOT install
+# python-perf extension
+%{perf_make} DESTDIR=$RPM_BUILD_ROOT install-python_ext
 # perf man pages (note: implicit rpm magic compresses them later)
-make -C tools/perf  -s V=1 DESTDIR=$RPM_BUILD_ROOT HAVE_CPLUS_DEMANGLE=1 PYTHON=%{_python} prefix=%{_prefix} install-man || %{doc_build_fail}
+%{perf_make} DESTDIR=$RPM_BUILD_ROOT install-man || %{doc_build_fail}
+%endif
 
+%if %{with_tools}
 %ifarch %{cpupowerarchs}
 make -C tools/power/cpupower DESTDIR=$RPM_BUILD_ROOT libdir=%{_libdir} mandir=%{_mandir} CPUFREQ_BENCH=false install
 rm -f %{buildroot}%{_libdir}/*.{a,la}
@@ -1027,6 +1117,15 @@ mv cpupower.lang ../
     install -m755 powernow-k8-decode %{buildroot}%{_bindir}/powernow-k8-decode
     cd -
 %endif
+%ifarch %{ix86} x86_64
+   mkdir -p %{buildroot}%{_mandir}/man8
+   cd tools/power/x86/x86_energy_perf_policy
+   make DESTDIR=%{buildroot} install
+   cd -
+   cd tools/power/x86/turbostat
+   make DESTDIR=%{buildroot} install
+   cd -
+%endif #turbostat/x86_energy_perf_policy
 chmod 0755 %{buildroot}%{_libdir}/libcpupower.so*
 mkdir -p %{buildroot}%{_initddir} %{buildroot}%{_sysconfdir}/sysconfig
 install -m644 %{SOURCE2000} %{buildroot}%{_initddir}/cpupower
@@ -1036,9 +1135,6 @@ install -m644 %{SOURCE2001} %{buildroot}%{_sysconfdir}/sysconfig/cpupower
 touch ../cpupower.lang
 %endif # tools
 
-%if %{with_firmware}
-%{build_firmware}
-%endif
 
 ###
 ### clean
@@ -1094,6 +1190,7 @@ fi\
 #
 %define kernel_variant_post(v:r:) \
 %{expand:%%kernel_devel_post %{?-v*}}\
+%{expand:%%kernel_modules_extra_post %{?-v*}}\
 %{expand:%%kernel_variant_posttrans %{?-v*}}\
 %{expand:%%post %{?-v*}}\
 %{-r:\
@@ -1147,13 +1244,6 @@ fi
 /usr/include/*
 %endif
 
-%if %{with_firmware}
-%files firmware
-%defattr(-,root,root)
-/lib/firmware/*
-%doc linux-%{kversion}.%{_target_cpu}/firmware/WHENCE
-%endif
-
 # only some architecture builds need kernel-doc
 %if %{with_doc}
 %files doc
@@ -1164,25 +1254,39 @@ fi
 %{_datadir}/man/man9/*
 %endif
 
-%if %{with_tools}
-%files tools -f cpupower.lang
+%if %{with_perf}
+%files -n perf
 %defattr(-,root,root)
 %{_bindir}/perf
 %dir %{_libexecdir}/perf-core
 %{_libexecdir}/perf-core/*
-%{_mandir}/man[1-8]/*
+%{_mandir}/man[1-8]/perf*
+%doc linux-%{KVERREL}/tools/perf/Documentation/examples.txt
+%{_python_sitearch}/*
+ 
+%if %{with_debuginfo}
+%files -f perf-debuginfo.list -n perf-debuginfo
+%defattr(-,root,root)
+%endif
+%endif # with_perf
 
-%ifarch %{cpupowerarchs}
+%if %{with_tools}
+%files tools -f cpupower.lang
+%defattr(-,root,root)
+%{_mandir}/man[1-8]/cpupower*
 %{_bindir}/cpupower
 %ifarch %{ix86} x86_64
 %{_bindir}/centrino-decode
 %{_bindir}/powernow-k8-decode
+%{_bindir}/x86_energy_perf_policy
+%{_mandir}/man8/x86_energy_perf_policy*
+%{_bindir}/turbostat
+%{_mandir}/man8/turbostat*
 %endif
 %{_libdir}/libcpupower.so.0
 %{_libdir}/libcpupower.so.0.0.0
 %{_initddir}/cpupower
 %config(noreplace) %{_sysconfdir}/sysconfig/cpupower
-%endif
 
 %if %{with_debuginfo}
 %files tools-debuginfo -f kernel-tools-debuginfo.list
@@ -1217,7 +1321,6 @@ fi
 /lib/modules/%{KVERREL}%{?2:.%{2}}/kernel\
 /lib/modules/%{KVERREL}%{?2:.%{2}}/build\
 /lib/modules/%{KVERREL}%{?2:.%{2}}/source\
-/lib/modules/%{KVERREL}%{?2:.%{2}}/extra\
 /lib/modules/%{KVERREL}%{?2:.%{2}}/updates\
 /lib/modules/%{KVERREL}%{?2:.%{2}}/weak-updates\
 %ifarch %{vdso_arches}\
@@ -1234,6 +1337,9 @@ fi
 %defattr(-,root,root)\
 %verify(not mtime) /usr/src/kernels/%{KVERREL}%{?2:.%{2}}\
 %dir /usr/src/kernels\
+%{expand:%%files %{?2:%{2}-}modules-extra}\
+%defattr(-,root,root)\
+/lib/modules/%{KVERREL}%{?2:.%{2}}/extra\
 %if %{with_debuginfo}\
 %ifnarch noarch\
 %if %{fancy_debuginfo}\
@@ -1254,6 +1360,14 @@ fi
 %endif\
 %{nil}
 
+#
+# This macro defines a %%post script for a kernel*-modules-extra package.
+#	%%kernel_modules-extra_post [<subpackage>]
+#
+%define kernel_modules_extra_post() \
+%{expand:%%post %{?1:%{1}-}modules-extra}\
+/sbin/depmod -a %{KVERREL}%{?1:.%{1}}\
+%{nil}
 
 %kernel_variant_files %{with_up}
 %kernel_variant_files %{with_debug} debug
