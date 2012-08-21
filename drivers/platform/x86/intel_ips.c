@@ -1605,6 +1605,12 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto error_unmap;
 	}
 
+	/* No IRQ assigned is a BIOS failure... */
+	if (dev->irq <= 0) {
+		ret = -ENODEV;
+		goto error_unmap;
+	}
+
 	/*
 	 * IRQ handler for ME interaction
 	 * Note: don't use MSI here as the PCH has bugs.
