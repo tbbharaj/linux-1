@@ -1445,6 +1445,12 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 #endif
 }
 
+/*
+ * This is declared in linux/regset.h and defined in machine-dependent
+ * code.  We put the export here to ensure no machine forgets it.
+ */
+EXPORT_SYMBOL_GPL(task_user_regset_view);
+
 static void fill_sigtrap_info(struct task_struct *tsk,
 				struct pt_regs *regs,
 				int error_code, int si_code,
