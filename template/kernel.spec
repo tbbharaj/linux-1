@@ -1010,11 +1010,14 @@ make %{?_smp_mflags} -C tools/power/cpupower CPUFREQ_BENCH=false
 
 %if %{with_doc}
 # Make the HTML and man pages.
-make -s htmldocs mandocs || %{doc_build_fail}
+make htmldocs mandocs || %{doc_build_fail}
 
 # sometimes non-world-readable files sneak into the kernel source tree
 chmod -R a=rX Documentation
 find Documentation -type d | xargs chmod u+w
+
+# switch absolute symlinks to relative ones
+find . -lname "$(pwd)*" -exec sh -c 'ln -snvf $(python -c "from os.path import *; print relpath(\"$(readlink {})\",dirname(\"{}\"))") {}' \;
 %endif
 
 ###
