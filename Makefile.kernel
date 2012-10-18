@@ -9,7 +9,7 @@ ifeq ($(GIT),)
 $(error Makefile.common must be included before this Makefile)
 endif
 
-TAREXT		= .tar.gz
+TAREXT		= .tar
 
 # This is used to generate files for a src.rpm file containing a "vanilla"
 # linux kernel archive plus patches. The following defines are needed for this
@@ -87,6 +87,9 @@ $(SOURCEDIR)/%.tar.bz2: %.tar | $(SOURCEDIR)
 $(SOURCEDIR)/%.tar.gz: %.tar | $(SOURCEDIR)
 	gzip -f -c $< > $@
 
+$(SOURCEDIR)/%.tar : %.tar | $(SOURCEDIR)
+	ln -f $< $@
+
 # encapsulate the logic around preparing the linux tree for work
 #
 # in a lot of cases the linux_BRANCH defines a branch that exists on origin/
@@ -116,9 +119,9 @@ $(linux_TAR_ball).tar : linux-update $(MAKEFILE_LIST) | linux
 	$(GIT) archive --format=tar --prefix $(linux_PREFIX)/ --remote=linux $(TAR_BASE) > $@
 $(linux_PATCH_ball).tar : linux-update $(MAKEFILE_LIST) | linux
 	pushd linux ; $(GIT) format-patch -N -k -o $(SOURCEDIR) $(TAR_BASE)..$(PATCH_BASE) | \
-	xargs -r -l1 basename >$(SOURCEDIR)/$@.list ; \
+	xargs -r -l1 basename >$(SOURCEDIR)/$(linux_PATCH_ball).list ; \
 	popd ; \
-	tar cf $@ -C $(SOURCEDIR) --remove-files --files-from=$(SOURCEDIR)/$@.list $@.list
+	tar cf $@ -C $(SOURCEDIR) --remove-files --files-from=$(SOURCEDIR)/$(linux_PATCH_ball).list $(linux_PATCH_ball).list
 
 #
 # KERNEL SRC/RPM BUILDING SUPPORT
@@ -229,6 +232,7 @@ git-push-linux : linux
 
 clean ::
 	rm -fv linux.tar $(linux_TAR) *$(TAREXT)
+	rm -fv $(SOURCEDIR)/$(linux_TAR_ball).tar $(SOURCEDIR)/$(linux_PATCH_ball).tar
 
 .SECONDARY : $(linux_TAR)
 

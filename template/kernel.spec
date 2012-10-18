@@ -288,8 +288,8 @@ BuildRequires: rpm-build >= 4.4.2.1-4
 %define debuginfo_args --strict-build-id
 %endif
 
-Source0: linux-%{kversion}.tar.gz
-Source1: linux-%{kversion}-patches.tar.gz
+Source0: linux-%{kversion}.tar
+Source1: linux-%{kversion}-patches.tar
 
 Source15: kconfig.py
 Source16: mod-extra.list
@@ -600,7 +600,7 @@ fi
 cp -rl vanilla-%{vanillaversion} linux-%{KVERREL}
 
 cd linux-%{KVERREL}
-tar xfz %{SOURCE1}
+tar xf %{SOURCE1}
 
 # Drop some necessary files from the source dir into the buildroot
 cp $RPM_SOURCE_DIR/config-* .
@@ -609,9 +609,13 @@ cp %{SOURCE15} .
 # Dynamically generate kernel .config files from config-* files
 make -f %{SOURCE19} VERSION=%{version} config
 
-# apply the patches we had included in the -patches tarball
-patch_list=$(basename %{SOURCE1})
-patch_list=${patch_list%.*}.list
+# apply the patches we had included in the -patches tarball. We use the
+# linux-KVER-patches.list hardcoded apply log filename
+patch_list=linux-%{kversion}-patches.list
+if [ ! -f ${patch_list} ] ; then
+    echo "ERROR: patch file apply log is missing: ${patch_list} not found"
+    exit -1
+fi
 for p in `cat $patch_list` ; do
   ApplyNoCheckPatch ${p}
 done
