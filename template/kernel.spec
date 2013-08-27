@@ -11,6 +11,9 @@ Summary: The Linux kernel
 %global signmodules 0
 %endif
 
+# no signing yet
+%global signmodules 0
+
 # Save original buildid for later if it's defined
 %if 0%{?buildid:1}
 %global orig_buildid %{buildid}
