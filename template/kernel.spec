@@ -3,6 +3,14 @@
 
 Summary: The Linux kernel
 
+# Sign modules on x86.  Make sure the config files match this setting if more
+# architectures are added.
+%ifarch %{ix86} x86_64
+%global signmodules 1
+%else
+%global signmodules 0
+%endif
+
 # Save original buildid for later if it's defined
 %if 0%{?buildid:1}
 %global orig_buildid %{buildid}
@@ -243,7 +251,7 @@ AutoProv: yes\
 
 Name: kernel%{?variant}
 Group: System Environment/Kernel
-License: GPLv2
+License: GPLv2 and Redistributable, no modification permitted
 URL: http://www.kernel.org/
 Version: %{rpmversion}
 Release: %{pkg_release}
@@ -271,6 +279,7 @@ BuildRequires: sparse >= 0.4.1
 %endif
 %if %{with_perf}
 BuildRequires: elfutils-devel zlib-devel binutils-devel newt-devel python-devel perl(ExtUtils::Embed) bison
+BuildRequires: audit-libs-devel
 %endif
 %if %{with_tools}
 BuildRequires: pciutils-devel gettext
@@ -283,16 +292,32 @@ BuildConflicts: rhbuildsys(DiskFree) < 3000Mb
 %endif
 
 %if %{fancy_debuginfo}
+## The -r flag to find-debuginfo.sh invokes eu-strip --reloc-debug-sections
+## which reduces the number of relocations in kernel module .ko.debug files and
+## was introduced with rpm 4.9 and elfutils 0.153.
+# BuildRequires: rpm-build >= 4.9.0-1, elfutils >= elfutils-0.153-1
 # Fancy new debuginfo generation introduced in Fedora 8.
 BuildRequires: rpm-build >= 4.4.2.1-4
 %define debuginfo_args --strict-build-id
 %endif
 
+%if %{signmodules}
+BuildRequires: openssl
+BuildRequires: pesign >= 0.10-4
+%endif
+
 Source0: linux-%{kversion}.tar
 Source1: linux-%{kversion}-patches.tar
 
+%if %{signmodules}
+Source11: x509.genkey
+%endif
+
 Source15: kconfig.py
 Source16: mod-extra.list
+Source17: mod-extra.sh
+Source18: mod-sign.sh
+%define modsign_cmd %{SOURCE18}
 
 Source19: Makefile.config
 Source20: config-generic
@@ -701,11 +726,12 @@ BuildKernel() {
     MakeTarget=$1
     KernelImage=$2
     Flavour=$3
+    Flav=${Flavour:+.${Flavour}}
     InstallName=${4:-vmlinuz}
 
     # Pick the right config file for the kernel we're building
     Config=kernel-%{version}-%{_target_cpu}${Flavour:+-${Flavour}}.config
-    DevelDir=/usr/src/kernels/%{KVERREL}${Flavour:+.${Flavour}}
+    DevelDir=/usr/src/kernels/%{KVERREL}${Flav}
 
     # When the bootable image is just the ELF kernel, strip it.
     # We already copy the unstripped file into the debuginfo package.
@@ -715,16 +741,21 @@ BuildKernel() {
       CopyKernel=cp
     fi
 
-    KernelVer=%{version}-%{release}.%{_target_cpu}${Flavour:+.${Flavour}}
+    KernelVer=%{version}-%{release}.%{_target_cpu}${Flav}
     echo BUILDING A KERNEL FOR ${Flavour} %{_target_cpu}...
 
     # make sure EXTRAVERSION says what we want it to say
-    perl -p -i -e "s/^EXTRAVERSION.*/EXTRAVERSION = %{?stablerev:.%{stablerev}}-%{release}.%{_target_cpu}${Flavour:+.${Flavour}}/" Makefile
+    perl -p -i -e "s/^EXTRAVERSION.*/EXTRAVERSION = -%{release}.%{_target_cpu}${Flav}/" Makefile
 
     # and now to start the build process
 
     make -s mrproper
     cp configs/$Config .config
+
+%if %{signmodules}
+    cp %{SOURCE11} .
+%endif
+    chmod +x scripts/sign-file
 
     Arch=`head -1 .config | cut -b 3-`
     echo USING ARCH=$Arch
@@ -753,6 +784,11 @@ BuildKernel() {
     if [ -f arch/$Arch/boot/zImage.stub ]; then
       cp arch/$Arch/boot/zImage.stub $RPM_BUILD_ROOT/%{image_install_path}/zImage.stub-$KernelVer || :
     fi
+    %if %{signmodules}
+    # Sign the image if we're using EFI
+    %pesign -s -i $KernelImage -o vmlinuz.signed
+    mv vmlinuz.signed $KernelImage
+    %endif
     $CopyKernel $KernelImage \
     		$RPM_BUILD_ROOT/%{image_install_path}/$InstallName-$KernelVer
     chmod 755 $RPM_BUILD_ROOT/%{image_install_path}/$InstallName-$KernelVer
@@ -761,6 +797,7 @@ BuildKernel() {
     # Override $(mod-fw) because we don't want it to install any firmware
     # we'll get it from the linux-firmware package and we don't want conflicts
     make -s ARCH=$Arch INSTALL_MOD_PATH=$RPM_BUILD_ROOT modules_install KERNELRELEASE=$KernelVer mod-fw=
+
 %ifarch %{vdso_arches}
     make -s ARCH=$Arch INSTALL_MOD_PATH=$RPM_BUILD_ROOT vdso_install KERNELRELEASE=$KernelVer
     if grep '^CONFIG_XEN=y$' .config >/dev/null ; then
@@ -861,9 +898,9 @@ hwcap 1 nosegneg"
     }
 
     collect_modules_list networking \
-                        'register_netdev|ieee80211_register_hw|usbnet_probe|phy_driver_register|rt(l_|2x00)(pci|usb)_probe'
+                        'register_netdev|ieee80211_register_hw|usbnet_probe|phy_driver_register|rt(l_|2x00)(pci|usb)_probe|register_netdevice'
     collect_modules_list block \
-                        'ata_scsi_ioctl|scsi_add_host|scsi_add_host_with_dma|blk_init_queue|register_mtd_blktrans|scsi_esp_register|scsi_register_device_handler'
+                        'ata_scsi_ioctl|scsi_add_host|scsi_add_host_with_dma|blk_init_queue|register_mtd_blktrans|scsi_esp_register|scsi_register_device_handler|blk_queue_physical_block_size'
     collect_modules_list drm \
                         'drm_open|drm_init'
     collect_modules_list modesetting \
@@ -883,68 +920,17 @@ hwcap 1 nosegneg"
 
     rm -f modinfo modnames
 
-    pushd $RPM_BUILD_ROOT/lib/modules/$KernelVer/
-    rm -rf modnames
-    find . -name "*.ko" -type f > modnames
-    # Look through all of the modules, and throw any that have a dependency in
-    # our list into the list as well.
-    rm -rf dep.list dep2.list
-    rm -rf req.list req2.list
-    cp %{SOURCE16} .
-    for dep in `cat modnames`
-    do
-      depends=`modinfo $dep | grep depends| cut -f2 -d":" | sed -e 's/^[ \t]*//'`
-      [ -z "$depends" ] && continue;
-      for mod in `echo $depends | sed -e 's/,/ /g'`
-      do
-        match=`grep "^$mod.ko" mod-extra.list` ||:
-        if [ -z "$match" ]
-        then
-          continue
-        else
-          # check if the module we're looking at is in mod-extra too.  if so
-          # we don't need to mark the dep as required
-          mod2=`basename $dep`
-          match2=`grep "^$mod2" mod-extra.list` ||:
-          if [ -n "$match2" ]
-          then
-            continue
-            #echo $mod2 >> notreq.list
-          else
-            echo $mod.ko >> req.list
-          fi
-        fi
-      done
-    done
+    # Call the modules-extra script to move things around
+    %{SOURCE17} $RPM_BUILD_ROOT/lib/modules/$KernelVer %{SOURCE16}
 
-    sort -u req.list > req2.list
-    sort -u mod-extra.list > mod-extra2.list
-    join -v 1 mod-extra2.list req2.list > mod-extra3.list
-
-    for mod in `cat mod-extra3.list`
-    do
-      # get the path for the module
-      modpath=`grep /$mod modnames` ||:
-      [ -z "$modpath" ]  && continue;
-      echo $modpath >> dep.list
-    done
-
-    sort -u dep.list > dep2.list
-
-    # now move the modules into the extra/ directory
-    for mod in `cat dep2.list`
-    do
-      newpath=`dirname $mod | sed -e 's/kernel\//extra\//'`
-      mkdir -p $newpath
-      mv $mod $newpath
-    done
-
-    rm modnames dep.list dep2.list req.list req2.list
-    rm mod-extra.list mod-extra2.list mod-extra3.list
-    popd
+%if %{signmodules}
+    # Save the signing keys so we can sign the modules in __modsign_install_post
+    cp signing_key.priv signing_key.priv.sign${Flav}
+    cp signing_key.x509 signing_key.x509.sign${Flav}
+%endif
 
     # remove files that will be auto generated by depmod at rpm -i time
-    for i in alias alias.bin builtin.bin ccwmap dep dep.bin ieee1394map inputmap isapnpmap ofmap pcimap seriomap symbols symbols.bin usbmap
+    for i in alias alias.bin builtin.bin ccwmap dep dep.bin ieee1394map inputmap isapnpmap ofmap pcimap seriomap symbols symbols.bin usbmap devname softdep
     do
       rm -f $RPM_BUILD_ROOT/lib/modules/$KernelVer/modules.$i
     done
@@ -979,7 +965,7 @@ BuildKernel %make_target %kernel_image
 
 # perf
 %global perf_make \
-  make %{?_smp_mflags} -C tools/perf -s V=1 EXTRA_CFLAGS="-Wno-error=array-bounds" HAVE_CPLUS_DEMANGLE=1 prefix=%{_prefix} PYTHON=%{_python}
+  make %{?_smp_mflags} -C tools/perf -s V=1 EXTRA_CFLAGS="-Wno-error=array-bounds" HAVE_CPLUS_DEMANGLE=1 NO_LIBUNWIND=1 NO_GTK2=1 NO_LIBNUMA=1 NO_STRLCPY=1 prefix=%{_prefix} PYTHON=%{_python}
 %if %{with_perf}
 %{perf_make} all
 %{perf_make} man || %{doc_build_fail}
@@ -992,22 +978,22 @@ BuildKernel %make_target %kernel_image
 chmod +x tools/power/cpupower/utils/version-gen.sh
 make %{?_smp_mflags} -C tools/power/cpupower CPUFREQ_BENCH=false
 %ifarch %{ix86}
-    cd tools/power/cpupower/debug/i386
+    pushd tools/power/cpupower/debug/i386
     make %{?_smp_mflags} centrino-decode powernow-k8-decode
-    cd -
+    popd
 %endif # ix86
 %ifarch x86_64
-    cd tools/power/cpupower/debug/x86_64
+    pushd tools/power/cpupower/debug/x86_64
     make %{?_smp_mflags} centrino-decode powernow-k8-decode
-    cd -
+    popd
 %endif # x86_64
 %ifarch %{ix86} x86_64
-   cd tools/power/x86/x86_energy_perf_policy/
+   pushd tools/power/x86/x86_energy_perf_policy/
    make
-   cd -
-   cd tools/power/x86/turbostat
+   popd
+   pushd tools/power/x86/turbostat
    make
-   cd -
+   popd
 %endif #turbostat/x86_energy_perf_policy
 %endif # cpupowerarchs
 %endif # tools
@@ -1024,6 +1010,42 @@ find Documentation -type d | xargs chmod u+w
 find . -lname "$(pwd)*" -exec sh -c 'ln -snvf $(python -c "from os.path import *; print relpath(\"$(readlink {})\",dirname(\"{}\"))") {}' \;
 %endif
 
+# In the modsign case, we do 3 things.  1) We check the "flavour" and hard
+# code the value in the following invocations.  This is somewhat sub-optimal
+# but we're doing this inside of an RPM macro and it isn't as easy as it
+# could be because of that.  2) We restore the .tmp_versions/ directory from
+# the one we saved off in BuildKernel above.  This is to make sure we're
+# signing the modules we actually built/installed in that flavour.  3) We
+# grab the arch and invoke mod-sign.sh command to actually sign the modules.
+#
+# We have to do all of those things _after_ find-debuginfo runs, otherwise
+# that will strip the signature off of the modules.
+
+%define __modsign_install_post \
+  if [ "%{signmodules}" == "1" ]; then \
+    if [ "%{with_pae}" -ne "0" ]; then \
+      mv signing_key.priv.sign.%{pae} signing_key.priv \
+      mv signing_key.x509.sign.%{pae} signing_key.x509 \
+      %{modsign_cmd} $RPM_BUILD_ROOT/lib/modules/%{KVERREL}.%{pae}/ \
+    fi \
+    if [ "%{with_debug}" -ne "0" ]; then \
+      mv signing_key.priv.sign.debug signing_key.priv \
+      mv signing_key.x509.sign.debug signing_key.x509 \
+      %{modsign_cmd} $RPM_BUILD_ROOT/lib/modules/%{KVERREL}.debug/ \
+    fi \
+    if [ "%{with_pae_debug}" -ne "0" ]; then \
+      mv signing_key.priv.sign.%{pae}debug signing_key.priv \
+      mv signing_key.x509.sign.%{pae}debug signing_key.x509 \
+      %{modsign_cmd} $RPM_BUILD_ROOT/lib/modules/%{KVERREL}.%{pae}debug/ \
+    fi \
+    if [ "%{with_up}" -ne "0" ]; then \
+      mv signing_key.priv.sign signing_key.priv \
+      mv signing_key.x509.sign signing_key.x509 \
+      %{modsign_cmd} $RPM_BUILD_ROOT/lib/modules/%{KVERREL}/ \
+    fi \
+  fi \
+%{nil}
+
 ###
 ### Special hacks for debuginfo subpackages.
 ###
@@ -1032,6 +1054,7 @@ find . -lname "$(pwd)*" -exec sh -c 'ln -snvf $(python -c "from os.path import *
 %define debug_package %{nil}
 
 %if %{with_debuginfo}
+
 %if %{fancy_debuginfo}
 %define __debug_install_post \
   /usr/lib/rpm/find-debuginfo.sh %{debuginfo_args} %{_builddir}/%{?buildsubdir}\
@@ -1045,6 +1068,17 @@ find . -lname "$(pwd)*" -exec sh -c 'ln -snvf $(python -c "from os.path import *
 %endif # noarch
 
 %endif # debuginfo
+
+#
+# Disgusting hack alert! We need to ensure we sign modules *after* all
+# invocations of strip occur, which is in __debug_install_post if
+# find-debuginfo.sh runs, and __os_install_post if not.
+#
+%define __spec_install_post \
+  %{?__debug_package:%{__debug_install_post}}\
+  %{__arch_install_post}\
+  %{__os_install_post}\
+  %{__modsign_install_post}
 
 ###
 ### install
@@ -1104,6 +1138,8 @@ rm -f $RPM_BUILD_ROOT/usr/include/asm*/irq.h
 %{perf_make} DESTDIR=$RPM_BUILD_ROOT install-python_ext
 # perf man pages (note: implicit rpm magic compresses them later)
 %{perf_make} DESTDIR=$RPM_BUILD_ROOT install-man || %{doc_build_fail}
+# clean up files we don't use
+rm -f $RPM_BUILD_ROOT/etc/bash_completion.d/perf
 %endif
 
 %if %{with_tools}
@@ -1113,25 +1149,25 @@ rm -f %{buildroot}%{_libdir}/*.{a,la}
 %find_lang cpupower
 mv cpupower.lang ../
 %ifarch %{ix86}
-    cd tools/power/cpupower/debug/i386
+    pushd tools/power/cpupower/debug/i386
     install -m755 centrino-decode %{buildroot}%{_bindir}/centrino-decode
     install -m755 powernow-k8-decode %{buildroot}%{_bindir}/powernow-k8-decode
-    cd -
+    popd
 %endif
 %ifarch x86_64
-    cd tools/power/cpupower/debug/x86_64
+    pushd tools/power/cpupower/debug/x86_64
     install -m755 centrino-decode %{buildroot}%{_bindir}/centrino-decode
     install -m755 powernow-k8-decode %{buildroot}%{_bindir}/powernow-k8-decode
-    cd -
+    popd
 %endif
 %ifarch %{ix86} x86_64
    mkdir -p %{buildroot}%{_mandir}/man8
-   cd tools/power/x86/x86_energy_perf_policy
+   pushd tools/power/x86/x86_energy_perf_policy
    make DESTDIR=%{buildroot} install
-   cd -
-   cd tools/power/x86/turbostat
+   popd
+   pushd tools/power/x86/turbostat
    make DESTDIR=%{buildroot} install
-   cd -
+   popd
 %endif #turbostat/x86_energy_perf_policy
 chmod 0755 %{buildroot}%{_libdir}/libcpupower.so*
 mkdir -p %{buildroot}%{_initddir} %{buildroot}%{_sysconfdir}/sysconfig
