@@ -134,3 +134,6 @@ obj-$(CONFIG_VIRT_DRIVERS)	+= virt/
 obj-$(CONFIG_HYPERV)		+= hv/
 
 obj-$(CONFIG_PM_DEVFREQ)	+= devfreq/
+
+# Amazon driver updates
+obj-$(CONFIG_VENDOR_AMAZON)	+= amazon/
