@@ -1,0 +1,15 @@
+#
+# Intel network device configuration
+#
+
+config VENDOR_AMAZON
+	bool "Amazon Driver Updates"
+	default y
+	depends on PCI || EXPERIMENTAL
+	---help---
+	  Amazon Driver Updates are newer versions of some of the drivers
+	  present in the stable kernel trees.
+
+if VENDOR_AMAZON
+
+endif # VENDOR_AMAZON
