@@ -40,6 +40,7 @@
 #include <linux/delay.h>
 #include <linux/freezer.h>
 #include <linux/bitmap.h>
+#include <linux/ratelimit.h>
 
 #include <xen/events.h>
 #include <xen/page.h>
