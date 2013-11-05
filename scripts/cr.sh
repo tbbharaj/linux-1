@@ -89,6 +89,7 @@ if [ -z "${branch}" ]; then
 fi
 
 git diff -U1000000 --minimal --no-color ${range} | \
+    iconv -f utf8 -t ascii//TRANSLIT | \
     ${PR} --target-groups=${groups} --target-people=${people} \
     --summary="${summary}" --description-file=${description} \
     --testing-done="It compiled!!!" \
