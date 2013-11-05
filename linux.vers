@@ -3,4 +3,6 @@ linux_TAR_BASE	 = v$(linux_TAGVER)
 linux_PATCH_BASE = v$(linux_TAGVER)
 linux_BRANCH	 = linux-3.8.y
 linux_PATCH_HEAD = $(linux_BRANCH)
-linux_BASEREL    = 1
+
+# generate changelog entries only for commits to these items
+builder_LOGS    = linux.vers srpm/ template/
