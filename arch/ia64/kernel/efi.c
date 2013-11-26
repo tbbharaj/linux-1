@@ -766,6 +766,7 @@ efi_mem_type (unsigned long phys_addr)
 		return md->type;
 	return 0;
 }
+EXPORT_SYMBOL(efi_mem_type);
 
 u64
 efi_mem_attributes (unsigned long phys_addr)
