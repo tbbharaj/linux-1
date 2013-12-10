@@ -1211,6 +1211,7 @@ static void __init xen_pagetable_setup_done(pgd_t *base)
 	unsigned long addr;
 #endif
 
+        paging_init();
 	xen_setup_shared_info();
 #ifdef CONFIG_X86_64
 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
