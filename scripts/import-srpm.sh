@@ -21,11 +21,8 @@ function usage {
     cat <<EOF
 Usage : $0 --<series> <src.rpm> <vTAG>
 valid options are:
-    --fedora13    define and import a fedora13 package
-    --fedora14    define and import a fedora14 package
-    --fedora15    define and import a fedora15 package
-    --fedora16    define and import a fedora16 package
-    --fedora17    define and import a fedora17 package
+    --fedoraREL    define and import a Fedora REL package
+                   currently REL in [13..21]
 * vTAG is a linux kernel tree version release base tag for the package being
   imported, ie, v2.6.39
 EOF
@@ -40,7 +37,7 @@ declare -a RPM_PREP=(--define 'dist linux')
 while [ $# -gt 0 ] ; do
     case $1 in
         -h | --help ) usage ; exit 0 ;;
-        --fedora* )
+        --fedora1[3-9] | --fedora2[01] )
             SERIES_NAME=fedora
             SERIES_REL=${1##--fedora}
             RPM_PREP=( --define "dist .fc${SERIES_REL}" \
