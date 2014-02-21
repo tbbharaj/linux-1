@@ -167,11 +167,14 @@ function patch_tree {
     if [ -n "$patch" ] ; then
         if ! git am $ptmp ; then
             if [ -d .git/rebase-apply ] ; then
+                say_yellow "failed to process $patch with git am... trying regular patch"
                 git am --abort
             fi
             clean_tree
             /usr/bin/patch $PATCH_ARGS <$ptmp
             commit_tree "[${UPSTREAM}] patch ${patch%%.patch}"
+        else
+            say_green "patch $patch applied with 'git am'"
         fi
     else
         /usr/bin/patch $PATCH_ARGS <$ptmp
