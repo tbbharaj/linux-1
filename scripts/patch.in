@@ -152,11 +152,14 @@ function finish_tree {
     popd
     say_yellow "Updating the linux.vers file..."
     cat >${topdir}/linux.vers <<EOF
-linux_TAGVER	 = ${VTAG##v}
-linux_TAR_BASE	 = v\$(linux_TAGVER)
+linux_TAGVER     = ${VTAG##v}
+linux_TAR_BASE   = v\$(linux_TAGVER)
 linux_PATCH_BASE = \$(linux_TAR_BASE)
-linux_PATCH_HEAD = ${BRANCH}
-linux_BRANCH	 = \$(linux_PATCH_HEAD)
+linux_BRANCH     = ${BRANCH}
+linux_PATCH_HEAD = \$(linux_BRANCH)
+
+# generate changelog entries only for commits to these items
+builder_LOGS     = linux.vers srpm/ template/
 EOF
 }
 
