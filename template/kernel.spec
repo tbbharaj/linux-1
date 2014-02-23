@@ -298,13 +298,14 @@ BuildConflicts: rhbuildsys(DiskFree) < 3000Mb
 %endif
 
 %if %{fancy_debuginfo}
+# Fancy new debuginfo generation introduced in Fedora 8.
+BuildRequires: rpm-build >= 4.4.2.1-4
 ## The -r flag to find-debuginfo.sh invokes eu-strip --reloc-debug-sections
 ## which reduces the number of relocations in kernel module .ko.debug files and
 ## was introduced with rpm 4.9 and elfutils 0.153.
-# BuildRequires: rpm-build >= 4.9.0-1, elfutils >= elfutils-0.153-1
-# Fancy new debuginfo generation introduced in Fedora 8.
-BuildRequires: rpm-build >= 4.4.2.1-4
-%define debuginfo_args --strict-build-id -r
+#BuildRequires: rpm-build >= 4.9.0-1, elfutils >= elfutils-0.153-1
+#%define debuginfo_args --strict-build-id -r
+%define debuginfo_args --strict-build-id
 %endif
 
 %if %{signmodules}
