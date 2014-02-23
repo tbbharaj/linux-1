@@ -147,23 +147,23 @@ Summary: The Linux kernel
 %define hdrarch i386
 %define all_arch_configs kernel-%{version}-i?86*.config
 %define image_install_path boot
+%define kernel_image arch/%{asmarch}/boot/bzImage
 %endif
 
 %ifarch x86_64
 %define asmarch x86
 %define all_arch_configs kernel-%{version}-x86_64*.config
+%define image_install_path boot
+%define kernel_image arch/%{asmarch}/boot/bzImage
 %endif
 
 %ifarch %{arm}
 %define all_arch_configs kernel-%{version}-arm*.config
 %define asmarch arm
 %define hdrarch arm
-%endif
-
-# amazon:
-# common settings for arches we support
 %define image_install_path boot
 %define kernel_image arch/%{asmarch}/boot/zImage
+%endif
 
 # amazon: don't use nonint config target - we want to know when our config files are
 # not complete
