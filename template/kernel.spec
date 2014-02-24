@@ -217,7 +217,7 @@ Summary: The Linux kernel
 # Packages that need to be installed before the kernel is, because the %%post
 # scripts use them.
 #
-%define kernel_prereq  fileutils, module-init-tools >= 3.16-5, initscripts >= 8.11.1-1, grubby >= 7.0.15-2.5
+%define kernel_prereq  fileutils, kmod >= 14, initscripts >= 8.11.1-1, grubby >= 7.0.15-2.5
 %if %{with_dracut}
 %define initrd_prereq  dracut >= 001-7, grubby >= 7.0.10-1
 %else
@@ -275,7 +275,7 @@ Obsoletes: kernel-smp
 #
 # List the packages used during the kernel build
 #
-BuildRequires: module-init-tools, patch >= 2.5.4, bash >= 2.03, sh-utils, tar
+BuildRequires: kmod >= 14, patch >= 2.5.4, bash >= 2.03, sh-utils, tar
 BuildRequires: bzip2, findutils, gzip, m4, perl, make >= 3.78, diffutils, gawk
 BuildRequires: gcc, binutils >= 2.12, system-rpm-config, gdb, bc
 BuildRequires: net-tools
@@ -922,7 +922,7 @@ hwcap 1 nosegneg"
     while read i
     do
       echo -n "${i#$RPM_BUILD_ROOT/lib/modules/$KernelVer/} " >> modinfo
-      /sbin/modinfo -l $i >> modinfo
+      %{_sbindir}/modinfo -l $i >> modinfo
     done < modnames
 
     grep -E -v \
