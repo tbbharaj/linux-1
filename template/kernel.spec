@@ -277,7 +277,7 @@ Obsoletes: kernel-smp
 #
 BuildRequires: module-init-tools, patch >= 2.5.4, bash >= 2.03, sh-utils, tar
 BuildRequires: bzip2, findutils, gzip, m4, perl, make >= 3.78, diffutils, gawk
-BuildRequires: gcc, binutils >= 2.12, system-rpm-config, gdb
+BuildRequires: gcc, binutils >= 2.12, system-rpm-config, gdb, bc
 BuildRequires: net-tools
 BuildRequires: xmlto, asciidoc
 %if %{with_sparse}
