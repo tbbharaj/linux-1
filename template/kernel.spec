@@ -1219,6 +1219,15 @@ then\
 fi\
 %{nil}
 
+#
+# This macro defines a %%post script for a kernel*-modules-extra package.
+#	%%kernel_modules_extra_post [<subpackage>]
+#
+%define kernel_modules_extra_post() \
+%{expand:%%post %{?1:%{1}-}modules-extra}\
+/sbin/depmod -a %{KVERREL}%{?1:.%{1}}\
+%{nil}
+
 # This macro defines a %%posttrans script for a kernel package.
 #	%%kernel_variant_posttrans [<subpackage>]
 # More text can follow to go at the end of this variant's %%post.
@@ -1403,15 +1412,6 @@ fi
 %endif\
 %endif\
 %endif\
-%{nil}
-
-#
-# This macro defines a %%post script for a kernel*-modules-extra package.
-#	%%kernel_modules_extra_post [<subpackage>]
-#
-%define kernel_modules_extra_post() \
-%{expand:%%post %{?1:%{1}-}modules-extra}\
-/sbin/depmod -a %{KVERREL}%{?1:.%{1}}\
 %{nil}
 
 %kernel_variant_files %{with_up}
