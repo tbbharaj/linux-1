@@ -316,9 +316,8 @@ BuildRequires: pesign >= 0.10-4
 Source0: linux-%{kversion}.tar
 Source1: linux-%{kversion}-patches.tar
 
-%if %{signmodules}
+# this is for %{signmodules}
 Source11: x509.genkey
-%endif
 
 Source15: kconfig.py
 Source16: mod-extra.list
