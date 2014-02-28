@@ -217,7 +217,7 @@ Summary: The Linux kernel
 # Packages that need to be installed before the kernel is, because the %%post
 # scripts use them.
 #
-%define kernel_prereq  fileutils, kmod >= 14, initscripts >= 8.11.1-1, grubby >= 7.0.15-2.5
+%define kernel_prereq  fileutils, module-init-tools, initscripts >= 8.11.1-1, grubby >= 7.0.15-2.5
 %if %{with_dracut}
 %define initrd_prereq  dracut >= 001-7, grubby >= 7.0.10-1
 %else
