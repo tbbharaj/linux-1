@@ -484,25 +484,6 @@ against the %{?2:%{2} }kernel package.\
 %{nil}
 
 #
-# This macro creates a kernel-<subpackage>-modules-extra package.
-#	%%kernel_modules_extra_package <subpackage> <pretty-name>
-#
-%define kernel_modules_extra_package() \
-%package %{?1:%{1}-}modules-extra\
-Summary: Extra kernel modules to match the %{?2:%{2} }kernel\
-Group: System Environment/Kernel\
-Provides: kernel%{?1:-%{1}}-modules-extra-%{_target_cpu} = %{version}-%{release}\
-Provides: kernel-modules-extra-%{_target_cpu} = %{version}-%{release}%{?1:.%{1}}\
-Provides: kernel-modules-extra = %{version}-%{release}%{?1:.%{1}}\
-Provides: installonlypkg(kernel-module)\
-Provides: kernel-modules-extra-uname-r = %{KVERREL}%{?1:.%{1}}\
-Requires: kernel-uname-r = %{KVERREL}%{?1:.%{1}}\
-AutoReqProv: no\
-%description -n kernel%{?variant}%{?1:-%{1}}-modules-extra\
-This package provides less commonly used kernel modules for the %{?2:%{2} }kernel package.\
-%{nil}
-
-#
 # This macro creates a kernel-<subpackage> and its -devel and -debuginfo too.
 #	%%define variant_summary The Linux kernel compiled for <configuration>
 #	%%kernel_variant_package [-n <pretty-name>] <subpackage>
@@ -513,14 +494,12 @@ Summary: %{variant_summary}\
 Group: System Environment/Kernel\
 %kernel_reqprovconf\
 %{expand:%%kernel_devel_package %1 %{!?-n:%1}%{?-n:%{-n*}}}\
-%{expand:%%kernel_modules_extra_package %1 %{!?-n:%1}%{?-n:%{-n*}}}\
 %{expand:%%kernel_debuginfo_package %1}\
 %{nil}
 
 
 # First the auxiliary packages of the main kernel package.
 %kernel_devel_package
-%kernel_modules_extra_package
 %kernel_debuginfo_package
 
 
@@ -1218,15 +1197,6 @@ then\
 fi\
 %{nil}
 
-#
-# This macro defines a %%post script for a kernel*-modules-extra package.
-#	%%kernel_modules_extra_post [<subpackage>]
-#
-%define kernel_modules_extra_post() \
-%{expand:%%post %{?1:%{1}-}modules-extra}\
-/sbin/depmod -a %{KVERREL}%{?1:.%{1}}\
-%{nil}
-
 # This macro defines a %%posttrans script for a kernel package.
 #	%%kernel_variant_posttrans [<subpackage>]
 # More text can follow to go at the end of this variant's %%post.
@@ -1243,7 +1213,6 @@ fi\
 #
 %define kernel_variant_post(v:r:) \
 %{expand:%%kernel_devel_post %{?-v*}}\
-%{expand:%%kernel_modules_extra_post %{?-v*}}\
 %{expand:%%kernel_variant_posttrans %{?-v*}}\
 %{expand:%%post %{?-v*}}\
 %{-r:\
@@ -1374,6 +1343,7 @@ fi
 /lib/modules/%{KVERREL}%{?2:.%{2}}/kernel\
 /lib/modules/%{KVERREL}%{?2:.%{2}}/build\
 /lib/modules/%{KVERREL}%{?2:.%{2}}/source\
+/lib/modules/%{KVERREL}%{?2:.%{2}}/extra\
 /lib/modules/%{KVERREL}%{?2:.%{2}}/updates\
 /lib/modules/%{KVERREL}%{?2:.%{2}}/weak-updates\
 %ifarch %{vdso_arches}\
@@ -1390,9 +1360,6 @@ fi
 %defattr(-,root,root)\
 %verify(not mtime) /usr/src/kernels/%{KVERREL}%{?2:.%{2}}\
 %dir /usr/src/kernels\
-%{expand:%%files %{?2:%{2}-}modules-extra}\
-%defattr(-,root,root)\
-/lib/modules/%{KVERREL}%{?2:.%{2}}/extra\
 %if %{with_debuginfo}\
 %ifnarch noarch\
 %if %{fancy_debuginfo}\
