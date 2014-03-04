@@ -43,6 +43,7 @@ $(DRIVER_NAME)-HFILES = ixgbevf.h ixgbe_vf.h ixgbe_common.h ixgbe_mbx.h
 EXTRA_CFLAGS += -DDRIVER_$(shell echo $(DRIVER_NAME) | tr '[a-z]' '[A-Z]')
 EXTRA_CFLAGS += -DDRIVER_NAME=$(DRIVER_NAME)
 EXTRA_CFLAGS += -DDRIVER_NAME_CAPS=$(shell echo $(DRIVER_NAME) | tr '[a-z]' '[A-Z]')
+EXTRA_CFLAGS += -DAMAZON_NOHW_VLAN
 
 
 obj-$(CONFIG_AMAZON_IXGBEVF) += $(DRIVER_NAME).o
