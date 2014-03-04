@@ -60,7 +60,7 @@ char ixgbevf_driver_name[] = "ixgbevf";
 static const char ixgbevf_driver_string[] =
 	"Intel(R) 10 Gigabit PCI Express Virtual Function Network Driver";
 
-#define DRV_VERSION "2.12.1"
+#define DRV_VERSION "2.12.1+amzn"
 const char ixgbevf_driver_version[] = DRV_VERSION;
 static char ixgbevf_copyright[] = "Copyright (c) 2009-2012 Intel Corporation.";
 
@@ -4313,8 +4313,10 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	netdev->features = NETIF_F_SG |
 			   NETIF_F_IP_CSUM |
 			   NETIF_F_RXCSUM |
+#if 0 /* disabled for Amazon for now */
 			   NETIF_F_HW_VLAN_TX |
 			   NETIF_F_HW_VLAN_RX |
+#endif /* no VLAN offload for Amazon */
 			   NETIF_F_HW_VLAN_FILTER;
 
 #else
