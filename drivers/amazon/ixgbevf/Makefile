@@ -48,3 +48,11 @@ EXTRA_CFLAGS += -DDRIVER_NAME_CAPS=$(shell echo $(DRIVER_NAME) | tr '[a-z]' '[A-
 obj-$(CONFIG_AMAZON_IXGBEVF) += $(DRIVER_NAME).o
 
 $(DRIVER_NAME)-objs := $($(DRIVER_NAME)-CFILES:.c=.o)
+
+clean:
+ifeq ($(KOBJ),$(KSRC))
+	$(MAKE) -C $(KSRC) SUBDIRS=$(shell pwd) clean
+else
+	$(MAKE) -C $(KSRC) O=$(KOBJ) SUBDIRS=$(shell pwd) clean
+endif
+	rm -rf $(TARGET) $(TARGET:.ko=.o) $(TARGET:.ko=.mod.c) $(TARGET:.ko=.mod.o) $(CFILES:.c=.o) $(MANFILE).gz .*cmd .tmp_versions
