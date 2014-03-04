@@ -73,10 +73,10 @@
  *
  * Valid Range: 956-488281 (0=off, 1=dynamic)
  *
- * Default Value: 1 (changed from the hardcoded 8000 in upstream driver)
+ * Default Value: 1
  */
 #define DEFAULT_ITR                 1
-IXGBE_PARAM(InterruptThrottleRate, "Maximum interrupts per second, per vector, (956-488281), default 8000, use 1 for dynamic");
+IXGBE_PARAM(InterruptThrottleRate, "Maximum interrupts per second, per vector, (956-488281, 0=off, 1=dynamic), default 1");
 #define MAX_ITR       IXGBE_MAX_INT_RATE
 #define MIN_ITR       IXGBE_MIN_INT_RATE
 
@@ -205,19 +205,11 @@ void __devinit ixgbevf_check_options(struct ixgbevf_adapter *adapter)
 				break;
 			}
 #ifdef module_param_array
-		} else switch (opt.def) {
-			case 0:
-				DPRINTK(PROBE, INFO, "%s turned off\n", opt.name);
-				adapter->rx_itr_setting = 0;
-				break;
-			case 1:
-				DPRINTK(PROBE, INFO, "%s is dynamic\n", opt.name);
-				adapter->rx_itr_setting = 1;
-				break;
-			default:
-                                adapter->rx_itr_setting = (1000000/opt.def) << 2;
-                                break;
-                }
+		} else if (opt.def < 2) {
+			adapter->rx_itr_setting = opt.def;
+		} else {
+			adapter->rx_itr_setting = (1000000/opt.def) << 2;
+		}
 #endif
 		adapter->tx_itr_setting = adapter->rx_itr_setting;
 	}
