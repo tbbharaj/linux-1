@@ -47,7 +47,9 @@
 #include <linux/ethtool.h>
 #endif
 #if defined(NETIF_F_HW_VLAN_TX) || defined(NETIF_F_HW_VLAN_CTAG_TX)
+#if !defined(AMAZON_NOHW_VLAN)
 #include <linux/if_vlan.h>
+#endif
 #endif
 
 #include "ixgbevf.h"
@@ -56,7 +58,11 @@ char ixgbevf_driver_name[] = "ixgbevf";
 static const char ixgbevf_driver_string[] =
 	"Intel(R) 10 Gigabit PCI Express Virtual Function Network Driver";
 
+#if defined(AMAZON_NOHW_VLAN)
+#define DRV_VERSION "2.14.2+amzn"
+#else
 #define DRV_VERSION "2.14.2"
+#endif
 const char ixgbevf_driver_version[] = DRV_VERSION;
 static char ixgbevf_copyright[] = "Copyright (c) 2009-2014 Intel Corporation.";
 
@@ -4525,13 +4531,17 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 			   NETIF_F_IP_CSUM |
 			   NETIF_F_RXCSUM |
 #ifdef NETIF_F_HW_VLAN_CTAG_TX
+#if !defined(AMAZON_NOHW_VLAN) /* disabled for Amazon for now */
 			   NETIF_F_HW_VLAN_CTAG_TX |
 			   NETIF_F_HW_VLAN_CTAG_RX |
+#endif /* no VLAN offload for Amazon */
 			   NETIF_F_HW_VLAN_CTAG_FILTER;
 #endif
 #ifdef NETIF_F_HW_VLAN_TX
+#if !defined(AMAZON_NOHW_VLAN) /* disabled for Amazon for now */
 			   NETIF_F_HW_VLAN_TX |
 			   NETIF_F_HW_VLAN_RX |
+#endif /* no VLAN offload for Amazon */
 			   NETIF_F_HW_VLAN_FILTER;
 #endif
 
