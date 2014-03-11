@@ -847,12 +847,20 @@ hwcap 1 nosegneg"
     fi
     cp -a include $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/include
 
+    # newer kernels relocate these from under include/linux to
+    # include/generated.... Maintain compatibility with old(er) code looking
+    # for former files in the formerly valid location
+    pushd  $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/include/linux
+    test -s utsrelease.h        || ln -sf ../generated/utsrelease.h .
+    test -s autoconf.h          || ln -sf ../generated/autoconf.h .
+    test -s version.h           || ln -sf ../generated/uapi/linux/version.h .
+    popd
     # Make sure the Makefile and version.h have a matching timestamp so that
     # external modules can be built
     touch -r $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/Makefile $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/include/linux/version.h
     touch -r $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/.config $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/include/linux/autoconf.h
     # Copy .config to include/config/auto.conf so "make prepare" is unnecessary.
-    cp $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/.config $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/include/config/auto.conf
+    cp -a $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/.config $RPM_BUILD_ROOT/lib/modules/$KernelVer/build/include/config/auto.conf
 
 %if %{with_debuginfo}
 %if %{fancy_debuginfo}
