@@ -11,6 +11,12 @@ endif
 
 TAREXT		= .tar
 
+ifeq ($(V),)
+Q = @
+else
+Q =
+endif
+
 # This is used to generate files for a src.rpm file containing a "vanilla"
 # linux kernel archive plus patches. The following defines are needed for this
 # to work:
@@ -121,14 +127,14 @@ endef
 linux :
 	$(GIT) clone --no-hardlinks $($@_GIT) $@
 linux-update : linux
-	$(if $(linux_BRANCH), pushd linux ; $(linux-update) )
+	$(Q)$(if $(linux_BRANCH), pushd linux >/dev/null; $(linux-update) )
 
 $(linux_TAR_ball).tar : linux-update $(MAKEFILE_LIST) | linux
 	$(GIT) archive --format=tar --prefix $(linux_PREFIX)/ --remote=linux $(TAR_BASE) > $@
 $(linux_PATCH_ball).tar : linux-update $(MAKEFILE_LIST) | linux
-	pushd linux ; $(GIT) format-patch -N -k -o $(SOURCEDIR) $(TAR_BASE)..$(PATCH_BASE) | \
-	xargs -r -l1 basename >$(SOURCEDIR)/$(linux_PATCH_ball).list ; \
-	popd ; \
+	$(Q)pushd linux >/dev/null ; $(GIT) format-patch -N -k -o $(SOURCEDIR) $(TAR_BASE)..$(PATCH_BASE) | \
+	                  xargs -r -l1 basename >$(SOURCEDIR)/$(linux_PATCH_ball).list ; \
+	    popd ; \
 	tar cf $@ -C $(SOURCEDIR) --remove-files --files-from=$(SOURCEDIR)/$(linux_PATCH_ball).list $(linux_PATCH_ball).list
 
 #
@@ -157,44 +163,44 @@ popd >/dev/null ; }
 endef
 
 $(HEADLOG): linux-update $(MAKEFILE_LIST) | linux
-	echo "* $$(TZ=UTC date +'%a %b %d %Y') Builder <builder@amazon.com>" > $@
-	$(call get_changelist,.,builder,,HEAD) >> $@
-	$(call get_changelist,linux,linux,$(PATCH_BASE),$(PATCH_HEAD)) >>$@
+	$(Q)echo "* $$(TZ=UTC date +'%a %b %d %Y') Builder <builder@amazon.com>" > $@
+	$(Q)$(call get_changelist,.,builder,,HEAD) >> $@
+	$(Q)$(call get_changelist,linux,linux,$(PATCH_BASE),$(PATCH_HEAD)) >>$@
 
 $(PATCHLOG) : linux-update $(MAKEFILE_LIST) | linux
-	cd linux ; $(GIT) format-patch -k -o $(SOURCEDIR) -N $(PATCH_BASE)..$(PATCH_HEAD) |\
+	$(Q)cd linux ; $(GIT) format-patch -k -o $(SOURCEDIR) -N $(PATCH_BASE)..$(PATCH_HEAD) |\
 		xargs -r -l1 basename >$@
-	sed -i "s/^\(....\)-/Patch\1: \1-/" $@
+	$(Q)sed -i "s/^\(....\)-/Patch\1: \1-/" $@
 $(APPLYLOG) : $(PATCHLOG)
-	sed "s,.*:,ApplyPatch," <$< >$@
+	$(Q)sed "s,.*:,ApplyPatch," <$< >$@
 
 clean ::
-	rm -fv $(HEADLOG) $(APPLYLOG) $(PATCHLOG)
+	$(Q)rm -f$(if $(V),v) $(HEADLOG) $(APPLYLOG) $(PATCHLOG)
 
 # redefine spec file generation to include git logs from submodules
 define replace_changelog
-@>.cl.spec
-@>.cl.gitlog
-@>.cl.linux
-@#$(call get_specfile_changelog,$(firstword $(wildcard $(CURDIR)/fedora/kernel.spec) $<)) > .cl.spec
-@#$(call get_gitlog_changelog,$(CHANGELOGS)) > .cl.gitlog
-pushd linux >/dev/null; $(call get_gitlog_changelog,,$(TAR_BASE),$(PATCH_BASE)) > ../.cl.linux; popd>/dev/null
-$(find-common-dir)/sort-changelog.py .cl.spec .cl.gitlog .cl.linux > .cl && rm -f .cl.spec .cl.gitlog .cl.linux
-sed -i -e "/^%changelog/Iq" $@
-sed -i -e "/^%changelog/ r .cl" $@ && rm -f .cl
-sed -i -e "/^%changelog/ r $(HEADLOG)" $@ && rm -f $(HEADLOG)
+$(Q)>.cl.spec
+$(Q)>.cl.gitlog
+$(Q)>.cl.linux
+$(Q)#$(call get_specfile_changelog,$(firstword $(wildcard $(CURDIR)/fedora/kernel.spec) $<)) > .cl.spec
+$(Q)#$(call get_gitlog_changelog,$(CHANGELOGS)) > .cl.gitlog
+$(Q)pushd linux >/dev/null; $(call get_gitlog_changelog,,$(TAR_BASE),$(PATCH_BASE)) > ../.cl.linux; popd>/dev/null
+$(Q)$(find-common-dir)/sort-changelog.py .cl.spec .cl.gitlog .cl.linux > .cl && rm -f .cl.spec .cl.gitlog .cl.linux
+$(Q)sed -i -e "/^%changelog/Iq" $@
+$(Q)sed -i -e "/^%changelog/ r .cl" $@ && rm -f .cl
+$(Q)sed -i -e "/^%changelog/ r $(HEADLOG)" $@ && rm -f $(HEADLOG)
 endef
 
 specfile : add-patches | $(CUSTOMSPEC)
 add-patches :  $(CUSTOMSPEC) $(APPLYLOG) $(PATCHLOG)
-	sed -i  -e '/__PATCHFILE_TEMPLATE__/ r $(PATCHLOG)' \
+	$(Q)sed -i  -e '/__PATCHFILE_TEMPLATE__/ r $(PATCHLOG)' \
 		-e '/__APPLYFILE_TEMPLATE__/ r $(APPLYLOG)' \
 		-e 's/__KVERSION__/$(linux_TAGVER)/' \
 		$(CUSTOMSPEC)
 
 specfile : update-sources | $(CUSTOMSPEC)
 update-sources : $(CUSTOMSPEC) $(MAKEFILE_LIST)
-	sed -i -r -e "s/^Source0:.*$$/Source0: $(linux_TAR_ball)$(TAREXT)/i" \
+	$(Q)sed -i -r -e "s/^Source0:.*$$/Source0: $(linux_TAR_ball)$(TAREXT)/i" \
 		  -e "s/^Source1:.*$$/Source1: $(linux_PATCH_ball)$(TAREXT)/i" $<
 
 # check if the tag exists both in local and remote sites and optionally blow it away
@@ -240,8 +246,8 @@ git-push-linux : linux
 	pushd linux ; $(GIT) push origin $(linux_BRANCH):refs/heads/$(linux_BRANCH) ; $(GIT) push origin --tags ; popd
 
 clean ::
-	rm -fv linux.tar $(linux_TAR) *$(TAREXT)
-	rm -fv $(SOURCEDIR)/$(linux_TAR_ball).tar $(SOURCEDIR)/$(linux_PATCH_ball).tar
+	$(Q)rm -f$(if $(V),v) linux.tar $(linux_TAR) *$(TAREXT)
+	$(Q)rm -f$(if $(V),v) $(SOURCEDIR)/$(linux_TAR_ball).tar $(SOURCEDIR)/$(linux_PATCH_ball).tar
 
 .SECONDARY : $(linux_TAR)
 
