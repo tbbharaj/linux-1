@@ -1212,6 +1212,13 @@ fi\
 #
 %define kernel_variant_posttrans() \
 %{expand:%%posttrans %{?1}}\
+%{expand:\
+%if %{with_dracut}\
+/sbin/new-kernel-pkg --package kernel%{?1:-%{1}} --mkinitrd --make-default --dracut --depmod --install %{KVERREL}%{?1:-%{1}} || exit $?\
+%else\
+/sbin/new-kernel-pkg --package kernel%{?1:-%{1}} --mkinitrd --make-default --depmod --install %{KVERREL}%{?1:-%{1}} || exit $?\
+%endif\
+}\
 /sbin/new-kernel-pkg --package kernel%{?1:-%{1}} --rpmposttrans %{KVERREL}%{?1:.%{1}} || exit $?\
 %{nil}
 
@@ -1229,16 +1236,9 @@ if [ `uname -i` == "x86_64" -o `uname -i` == "i386" ] &&\
    [ -f /etc/sysconfig/kernel ]; then\
   /bin/sed -r -i -e 's/^DEFAULTKERNEL=%{-r*}$/DEFAULTKERNEL=kernel%{?-v:-%{-v*}}/' /etc/sysconfig/kernel || exit $?\
 fi}\
-%{expand:\
-%if %{with_dracut}\
-/sbin/new-kernel-pkg --package kernel%{?-v:-%{-v*}} --mkinitrd --make-default --dracut --depmod --install %{KVERREL}%{?-v:.%{-v*}} || exit $?\
-%else\
-/sbin/new-kernel-pkg --package kernel%{?-v:-%{-v*}} --mkinitrd --make-default --depmod --install %{KVERREL}%{?-v:.%{-v*}} || exit $?\
-%endif}\
-#if [ -x /sbin/weak-modules ]\
-#then\
-#    /sbin/weak-modules --add-kernel %{KVERREL}%{?-v*} || exit $?\
-#fi\
+if [ -x /sbin/weak-modules ] ; then\
+    /sbin/weak-modules --add-kernel %{KVERREL}%{?-v*} || :\
+fi\
 %{nil}
 
 #
@@ -1248,10 +1248,9 @@ fi}\
 %define kernel_variant_preun() \
 %{expand:%%preun %{?1}}\
 /sbin/new-kernel-pkg --rminitrd --rmmoddep --remove %{KVERREL}%{?1:.%{1}} || exit $?\
-#if [ -x /sbin/weak-modules ]\
-#then\
-#    /sbin/weak-modules --remove-kernel %{KVERREL}%{?1} || exit $?\
-#fi\
+if [ -x /sbin/weak-modules ] ; then\
+    /sbin/weak-modules --remove-kernel %{KVERREL}%{?1} || :\
+fi\
 %{nil}
 
 %kernel_variant_preun
