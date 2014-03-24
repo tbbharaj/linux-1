@@ -477,6 +477,7 @@ Provides: kernel-devel = %{version}-%{release}%{?1:.%{1}}\
 Provides: kernel-devel-uname-r = %{KVERREL}%{?1:.%{1}}\
 AutoReqProv: no\
 Requires(pre): /usr/bin/find\
+Requires(post): /usr/sbin/hardlink\
 Requires: perl\
 %description -n kernel%{?variant}%{?1:-%{1}}-devel\
 This package provides kernel headers and makefiles sufficient to build modules\
@@ -1200,7 +1201,7 @@ if [ "$HARDLINK" != "no" -a -x /usr/sbin/hardlink ]\
 then\
     (cd /usr/src/kernels/%{KVERREL}%{?1:.%{1}} &&\
      /usr/bin/find . -type f | while read f; do\
-       hardlink -c /usr/src/kernels/*.fc*.*/$f $f\
+       hardlink -c /usr/src/kernels/*.%{dist}.*/$f $f\
      done)\
 fi\
 %{nil}
