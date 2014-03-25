@@ -825,6 +825,7 @@ hwcap 1 nosegneg"
     # first copy everything
     cp --parents `find  -type f -name "Makefile*" -o -name "Kconfig*"` $RPM_BUILD_ROOT/lib/modules/$KernelVer/build
     cp Module.symvers $RPM_BUILD_ROOT/lib/modules/$KernelVer/build
+    gzip -c9 Module.symvers >  $RPM_BUILD_ROOT/boot/symvers-$KernelVer.gz
     cp System.map $RPM_BUILD_ROOT/lib/modules/$KernelVer/build
     if [ -s Module.markers ]; then
       cp Module.markers $RPM_BUILD_ROOT/lib/modules/$KernelVer/build
@@ -1236,9 +1237,6 @@ if [ `uname -i` == "x86_64" -o `uname -i` == "i386" ] &&\
    [ -f /etc/sysconfig/kernel ]; then\
   /bin/sed -r -i -e 's/^DEFAULTKERNEL=%{-r*}$/DEFAULTKERNEL=kernel%{?-v:-%{-v*}}/' /etc/sysconfig/kernel || exit $?\
 fi}\
-if [ -x /sbin/weak-modules ] ; then\
-    /sbin/weak-modules --add-kernel %{KVERREL}%{?-v*} || :\
-fi\
 %{nil}
 
 #
@@ -1248,9 +1246,6 @@ fi\
 %define kernel_variant_preun() \
 %{expand:%%preun %{?1}}\
 /sbin/new-kernel-pkg --rminitrd --rmmoddep --remove %{KVERREL}%{?1:.%{1}} || exit $?\
-if [ -x /sbin/weak-modules ] ; then\
-    /sbin/weak-modules --remove-kernel %{KVERREL}%{?1} || :\
-fi\
 %{nil}
 
 %kernel_variant_preun
@@ -1345,7 +1340,7 @@ fi
 %defattr(-,root,root)\
 /%{image_install_path}/%{?-k:%{-k*}}%{!?-k:vmlinuz}-%{KVERREL}%{?2:.%{2}}\
 %attr(600,root,root) /boot/System.map-%{KVERREL}%{?2:.%{2}}\
-#/boot/symvers-%{KVERREL}%{?2:.%{2}}.gz\
+/boot/symvers-%{KVERREL}%{?2:.%{2}}.gz\
 /boot/config-%{KVERREL}%{?2:.%{2}}\
 %dir /lib/modules/%{KVERREL}%{?2:.%{2}}\
 /lib/modules/%{KVERREL}%{?2:.%{2}}/kernel\
