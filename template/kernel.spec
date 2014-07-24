@@ -1283,8 +1283,11 @@ fi
 %files -n perf
 %defattr(-,root,root)
 %{_bindir}/perf
+%{_bindir}/trace
 %dir %{_libexecdir}/perf-core
 %{_libexecdir}/perf-core/*
+%dir %{_libdir}/traceevent/plugins
+%{_libdir}/traceevent/plugins/*
 %{_mandir}/man[1-8]/perf*
 %doc linux-%{KVERREL}/tools/perf/Documentation/examples.txt
 %{_python_sitearch}/*
