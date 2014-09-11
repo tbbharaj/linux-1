@@ -70,7 +70,7 @@ Summary: The Linux kernel
 # perf
 %define with_perf      %{?_without_perf:      0} %{?!_without_perf:      1}
 # tools
-%define with_tools     %{?_without_tools:     0} %{?!_without_tools:     0}
+%define with_tools     %{?_without_tools:     0} %{?!_without_tools:     1}
 # kernel-debuginfo
 %define with_debuginfo %{?_without_debuginfo: 0} %{?!_without_debuginfo: 1}
 # Want to build a the vsdo directories installed
@@ -187,8 +187,8 @@ Summary: The Linux kernel
 %endif
 
 # Architectures we build tools/cpupower on
-#define cpupowerarchs %{ix86} x86_64
-%define cpupowerarchs none
+%define cpupowerarchs %{ix86} x86_64
+#define cpupowerarchs none
 
 #
 # Three sets of minimum package version requirements in the form of Conflicts:
