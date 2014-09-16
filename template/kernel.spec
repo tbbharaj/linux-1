@@ -1161,7 +1161,7 @@ mv cpupower.lang ../
 %endif #turbostat/x86_energy_perf_policy
 chmod 0755 %{buildroot}%{_libdir}/libcpupower.so*
 mkdir -p %{buildroot}%{_initddir} %{buildroot}%{_sysconfdir}/sysconfig
-install -m644 %{SOURCE2000} %{buildroot}%{_initddir}/cpupower
+#install -m644 %{SOURCE2000} %{buildroot}%{_initddir}/cpupower
 install -m644 %{SOURCE2001} %{buildroot}%{_sysconfdir}/sysconfig/cpupower
 %endif # cpupowerarchs
 # just in case so the files list won't croak
@@ -1313,7 +1313,7 @@ fi
 %endif
 %{_libdir}/libcpupower.so.0
 %{_libdir}/libcpupower.so.0.0.0
-%{_initddir}/cpupower
+#%{_initddir}/cpupower
 %config(noreplace) %{_sysconfdir}/sysconfig/cpupower
 
 %if %{with_debuginfo}
