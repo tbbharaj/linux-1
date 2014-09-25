@@ -98,6 +98,10 @@ static unsigned int xen_blkif_max_segments = 32;
 module_param_named(max, xen_blkif_max_segments, int, S_IRUGO);
 MODULE_PARM_DESC(max, "Maximum amount of segments in indirect requests (default is 32)");
 
+static unsigned int xen_blkif_feature_persistent = 1;
+module_param_named(persistent_grants, xen_blkif_feature_persistent, int, S_IRUGO);
+MODULE_PARM_DESC(persistent_grants, "Enable persistent grant table references (default is 1)");
+
 #define BLK_RING_SIZE __CONST_RING_SIZE(blkif, PAGE_SIZE)
 
 /*
@@ -1324,11 +1328,14 @@ again:
 		message = "writing protocol";
 		goto abort_transaction;
 	}
-	err = xenbus_printf(xbt, dev->nodename,
-			    "feature-persistent", "%u", 1);
-	if (err)
-		dev_warn(&dev->dev,
-			 "writing persistent grants feature to xenbus");
+
+	if (xen_blkif_feature_persistent) {
+		err = xenbus_printf(xbt, dev->nodename,
+				    "feature-persistent", "%u", 1);
+		if (err)
+			dev_warn(&dev->dev,
+				 "writing persistent grants feature to xenbus");
+	}
 
 	err = xenbus_transaction_end(xbt, 0);
 	if (err) {
@@ -1859,13 +1866,16 @@ static void blkfront_connect(struct blkfront_info *info)
 	if (!err && discard)
 		blkfront_setup_discard(info);
 
-	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
-			    "feature-persistent", "%u", &persistent,
-			    NULL);
-	if (err)
+	if (xen_blkif_feature_persistent) {
+		err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
+				    "feature-persistent", "%u", &persistent,
+				    NULL);
+		if (err)
+			info->feature_persistent = 0;
+		else
+			info->feature_persistent = persistent;
+	} else
 		info->feature_persistent = 0;
-	else
-		info->feature_persistent = persistent;
 
 	err = blkfront_setup_indirect(info);
 	if (err) {
