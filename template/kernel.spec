@@ -277,7 +277,16 @@ Obsoletes: kernel-smp
 #
 BuildRequires: kmod >= 14, patch >= 2.5.4, bash >= 2.03, sh-utils, tar
 BuildRequires: bzip2, findutils, gzip, m4, perl, make >= 3.78, diffutils, gawk
-BuildRequires: gcc, binutils >= 2.12, system-rpm-config, gdb, bc
+BuildRequires: gcc
+#defines based on the compiler version we need to use
+%global _gcc gcc
+%global _gxx g++
+%global _gccver %(eval %{_gcc} -dumpversion 2>/dev/null || :)
+%if "%{_gccver}" > "4"
+Provides: buildrequires(gcc) = %{_gccver}
+%endif
+BuildRequires: binutils >= 2.12
+BuildRequires: system-rpm-config, gdb, bc
 BuildRequires: net-tools
 BuildRequires: xmlto, asciidoc
 %if %{with_sparse}
@@ -479,6 +488,9 @@ AutoReqProv: no\
 Requires(pre): /usr/bin/find\
 Requires(post): /usr/sbin/hardlink\
 Requires: perl\
+%if "%{_gccver}" > "4"\
+Provides: buildrequires(gcc) = %{_gccver}\
+%endif\
 %description -n kernel%{?variant}%{?1:-%{1}}-devel\
 This package provides kernel headers and makefiles sufficient to build modules\
 against the %{?2:%{2} }kernel package.\
@@ -700,9 +712,9 @@ cp_vmlinux()
   eu-strip --remove-comment -o "$2" "$1"
 }
 
-export CC=gcc
-export HOSTCC=gcc
-export HOSTCXX=g++
+export CC=%{?_gcc}%{?!_gcc:gcc}
+export HOSTCC=%{?_gcc}%{?!_gcc:gcc}
+export HOSTCXX=%{?_gxx}%{?!_gxx:g++}
 
 %global make_defines CC=gcc HOSTCC=gcc HOSTCXX=g++
 
