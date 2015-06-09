@@ -1,2 +1,6 @@
 NAME=kernel
-VENDOR=F13
+VENDOR=GOBI
+UPSTREAM=AUTHOR
+UPSTREAM_URL=https://git.kernel.org/cgit/linux/kernel/git/stable/linux-stable.git/log/?h=linux-3.17.y
+
+UPSTREAM_1=F21
