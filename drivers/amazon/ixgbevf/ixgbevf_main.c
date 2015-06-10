@@ -123,7 +123,7 @@ static void ixgbevf_service_event_complete(struct ixgbevf_adapter *adapter)
 	BUG_ON(!test_bit(__IXGBEVF_SERVICE_SCHED, &adapter->state));
 
 	/* flush memory to make sure state is correct before next watchdog */
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(__IXGBEVF_SERVICE_SCHED, &adapter->state);
 }
 
@@ -2287,7 +2287,7 @@ static void ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 
 	spin_unlock_bh(&adapter->mbx_lock);
 
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(__IXGBEVF_DOWN, &adapter->state);
 	ixgbevf_napi_enable_all(adapter);
 
@@ -4022,8 +4022,8 @@ static int ixgbevf_xmit_frame_ring(struct sk_buff *skb,
 	first->gso_segs = 1;
 
 #if defined(NETIF_F_HW_VLAN_TX) || defined(NETIF_F_HW_VLAN_CTAG_TX)
-	if (vlan_tx_tag_present(skb)) {
-		tx_flags |= vlan_tx_tag_get(skb);
+	if (skb_vlan_tag_present(skb)) {
+		tx_flags |= skb_vlan_tag_get(skb);
 		tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
 		tx_flags |= IXGBE_TX_FLAGS_VLAN;
 	/* else if it is a SW VLAN check the next protocol and store the tag */
@@ -4242,7 +4242,7 @@ static int ixgbevf_resume(struct pci_dev *pdev)
 		dev_err(&pdev->dev, "Cannot enable PCI device from suspend\n");
 		return err;
 	}
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(__IXGBEVF_DISABLED, &adapter->state);
 	pci_set_master(pdev);
 
@@ -4286,10 +4286,10 @@ static struct rtnl_link_stats64 *ixgbevf_get_stats64(struct net_device *netdev,
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		ring = adapter->rx_ring[i];
 		do {
-			start = u64_stats_fetch_begin_bh(&ring->syncp);
+			start = u64_stats_fetch_begin_irq(&ring->syncp);
 			bytes = ring->stats.bytes;
 			packets = ring->stats.packets;
-		} while (u64_stats_fetch_retry_bh(&ring->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 		stats->rx_bytes += bytes;
 		stats->rx_packets += packets;
 	}
@@ -4297,10 +4297,10 @@ static struct rtnl_link_stats64 *ixgbevf_get_stats64(struct net_device *netdev,
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		ring = adapter->tx_ring[i];
 		do {
-			start = u64_stats_fetch_begin_bh(&ring->syncp);
+			start = u64_stats_fetch_begin_irq(&ring->syncp);
 			bytes = ring->stats.bytes;
 			packets = ring->stats.packets;
-		} while (u64_stats_fetch_retry_bh(&ring->syncp, start));
+		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 		stats->tx_bytes += bytes;
 		stats->tx_packets += packets;
 	}
@@ -4749,7 +4749,7 @@ static pci_ers_result_t ixgbevf_io_slot_reset(struct pci_dev *pdev)
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
-	smp_mb__before_clear_bit();
+	smp_mb__before_atomic();
 	clear_bit(__IXGBEVF_DISABLED, &adapter->state);
 	pci_set_master(pdev);
 
