@@ -987,6 +987,10 @@ static struct ethtool_ops ixgbevf_ethtool_ops = {
 
 void ixgbevf_set_ethtool_ops(struct net_device *netdev)
 {
+#ifndef ETHTOOL_OPS_COMPAT
+	netdev->ethtool_ops = &ixgbevf_ethtool_ops;
+#else
 	SET_ETHTOOL_OPS(netdev, &ixgbevf_ethtool_ops);
+#endif
 }
 #endif /* SIOCETHTOOL */
