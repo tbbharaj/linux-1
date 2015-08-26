@@ -207,7 +207,7 @@ Summary: The Linux kernel
 # problems with the newer kernel or lack certain things that make
 # integration in the distro harder than needed.
 #
-%define package_conflicts initscripts < 7.23, udev < 063-6, iptables < 1.3.2-1, selinux-policy-targeted < 1.25.3-14, squashfs-tools < 4.0
+%define package_conflicts initscripts < 7.23, udev < 063-6, iptables < 1.3.2-1, selinux-policy-targeted < 1.25.3-14, squashfs-tools < 4.0, nvidia-dkms < 2:340.32-2015.03.99.amzn1
 
 # We moved the drm include files into kernel-headers, make sure there's
 # a recent enough libdrm-devel on the system that doesn't have those.
