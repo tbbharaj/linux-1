@@ -1,0 +1,512 @@
+/******************************************************************************
+Copyright (C) 2015 Annapurna Labs Ltd.
+
+This file may be licensed under the terms of the Annapurna Labs Commercial
+License Agreement.
+
+Alternatively, this file can be distributed under the terms of the GNU General
+Public License V2 as published by the Free Software Foundation and can be
+found at http://www.gnu.org/licenses/gpl-2.0.html
+
+Alternatively, redistribution and use in source and binary forms, with or
+without modification, are permitted provided that the following conditions are
+met:
+
+    *  Redistributions of source code must retain the above copyright notice,
+this list of conditions and the following disclaimer.
+
+    *  Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in
+the documentation and/or other materials provided with the
+distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+******************************************************************************/
+
+#ifndef _ENA_ETH_IO_H_
+#define _ENA_ETH_IO_H_
+
+/* Layer 3 protocol index */
+enum ena_eth_io_l3_proto_index {
+	ena_eth_io_l3_proto_unknown = 0,
+
+	ena_eth_io_l3_proto_ipv4 = 8,
+
+	ena_eth_io_l3_proto_ipv6 = 11,
+
+	ena_eth_io_l3_proto_fcoe = 21,
+
+	ena_eth_io_l3_proto_roce = 22,
+};
+
+/* Layer 4 protocol index */
+enum ena_eth_io_l4_proto_index {
+	ena_eth_io_l4_proto_unknown = 0,
+
+	ena_eth_io_l4_proto_tcp = 12,
+
+	ena_eth_io_l4_proto_udp = 13,
+
+	ena_eth_io_l4_proto_routeable_roce = 23,
+};
+
+/* ENA IO Queue Tx descriptor */
+struct ena_eth_io_tx_desc {
+	/* word 0 : */
+	/*
+	 * length, request id and control flags
+	 * 15:0 : length - Buffer length in bytes, must
+	 *    include any packet trailers that the ENA supposed
+	 *    to update like End-to-End CRC, Authentication GMAC
+	 *    etc. This length must not include the
+	 *    'Push_Buffer' length. This length must not include
+	 *    the 4-byte added in the end for 802.3 Ethernet FCS
+	 * 21:16 : req_id_hi - Request ID[15:10]
+	 * 22 : reserved22 - MBZ
+	 * 23 : meta_desc - MBZ
+	 * 24 : phase
+	 * 25 : reserved1 - MBZ
+	 * 26 : first - Indicates first descriptor in
+	 *    transaction
+	 * 27 : last - Indicates last descriptor in
+	 *    transaction
+	 * 28 : comp_req - Indicates whether completion
+	 *    should be posted, after packet is transmitted.
+	 *    Valid only for first descriptor
+	 * 30:29 : reserved29 - MBZ
+	 * 31 : reserved31 - MBZ
+	 */
+	u32 len_ctrl;
+
+	/* word 1 : */
+	/*
+	 * ethernet control
+	 * 3:0 : l3_proto_idx - L3 protocol, if
+	 *    tunnel_ctrl[0] is set, then this is the inner
+	 *    packet L3. This field required when
+	 *    l3_csum_en,l3_csum or tso_en are set.
+	 * 4 : reserved4
+	 * 6:5 : reserved5
+	 * 7 : tso_en - Enable TSO, For TCP only. For packets
+	 *    with tunnel (tunnel_ctrl[0]=1), then the inner
+	 *    packet will be segmented while the outer tunnel is
+	 *    duplicated
+	 * 12:8 : l4_proto_idx - L4 protocol, if
+	 *    tunnel_ctrl[0] is set, then this is the inner
+	 *    packet L4. This field need to be set when
+	 *    l4_csum_en or tso_en are set.
+	 * 13 : l3_csum_en - enable IPv4 header checksum. if
+	 *    tunnel_ctrl[0] is set, then this will enable
+	 *    checksum for the inner packet IPv4
+	 * 14 : l4_csum_en - enable TCP/UDP checksum. if
+	 *    tunnel_ctrl[0] is set, then this will enable
+	 *    checksum on the inner packet TCP/UDP checksum
+	 * 15 : ethernet_fcs_dis - when set, the controller
+	 *    will not append the 802.3 Ethernet Frame Check
+	 *    Sequence to the packet
+	 * 16 : reserved16
+	 * 17 : l4_csum_partial - L4 partial checksum. when
+	 *    set to 0, the ENA calculates the L4 checksum,
+	 *    where the Destination Address required for the
+	 *    TCP/UDP pseudo-header is taken from the actual
+	 *    packet L3 header. when set to 1, the ENA doesn't
+	 *    calculate the sum of the pseudo-header, instead,
+	 *    the checksum field of the L3 is used instead. L4
+	 *    partial checksum should be used for IPv6 packet
+	 *    that contains Routing Headers.
+	 * 20:18 : tunnel_ctrl - Bit 0: tunneling exists, Bit
+	 *    1: tunnel packet actually uses UDP as L4, Bit 2:
+	 *    tunnel packet L3 protocol: 0: IPv4 1: IPv6
+	 * 21 : ts_req - Indicates that the packet is IEEE
+	 *    1588v2 packet requiring the timestamp
+	 * 31:22 : req_id_lo - Request ID[9:0]
+	 */
+	u32 meta_ctrl;
+
+	/* word 2 : Buffer address bits[31:0] */
+	u32 buff_addr_lo;
+
+	/* word 3 : */
+	/*
+	 * address high and header size
+	 * 15:0 : addr_hi - Buffer Pointer[47:32]
+	 * 23:16 : reserved16_w2
+	 * 31:24 : push_buffer_length - Push Buffer length,
+	 *    number of bytes pushed to the ENA memory. used
+	 *    only for low latency queues. Maximum allowed value
+	 *    is negotiated through Admin Aueue, Minimum allowed
+	 *    value: for IPv4/6, the pushed buffer must include
+	 *    the Layer 2 and layer 3 headers, for ARP packets,
+	 *    in must include the Layer 2 and ARP header
+	 */
+	u32 buff_addr_hi_hdr_sz;
+};
+
+/* ENA IO Queue Tx Meta descriptor */
+struct ena_eth_io_tx_meta_desc {
+	/* word 0 : */
+	/*
+	 * length, request id and control flags
+	 * 9:0 : req_id_lo - Request ID[9:0]
+	 * 11:10 : outr_l3_off_hi - valid if
+	 *    tunnel_ctrl[0]=1. bits[4:3] of outer packet L3
+	 *    offset
+	 * 12 : reserved12 - MBZ
+	 * 13 : reserved13 - MBZ
+	 * 14 : ext_valid - if set, offset fields in Word2
+	 *    are valid Also MSS High in Word 0 and Outer L3
+	 *    Offset High in WORD 0 and bits [31:24] in Word 3
+	 * 15 : word3_valid - If set Crypto Info[23:0] of
+	 *    Word 3 is valid
+	 * 19:16 : mss_hi_ptp
+	 * 20 : eth_meta_type - 0: Tx Metadata Descriptor, 1:
+	 *    Extended Metadata Descriptor
+	 * 21 : meta_store - Store extended metadata in queue
+	 *    cache
+	 * 22 : reserved22 - MBZ
+	 * 23 : meta_desc - MBO
+	 * 24 : phase
+	 * 25 : reserved25 - MBZ
+	 * 26 : first - Indicates first descriptor in
+	 *    transaction
+	 * 27 : last - Indicates last descriptor in
+	 *    transaction
+	 * 28 : comp_req - Indicates whether completion
+	 *    should be posted, after packet is transmitted.
+	 *    Valid only for first descriptor
+	 * 30:29 : reserved29 - MBZ
+	 * 31 : reserved31 - MBZ
+	 */
+	u32 len_ctrl;
+
+	/* word 1 : */
+	/*
+	 * word 1
+	 * 5:0 : req_id_hi
+	 * 31:6 : reserved6 - MBZ
+	 */
+	u32 word1;
+
+	/* word 2 : */
+	/*
+	 * word 2
+	 * 7:0 : l3_hdr_len - the header length L3 IP header.
+	 *    if tunnel_ctrl[0]=1, this is the IP header length
+	 *    of the inner packet.  FIXME - check if includes IP
+	 *    options hdr_len
+	 * 15:8 : l3_hdr_off - the offset of the first byte
+	 *    in the L3 header from the beginning of the to-be
+	 *    transmitted packet. if tunnel_ctrl[0]=1, this is
+	 *    the offset the L3 header of the inner packet
+	 * 21:16 : l4_hdr_len_in_words - counts the L4 header
+	 *    length in words. there is an explicit assumption
+	 *    that L4 header appears right after L3 header and
+	 *    L4 offset is based on l3_hdr_off+l3_hdr_len FIXME
+	 *    - pls confirm
+	 * 31:22 : mss_lo
+	 */
+	u32 word2;
+
+	/* word 3 : */
+	/*
+	 * word 3
+	 * 23:0 : crypto_info
+	 * 28:24 : outr_l3_hdr_len_words - valid if
+	 *    tunnel_ctrl[0]=1.  Counts in words
+	 * 31:29 : outr_l3_off_lo - valid if
+	 *    tunnel_ctrl[0]=1. bits[2:0] of outer packet L3
+	 *    offset. Counts the offset of the tunnel IP header
+	 *    from beginning of the packet. NOTE: if the tunnel
+	 *    header requires CRC or checksum, it is expected to
+	 *    be done by the driver as it is not done by the HW
+	 */
+	u32 word3;
+};
+
+/* ENA IO Queue Tx completions descriptor */
+struct ena_eth_io_tx_cdesc {
+	/* word 0 : */
+	/* Request ID[15:0] */
+	u16 req_id;
+
+	u8 status;
+
+	/*
+	 * flags
+	 * 0 : phase
+	 * 7:1 : reserved1
+	 */
+	u8 flags;
+
+	/* word 1 : */
+	u16 sub_qid;
+
+	/* indicates location of submission queue head */
+	u16 sq_head_idx;
+};
+
+/* ENA IO Queue Rx descriptor */
+struct ena_eth_io_rx_desc {
+	/* word 0 : */
+	/* In bytes. 0 means 64KB */
+	u16 length;
+
+	/* MBZ */
+	u8 reserved2;
+
+	/*
+	 * control flags
+	 * 0 : phase
+	 * 1 : reserved1 - MBZ
+	 * 2 : first - Indicates first descriptor in
+	 *    transaction
+	 * 3 : last - Indicates last descriptor in transaction
+	 * 4 : comp_req
+	 * 5 : reserved5 - MBO
+	 * 7:6 : reserved6 - MBZ
+	 */
+	u8 ctrl;
+
+	/* word 1 : */
+	u16 req_id;
+
+	/* MBZ */
+	u16 reserved6;
+
+	/* word 2 : Buffer address bits[31:0] */
+	u32 buff_addr_lo;
+
+	/* word 3 : */
+	/* Buffer Address bits[47:16] */
+	u16 buff_addr_hi;
+
+	/* MBZ */
+	u16 reserved16_w3;
+};
+
+/*
+ * ENA IO Queue Rx Completion Base Descriptor (4-word format). Note: all
+ * ethernet parsing information are valid only when last=1
+ */
+struct ena_eth_io_rx_cdesc_base {
+	/* word 0 : */
+	/*
+	 * 4:0 : l3_proto_idx - L3 protocol index
+	 * 6:5 : src_vlan_cnt - Source VLAN count
+	 * 7 : tunnel - Tunnel exists
+	 * 12:8 : l4_proto_idx - L4 protocol index
+	 * 13 : l3_csum_err - when set, L3 checksum error
+	 *    detected, If tunnel exists, this result is for the
+	 *    inner packet
+	 * 14 : l4_csum_err - when set, L4 checksum error
+	 *    detected, If tunnel exists, this result is for the
+	 *    inner packet
+	 * 15 : ipv4_frag - Indicates IPv4 fragmented packet
+	 * 17:16 : reserved16
+	 * 19:18 : reserved18
+	 * 20 : secured_pkt - Set if packet was handled by
+	 *    inline crypto engine
+	 * 22:21 : crypto_status -  bit 0 secured direction:
+	 *    0: decryption, 1: encryption. bit 1 reserved
+	 * 23 : reserved23
+	 * 24 : phase
+	 * 25 : l3_csum2 - second checksum engine result
+	 * 26 : first - Indicates first descriptor in
+	 *    transaction
+	 * 27 : last - Indicates last descriptor in
+	 *    transaction
+	 * 28 : inr_l4_csum - TCP/UDP checksum results for
+	 *    inner packet
+	 * 29 : reserved29
+	 * 30 : buffer - 0: Metadata descriptor. 1: Buffer
+	 *    Descriptor was used
+	 * 31 : reserved31
+	 */
+	u32 status;
+
+	/* word 1 : */
+	u16 length;
+
+	u16 req_id;
+
+	/* word 2 : */
+	/*
+	 * 8:0 : tunnel_off - inner packet offset
+	 * 15:9 : l3_off - Offset of first byte in the L3
+	 *    header from the beginning of the packet. if
+	 *    tunnel=1, this is of the inner packet
+	 * 31:16 : hash_frag_csum - 16-bit hash results for
+	 *    TCP/UDP packets (could be used by driver to
+	 *    accelerate flow lookup or LRO) OR partial checksum
+	 *    of IP packet was fragmented
+	 */
+	u32 word2;
+
+	/* word 3 : */
+	/* submission queue number */
+	u16 sub_qid;
+
+	u8 reserved;
+
+	/*
+	 * Offset of first byte in the L4 header from the beginning of the
+	 *    packet. if tunnel=1, this is of the inner packet
+	 */
+	u8 l4_off;
+};
+
+/* ENA IO Queue Rx Completion Descriptor (8-word format) */
+struct ena_eth_io_rx_cdesc_ext {
+	/* words 0:3 : Rx Completion Extended */
+	struct ena_eth_io_rx_cdesc_base base;
+
+	/* word 4 : Completed Buffer address bits[31:0] */
+	u32 buff_addr_lo;
+
+	/* word 5 : */
+	/* the buffer address used bits[47:32] */
+	u16 buff_addr_hi;
+
+	u16 reserved16;
+
+	/* word 6 : Reserved */
+	u32 reserved_w6;
+
+	/* word 7 : Reserved */
+	u32 reserved_w7;
+};
+
+/* tx_desc */
+#define ENA_ETH_IO_TX_DESC_LENGTH_MASK		GENMASK(16, 0)
+#define ENA_ETH_IO_TX_DESC_REQ_ID_HI_SHIFT		16
+#define ENA_ETH_IO_TX_DESC_REQ_ID_HI_MASK		GENMASK(22, 16)
+#define ENA_ETH_IO_TX_DESC_META_DESC_SHIFT		23
+#define ENA_ETH_IO_TX_DESC_META_DESC_MASK		BIT(23)
+#define ENA_ETH_IO_TX_DESC_PHASE_SHIFT		24
+#define ENA_ETH_IO_TX_DESC_PHASE_MASK		BIT(24)
+#define ENA_ETH_IO_TX_DESC_FIRST_SHIFT		26
+#define ENA_ETH_IO_TX_DESC_FIRST_MASK		BIT(26)
+#define ENA_ETH_IO_TX_DESC_LAST_SHIFT		27
+#define ENA_ETH_IO_TX_DESC_LAST_MASK		BIT(27)
+#define ENA_ETH_IO_TX_DESC_COMP_REQ_SHIFT		28
+#define ENA_ETH_IO_TX_DESC_COMP_REQ_MASK		BIT(28)
+#define ENA_ETH_IO_TX_DESC_L3_PROTO_IDX_MASK		GENMASK(4, 0)
+#define ENA_ETH_IO_TX_DESC_TSO_EN_SHIFT		7
+#define ENA_ETH_IO_TX_DESC_TSO_EN_MASK		BIT(7)
+#define ENA_ETH_IO_TX_DESC_L4_PROTO_IDX_SHIFT		8
+#define ENA_ETH_IO_TX_DESC_L4_PROTO_IDX_MASK		GENMASK(13, 8)
+#define ENA_ETH_IO_TX_DESC_L3_CSUM_EN_SHIFT		13
+#define ENA_ETH_IO_TX_DESC_L3_CSUM_EN_MASK		BIT(13)
+#define ENA_ETH_IO_TX_DESC_L4_CSUM_EN_SHIFT		14
+#define ENA_ETH_IO_TX_DESC_L4_CSUM_EN_MASK		BIT(14)
+#define ENA_ETH_IO_TX_DESC_ETHERNET_FCS_DIS_SHIFT		15
+#define ENA_ETH_IO_TX_DESC_ETHERNET_FCS_DIS_MASK		BIT(15)
+#define ENA_ETH_IO_TX_DESC_L4_CSUM_PARTIAL_SHIFT		17
+#define ENA_ETH_IO_TX_DESC_L4_CSUM_PARTIAL_MASK		BIT(17)
+#define ENA_ETH_IO_TX_DESC_TUNNEL_CTRL_SHIFT		18
+#define ENA_ETH_IO_TX_DESC_TUNNEL_CTRL_MASK		GENMASK(21, 18)
+#define ENA_ETH_IO_TX_DESC_TS_REQ_SHIFT		21
+#define ENA_ETH_IO_TX_DESC_TS_REQ_MASK		BIT(21)
+#define ENA_ETH_IO_TX_DESC_REQ_ID_LO_SHIFT		22
+#define ENA_ETH_IO_TX_DESC_REQ_ID_LO_MASK		GENMASK(32, 22)
+#define ENA_ETH_IO_TX_DESC_ADDR_HI_MASK		GENMASK(16, 0)
+#define ENA_ETH_IO_TX_DESC_PUSH_BUFFER_LENGTH_SHIFT		24
+#define ENA_ETH_IO_TX_DESC_PUSH_BUFFER_LENGTH_MASK		GENMASK(32, 24)
+
+/* tx_meta_desc */
+#define ENA_ETH_IO_TX_META_DESC_REQ_ID_LO_MASK		GENMASK(10, 0)
+#define ENA_ETH_IO_TX_META_DESC_OUTR_L3_OFF_HI_SHIFT		10
+#define ENA_ETH_IO_TX_META_DESC_OUTR_L3_OFF_HI_MASK		GENMASK(12, 10)
+#define ENA_ETH_IO_TX_META_DESC_EXT_VALID_SHIFT		14
+#define ENA_ETH_IO_TX_META_DESC_EXT_VALID_MASK		BIT(14)
+#define ENA_ETH_IO_TX_META_DESC_WORD3_VALID_SHIFT		15
+#define ENA_ETH_IO_TX_META_DESC_WORD3_VALID_MASK		BIT(15)
+#define ENA_ETH_IO_TX_META_DESC_MSS_HI_PTP_SHIFT		16
+#define ENA_ETH_IO_TX_META_DESC_MSS_HI_PTP_MASK		GENMASK(20, 16)
+#define ENA_ETH_IO_TX_META_DESC_ETH_META_TYPE_SHIFT		20
+#define ENA_ETH_IO_TX_META_DESC_ETH_META_TYPE_MASK		BIT(20)
+#define ENA_ETH_IO_TX_META_DESC_META_STORE_SHIFT		21
+#define ENA_ETH_IO_TX_META_DESC_META_STORE_MASK		BIT(21)
+#define ENA_ETH_IO_TX_META_DESC_META_DESC_SHIFT		23
+#define ENA_ETH_IO_TX_META_DESC_META_DESC_MASK		BIT(23)
+#define ENA_ETH_IO_TX_META_DESC_PHASE_SHIFT		24
+#define ENA_ETH_IO_TX_META_DESC_PHASE_MASK		BIT(24)
+#define ENA_ETH_IO_TX_META_DESC_FIRST_SHIFT		26
+#define ENA_ETH_IO_TX_META_DESC_FIRST_MASK		BIT(26)
+#define ENA_ETH_IO_TX_META_DESC_LAST_SHIFT		27
+#define ENA_ETH_IO_TX_META_DESC_LAST_MASK		BIT(27)
+#define ENA_ETH_IO_TX_META_DESC_COMP_REQ_SHIFT		28
+#define ENA_ETH_IO_TX_META_DESC_COMP_REQ_MASK		BIT(28)
+#define ENA_ETH_IO_TX_META_DESC_REQ_ID_HI_MASK		GENMASK(6, 0)
+#define ENA_ETH_IO_TX_META_DESC_L3_HDR_LEN_MASK		GENMASK(8, 0)
+#define ENA_ETH_IO_TX_META_DESC_L3_HDR_OFF_SHIFT		8
+#define ENA_ETH_IO_TX_META_DESC_L3_HDR_OFF_MASK		GENMASK(16, 8)
+#define ENA_ETH_IO_TX_META_DESC_L4_HDR_LEN_IN_WORDS_SHIFT		16
+#define ENA_ETH_IO_TX_META_DESC_L4_HDR_LEN_IN_WORDS_MASK		GENMASK(22, 16)
+#define ENA_ETH_IO_TX_META_DESC_MSS_LO_SHIFT		22
+#define ENA_ETH_IO_TX_META_DESC_MSS_LO_MASK		GENMASK(32, 22)
+#define ENA_ETH_IO_TX_META_DESC_CRYPTO_INFO_MASK		GENMASK(24, 0)
+#define ENA_ETH_IO_TX_META_DESC_OUTR_L3_HDR_LEN_WORDS_SHIFT		24
+#define ENA_ETH_IO_TX_META_DESC_OUTR_L3_HDR_LEN_WORDS_MASK		GENMASK(29, 24)
+#define ENA_ETH_IO_TX_META_DESC_OUTR_L3_OFF_LO_SHIFT		29
+#define ENA_ETH_IO_TX_META_DESC_OUTR_L3_OFF_LO_MASK		GENMASK(32, 29)
+
+/* tx_cdesc */
+#define ENA_ETH_IO_TX_CDESC_PHASE_MASK		BIT(0)
+
+/* rx_desc */
+#define ENA_ETH_IO_RX_DESC_PHASE_MASK		BIT(0)
+#define ENA_ETH_IO_RX_DESC_FIRST_SHIFT		2
+#define ENA_ETH_IO_RX_DESC_FIRST_MASK		BIT(2)
+#define ENA_ETH_IO_RX_DESC_LAST_SHIFT		3
+#define ENA_ETH_IO_RX_DESC_LAST_MASK		BIT(3)
+#define ENA_ETH_IO_RX_DESC_COMP_REQ_SHIFT		4
+#define ENA_ETH_IO_RX_DESC_COMP_REQ_MASK		BIT(4)
+
+/* rx_cdesc_base */
+#define ENA_ETH_IO_RX_CDESC_BASE_L3_PROTO_IDX_MASK		GENMASK(5, 0)
+#define ENA_ETH_IO_RX_CDESC_BASE_SRC_VLAN_CNT_SHIFT		5
+#define ENA_ETH_IO_RX_CDESC_BASE_SRC_VLAN_CNT_MASK		GENMASK(7, 5)
+#define ENA_ETH_IO_RX_CDESC_BASE_TUNNEL_SHIFT		7
+#define ENA_ETH_IO_RX_CDESC_BASE_TUNNEL_MASK		BIT(7)
+#define ENA_ETH_IO_RX_CDESC_BASE_L4_PROTO_IDX_SHIFT		8
+#define ENA_ETH_IO_RX_CDESC_BASE_L4_PROTO_IDX_MASK		GENMASK(13, 8)
+#define ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM_ERR_SHIFT		13
+#define ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM_ERR_MASK		BIT(13)
+#define ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_SHIFT		14
+#define ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_MASK		BIT(14)
+#define ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_SHIFT		15
+#define ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_MASK		BIT(15)
+#define ENA_ETH_IO_RX_CDESC_BASE_SECURED_PKT_SHIFT		20
+#define ENA_ETH_IO_RX_CDESC_BASE_SECURED_PKT_MASK		BIT(20)
+#define ENA_ETH_IO_RX_CDESC_BASE_CRYPTO_STATUS_SHIFT		21
+#define ENA_ETH_IO_RX_CDESC_BASE_CRYPTO_STATUS_MASK		GENMASK(23, 21)
+#define ENA_ETH_IO_RX_CDESC_BASE_PHASE_SHIFT		24
+#define ENA_ETH_IO_RX_CDESC_BASE_PHASE_MASK		BIT(24)
+#define ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM2_SHIFT		25
+#define ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM2_MASK		BIT(25)
+#define ENA_ETH_IO_RX_CDESC_BASE_FIRST_SHIFT		26
+#define ENA_ETH_IO_RX_CDESC_BASE_FIRST_MASK		BIT(26)
+#define ENA_ETH_IO_RX_CDESC_BASE_LAST_SHIFT		27
+#define ENA_ETH_IO_RX_CDESC_BASE_LAST_MASK		BIT(27)
+#define ENA_ETH_IO_RX_CDESC_BASE_INR_L4_CSUM_SHIFT		28
+#define ENA_ETH_IO_RX_CDESC_BASE_INR_L4_CSUM_MASK		BIT(28)
+#define ENA_ETH_IO_RX_CDESC_BASE_BUFFER_SHIFT		30
+#define ENA_ETH_IO_RX_CDESC_BASE_BUFFER_MASK		BIT(30)
+#define ENA_ETH_IO_RX_CDESC_BASE_TUNNEL_OFF_MASK		GENMASK(9, 0)
+#define ENA_ETH_IO_RX_CDESC_BASE_L3_OFF_SHIFT		9
+#define ENA_ETH_IO_RX_CDESC_BASE_L3_OFF_MASK		GENMASK(16, 9)
+#define ENA_ETH_IO_RX_CDESC_BASE_HASH_FRAG_CSUM_SHIFT		16
+#define ENA_ETH_IO_RX_CDESC_BASE_HASH_FRAG_CSUM_MASK		GENMASK(32, 16)
+
+#endif /*_ENA_ETH_IO_H_ */
