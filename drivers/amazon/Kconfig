@@ -1,5 +1,5 @@
 #
-# Intel network device configuration
+# Amazon network device configuration
 #
 
 config VENDOR_AMAZON
@@ -32,6 +32,21 @@ config AMAZON_IXGBEVF
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgbevf.  MSI-X interrupt support is required
+	  for this driver to work correctly.
+
+config AMAZON_ENA
+	tristate "Elastic Network Adapter (ENA) support"
+	depends on PCI_MSI
+	---help---
+	  This network driver is speed-independent, providing a
+	  high-paerformance, low-latency network interface for virtual
+	  machines and bare metal environment. ENA negotiates supported
+	  features with the device, to enable future upgrades and various
+	  systems with a single driver.
+
+	  This drivers supports Annnapuruba Elastic Network Adapter.
+	  To compile this driver as a module, choose M here. The module
+	  will be called ena_drv. MSI-X interrupt support is required
 	  for this driver to work correctly.
 
 endif # VENDOR_AMAZON
