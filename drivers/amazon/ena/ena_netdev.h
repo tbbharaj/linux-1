@@ -42,6 +42,14 @@
 #include "ena_com.h"
 #include "ena_eth_com.h"
 
+#define DRV_MODULE_NAME		"ena"
+#ifndef DRV_MODULE_VERSION
+#define DRV_MODULE_VERSION      "0.2"
+#endif
+#define DRV_MODULE_RELDATE      "OCT 14, 2015"
+
+#define DEVICE_NAME	"Elastic Network Adapter (ENA)"
+
 /* 1 for AENQ + ADMIN */
 #define ENA_MAX_MSIX_VEC(io_queues)	(1 + (io_queues))
 
@@ -64,12 +72,17 @@
  */
 #define ENA_DEFAULT_MIN_RX_BUFF_ALLOC_SIZE 600
 
+#define ENA_MIN_MTU		128
+
 #define ENA_NAME_MAX_LEN	20
 #define ENA_IRQNAME_SIZE	40
 
 #define ENA_PKT_MAX_BUFS	19
 
-#define ENA_RX_THASH_TABLE_SIZE	256
+#define ENA_RX_RSS_TABLE_LOG_SIZE  7
+#define ENA_RX_RSS_TABLE_SIZE	(1 << ENA_RX_RSS_TABLE_LOG_SIZE)
+
+#define ENA_HASH_KEY_SIZE	40
 
 /* The number of tx packet completions that will be handled each napi poll
  * cycle is ring_size / ENA_TX_POLL_BUDGET_DEVIDER.
@@ -98,8 +111,6 @@
  * We wait for 3 sec just to be on the safe side.
  */
 #define ENA_DEVICE_KALIVE_TIMEOUT	(3 * HZ)
-
-#define ENA_RX_RSS_TABLE_SIZE	ENA_RX_THASH_TABLE_SIZE
 
 struct ena_irq {
 	irq_handler_t handler;
@@ -140,6 +151,31 @@ struct ena_rx_buffer {
 	struct ena_com_buf ena_buf;
 } ____cacheline_aligned;
 
+struct ena_stats_tx {
+	u64 cnt;
+	u64 bytes;
+	u64 queue_stop;
+	u64 prepare_ctx_err;
+	u64 queue_wakeup;
+	u64 dma_mapping_err;
+	u64 unsupported_desc_num;
+	u64 napi_comp;
+	u64 tx_poll;
+	u64 doorbells;
+};
+
+struct ena_stats_rx {
+	u64 cnt;
+	u64 bytes;
+	u64 refil_partial;
+	u64 bad_csum;
+	u64 page_alloc_fail;
+	u64 skb_alloc_fail;
+	u64 dma_mapping_err;
+	u64 bad_desc_num;
+	u64 small_copy_len_pkt;
+};
+
 struct ena_ring {
 	/* Holds the empty requests for TX out of order completions */
 	u16 *free_tx_ids;
@@ -153,6 +189,7 @@ struct ena_ring {
 	struct pci_dev *pdev;
 	struct napi_struct *napi;
 	struct net_device *netdev;
+	struct ena_adapter *adapter;
 	struct ena_com_io_cq *ena_com_io_cq;
 	struct ena_com_io_sq *ena_com_io_sq;
 
@@ -164,14 +201,26 @@ struct ena_ring {
 
 	int ring_size; /* number of tx/rx_buffer_info's entries */
 
-	/* Count how many times the driver wasn't able to allocate new pages */
-	u32 alloc_fail_cnt;
-	u32 bad_checksum;
+	enum ena_admin_placement_policy_type tx_mem_queue_type;
 
-	enum ena_com_memory_queue_type tx_mem_queue_type;
+	struct ena_com_rx_buf_info ena_bufs[ENA_PKT_MAX_BUFS];
 
-	struct ena_com_buf ena_bufs[ENA_PKT_MAX_BUFS];
+	struct u64_stats_sync syncp;
+	union {
+		struct ena_stats_tx tx_stats;
+		struct ena_stats_rx rx_stats;
+	};
 } ____cacheline_aligned;
+
+struct ena_stats_dev {
+	u64 tx_timeout;
+	u64 io_suspend;
+	u64 io_resume;
+	u64 wd_expired;
+	u64 interface_up;
+	u64 interface_down;
+	u64 admin_q_pause;
+};
 
 /* adapter specific private data structure */
 struct ena_adapter {
@@ -199,9 +248,6 @@ struct ena_adapter {
 	u32 tx_ring_size;
 	u32 rx_ring_size;
 
-	/* RSS*/
-	u8 rss_ind_tbl[ENA_RX_RSS_TABLE_SIZE];
-
 	u32 msg_enable;
 
 	u8 mac_addr[ETH_ALEN];
@@ -223,11 +269,20 @@ struct ena_adapter {
 
 	struct ena_irq irq_tbl[ENA_MAX_MSIX_VEC(ENA_MAX_NUM_IO_QUEUES)];
 
-	/* watchdog timer */
+	/* timer service */
 	struct work_struct reset_task;
 	struct work_struct suspend_io_task;
 	struct work_struct resume_io_task;
-	struct timer_list watchdog_timer;
+	struct timer_list timer_service;
+
+	unsigned long last_keep_alive_jiffies;
+
+	struct u64_stats_sync syncp;
+	struct ena_stats_dev dev_stats;
 };
+
+void ena_set_ethtool_ops(struct net_device *netdev);
+
+void ena_dmup_stats_to_dmesg(struct ena_adapter *adapter);
 
 #endif /* !(ENA_H) */
