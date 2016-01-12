@@ -53,4 +53,3 @@ static inline void ena_sysfs_terminate(struct device *dev)
 #endif /* CONFIG_SYSFS */
 
 #endif /* __ENA_SYSFS_H__ */
-
