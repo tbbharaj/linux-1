@@ -98,18 +98,15 @@ static struct device_attribute dev_attr_small_copy_len = {
  *****************************************************************************/
 int ena_sysfs_init(struct device *dev)
 {
-	int status = 0;
-
 	if (device_create_file(dev, &dev_attr_small_copy_len))
 		dev_info(dev, "failed to create small_copy_len sysfs entry");
 
-	return status;
+	return 0;
 }
 
 /******************************************************************************
  *****************************************************************************/
-void ena_sysfs_terminate(
-	struct device *dev)
+void ena_sysfs_terminate(struct device *dev)
 {
 	device_remove_file(dev, &dev_attr_small_copy_len);
 }

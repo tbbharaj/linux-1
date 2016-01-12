@@ -1,46 +1,41 @@
-/******************************************************************************
-Copyright (C) 2015 Annapurna Labs Ltd.
-
-This file may be licensed under the terms of the Annapurna Labs Commercial
-License Agreement.
-
-Alternatively, this file can be distributed under the terms of the GNU General
-Public License V2 as published by the Free Software Foundation and can be
-found at http://www.gnu.org/licenses/gpl-2.0.html
-
-Alternatively, redistribution and use in source and binary forms, with or
-without modification, are permitted provided that the following conditions are
-met:
-
-    *  Redistributions of source code must retain the above copyright notice,
-this list of conditions and the following disclaimer.
-
-    *  Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions and the following disclaimer in
-the documentation and/or other materials provided with the
-distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-******************************************************************************/
-
+/*
+ * Copyright 2015 Amazon.com, Inc. or its affiliates.
+ *
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 #ifndef _ENA_REGS_H_
 #define _ENA_REGS_H_
 
 /* ENA Global Registers, for the entire PCIe function */
 struct ena_regs_ena_registers {
 	/* word 0 : */
-	/*
-	 * ENA specification version
+	/* ENA specification version [RO]
 	 * 7:0 : minor_version - Minor version
 	 * 15:8 : major_version - Major version.
 	 * 31:16 : reserved16
@@ -48,8 +43,7 @@ struct ena_regs_ena_registers {
 	u32 version;
 
 	/* word 1 : */
-	/*
-	 * ENA controller version
+	/* ENA controller version [RO]
 	 * 7:0 : subminor_version - Sub Minor version
 	 * 15:8 : minor_version - Minor version
 	 * 23:16 : major_version - Major version.
@@ -58,8 +52,7 @@ struct ena_regs_ena_registers {
 	u32 controller_version;
 
 	/* word 2 : */
-	/*
-	 * capabilities register
+	/* capabilities register [RO]
 	 * 0 : contiguous_queue_required - If set, requires
 	 *    that each queue ring occupies a contiguous
 	 *    physical memory space.
@@ -74,18 +67,17 @@ struct ena_regs_ena_registers {
 	 */
 	u32 caps;
 
-	/* word 3 : capabilities extended register */
+	/* word 3 : capabilities extended register [RO] */
 	u32 caps_ext;
 
-	/* word 4 : admin queue base address bits [31:0] */
+	/* word 4 : admin queue base address bits [31:0] [WO] */
 	u32 aq_base_lo;
 
-	/* word 5 : admin queue base address bits [63:32] */
+	/* word 5 : admin queue base address bits [63:32] [WO] */
 	u32 aq_base_hi;
 
 	/* word 6 : */
-	/*
-	 * admin queue capabilities register
+	/* admin queue capabilities register [WO]
 	 * 15:0 : aq_depth - admin queue depth in entries
 	 * 31:16 : aq_entry_size - admin queue entry size in
 	 *    32-bit words
@@ -95,15 +87,14 @@ struct ena_regs_ena_registers {
 	/* word 7 :  */
 	u32 reserved;
 
-	/* word 8 : admin completion queue base address bits [31:0]. */
+	/* word 8 : admin completion queue base address bits [31:0]. [WO] */
 	u32 acq_base_lo;
 
-	/* word 9 : admin completion queue base address bits [63:32]. */
+	/* word 9 : admin completion queue base address bits [63:32]. [WO] */
 	u32 acq_base_hi;
 
 	/* word 10 : */
-	/*
-	 * admin completion queue capabilities register
+	/* admin completion queue capabilities register [WO]
 	 * 15:0 : acq_depth - admin completion queue depth in
 	 *    entries
 	 * 31:16 : acq_entry_size - admin completion queue
@@ -111,61 +102,54 @@ struct ena_regs_ena_registers {
 	 */
 	u32 acq_caps;
 
-	/* word 11 : AQ Doorbell */
+	/* word 11 : AQ Doorbell [WO] */
 	u32 aq_db;
 
-	/*
-	 * word 12 : ACQ tail pointer, indicates where new completions will
-	 * be placed
+	/* word 12 : ACQ tail pointer, indicates where new completions will
+	 * be placed [RO]
 	 */
 	u32 acq_tail;
 
 	/* word 13 : */
-	/*
-	 * Asynchronous Event Notification Queue capabilities register
+	/* Asynchronous Event Notification Queue capabilities register [WO]
 	 * 15:0 : aenq_depth - queue depth in entries
 	 * 31:16 : aenq_entry_size - queue entry size in
 	 *    32-bit words
 	 */
 	u32 aenq_caps;
 
-	/*
-	 * word 14 : Asynchronous Event Notification Queue base address
-	 * bits [31:0]
+	/* word 14 : Asynchronous Event Notification Queue base address
+	 * bits [31:0] [WO]
 	 */
 	u32 aenq_base_lo;
 
-	/*
-	 * word 15 : Asynchronous Event Notification Queue base address
-	 * bits [63:32]
+	/* word 15 : Asynchronous Event Notification Queue base address
+	 * bits [63:32] [WO]
 	 */
 	u32 aenq_base_hi;
 
-	/*
-	 * word 16 : AENQ Head Doorbell, indicates the entries that have
-	 * been processed by the host
+	/* word 16 : AENQ Head Doorbell, indicates the entries that have
+	 * been processed by the host [WO]
 	 */
 	u32 aenq_head_db;
 
-	/*
-	 * word 17 : AENQ tail pointer, indicates where new entries will be
-	 * placed
+	/* word 17 : AENQ tail pointer, indicates where new entries will be
+	 * placed [RO]
 	 */
 	u32 aenq_tail;
 
-	/* word 18 :  */
+	/* word 18 :  [RO] */
 	u32 intr_cause;
 
-	/* word 19 :  */
+	/* word 19 :  [RW] */
 	u32 intr_mask;
 
-	/* word 20 :  */
+	/* word 20 :  [WO] */
 	u32 intr_clear;
 
 	/* word 21 : */
-	/*
-	 * Device Control Register, some of these features may not be
-	 *    implemented or supported for a given client
+	/* Device Control Register, some of these features may not be
+	 *    implemented or supported for a given client [WO]
 	 * 0 : dev_reset - If set, indicates request for a
 	 *    reset, this bit will only be cleared when the
 	 *    reset operation finished and can not be cleared by
@@ -185,8 +169,7 @@ struct ena_regs_ena_registers {
 	u32 dev_ctl;
 
 	/* word 22 : */
-	/*
-	 * Device Status Register
+	/* Device Status Register [RO]
 	 * 0 : ready - device ready to received admin commands
 	 * 1 : aq_restart_in_progress - this bit is set while
 	 *    aq_restart in process
@@ -210,26 +193,23 @@ struct ena_regs_ena_registers {
 	u32 dev_sts;
 
 	/* word 23 : */
-	/*
-	 * MMIO Read Less Register
+	/* MMIO Read Less Register. host must initialize the mmio_resp_lo/hi
+	 *    before issueing new register read request [WO]
 	 * 15:0 : req_id - request id
 	 * 31:16 : reg_off - register offset
 	 */
-	u32 mmio_read;
+	u32 mmio_reg_read;
 
-	/* word 24 : read response will be sent to this address. bits [31:0] */
+	/* word 24 : read response address bits [31:0] [WO] */
 	u32 mmio_resp_lo;
 
-	/*
-	 * word 25 : read response will be sent to this address. bits
-	 * [63:32]
-	 */
+	/* word 25 : read response address bits [64:32] [WO] */
 	u32 mmio_resp_hi;
 };
 
 /* admin interrupt register */
 #define ENA_REGS_ADMIN_INTERRUPT_ACQ	0x1 /* Admin Completion queue */
-#define ENA_REGS_ADMIN_INTERRUPT_AENQ	0x2 /* Asynchronous Event Notification Queue */
+#define ENA_REGS_ADMIN_INTERRUPT_AENQ	0x2 /* Async Event Notification Queue */
 
 /* ena_registers offsets */
 #define ENA_REGS_VERSION_OFF		0x0
@@ -254,7 +234,7 @@ struct ena_regs_ena_registers {
 #define ENA_REGS_INTR_CLEAR_OFF		0x50
 #define ENA_REGS_DEV_CTL_OFF		0x54
 #define ENA_REGS_DEV_STS_OFF		0x58
-#define ENA_REGS_MMIO_READ_OFF		0x5c
+#define ENA_REGS_MMIO_REG_READ_OFF		0x5c
 #define ENA_REGS_MMIO_RESP_LO_OFF		0x60
 #define ENA_REGS_MMIO_RESP_HI_OFF		0x64
 
@@ -320,9 +300,9 @@ struct ena_regs_ena_registers {
 #define ENA_REGS_DEV_STS_QUIESCENT_STATE_ACHIEVED_SHIFT		7
 #define ENA_REGS_DEV_STS_QUIESCENT_STATE_ACHIEVED_MASK		0x80
 
-/* mmio_read register */
-#define ENA_REGS_MMIO_READ_REQ_ID_MASK		0xffff
-#define ENA_REGS_MMIO_READ_REG_OFF_SHIFT		16
-#define ENA_REGS_MMIO_READ_REG_OFF_MASK		0xffff0000
+/* mmio_reg_read register */
+#define ENA_REGS_MMIO_REG_READ_REQ_ID_MASK		0xffff
+#define ENA_REGS_MMIO_REG_READ_REG_OFF_SHIFT		16
+#define ENA_REGS_MMIO_REG_READ_REG_OFF_MASK		0xffff0000
 
 #endif /*_ENA_REGS_H_ */

@@ -1,70 +1,65 @@
-/******************************************************************************
-Copyright (C) 2015 Annapurna Labs Ltd.
-
-This file may be licensed under the terms of the Annapurna Labs Commercial
-License Agreement.
-
-Alternatively, this file can be distributed under the terms of the GNU General
-Public License V2 as published by the Free Software Foundation and can be
-found at http://www.gnu.org/licenses/gpl-2.0.html
-
-Alternatively, redistribution and use in source and binary forms, with or
-without modification, are permitted provided that the following conditions are
-met:
-
-    *  Redistributions of source code must retain the above copyright notice,
-this list of conditions and the following disclaimer.
-
-    *  Redistributions in binary form must reproduce the above copyright
-notice, this list of conditions and the following disclaimer in
-the documentation and/or other materials provided with the
-distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-******************************************************************************/
-
+/*
+ * Copyright 2015 Amazon.com, Inc. or its affiliates.
+ *
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and/or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 #ifndef _ENA_ETH_IO_H_
 #define _ENA_ETH_IO_H_
 
 /* Layer 3 protocol index */
 enum ena_eth_io_l3_proto_index {
-	ena_eth_io_l3_proto_unknown = 0,
+	ENA_ETH_IO_L3_PROTO_UNKNOWN = 0,
 
-	ena_eth_io_l3_proto_ipv4 = 8,
+	ENA_ETH_IO_L3_PROTO_IPV4 = 8,
 
-	ena_eth_io_l3_proto_ipv6 = 11,
+	ENA_ETH_IO_L3_PROTO_IPV6 = 11,
 
-	ena_eth_io_l3_proto_fcoe = 21,
+	ENA_ETH_IO_L3_PROTO_FCOE = 21,
 
-	ena_eth_io_l3_proto_roce = 22,
+	ENA_ETH_IO_L3_PROTO_ROCE = 22,
 };
 
 /* Layer 4 protocol index */
 enum ena_eth_io_l4_proto_index {
-	ena_eth_io_l4_proto_unknown = 0,
+	ENA_ETH_IO_L4_PROTO_UNKNOWN = 0,
 
-	ena_eth_io_l4_proto_tcp = 12,
+	ENA_ETH_IO_L4_PROTO_TCP = 12,
 
-	ena_eth_io_l4_proto_udp = 13,
+	ENA_ETH_IO_L4_PROTO_UDP = 13,
 
-	ena_eth_io_l4_proto_routeable_roce = 23,
+	ENA_ETH_IO_L4_PROTO_ROUTEABLE_ROCE = 23,
 };
 
 /* ENA IO Queue Tx descriptor */
 struct ena_eth_io_tx_desc {
 	/* word 0 : */
-	/*
-	 * length, request id and control flags
+	/* length, request id and control flags
 	 * 15:0 : length - Buffer length in bytes, must
 	 *    include any packet trailers that the ENA supposed
 	 *    to update like End-to-End CRC, Authentication GMAC
@@ -89,8 +84,7 @@ struct ena_eth_io_tx_desc {
 	u32 len_ctrl;
 
 	/* word 1 : */
-	/*
-	 * ethernet control
+	/* ethernet control
 	 * 3:0 : l3_proto_idx - L3 protocol, if
 	 *    tunnel_ctrl[0] is set, then this is the inner
 	 *    packet L3. This field required when
@@ -137,17 +131,14 @@ struct ena_eth_io_tx_desc {
 	u32 buff_addr_lo;
 
 	/* word 3 : */
-	/*
-	 * address high and header size
+	/* address high and header size
 	 * 15:0 : addr_hi - Buffer Pointer[47:32]
 	 * 23:16 : reserved16_w2
-	 * 31:24 : push_buffer_length - Push Buffer length,
-	 *    number of bytes pushed to the ENA memory. used
-	 *    only for low latency queues. Maximum allowed value
-	 *    is negotiated through Admin Aueue, Minimum allowed
-	 *    value: for IPv4/6, the pushed buffer must include
-	 *    the Layer 2 and layer 3 headers, for ARP packets,
-	 *    in must include the Layer 2 and ARP header
+	 * 31:24 : header_length - Header length, number of
+	 *    bytes written to the ENA memory. used only for low
+	 *    latency queues. Maximum allowed value is
+	 *    negotiated through Admin Aueue, Minimum allowed
+	 *    value should include the packet headers
 	 */
 	u32 buff_addr_hi_hdr_sz;
 };
@@ -155,8 +146,7 @@ struct ena_eth_io_tx_desc {
 /* ENA IO Queue Tx Meta descriptor */
 struct ena_eth_io_tx_meta_desc {
 	/* word 0 : */
-	/*
-	 * length, request id and control flags
+	/* length, request id and control flags
 	 * 9:0 : req_id_lo - Request ID[9:0]
 	 * 11:10 : outr_l3_off_hi - valid if
 	 *    tunnel_ctrl[0]=1. bits[4:3] of outer packet L3
@@ -190,16 +180,14 @@ struct ena_eth_io_tx_meta_desc {
 	u32 len_ctrl;
 
 	/* word 1 : */
-	/*
-	 * word 1
+	/* word 1
 	 * 5:0 : req_id_hi
 	 * 31:6 : reserved6 - MBZ
 	 */
 	u32 word1;
 
 	/* word 2 : */
-	/*
-	 * word 2
+	/* word 2
 	 * 7:0 : l3_hdr_len - the header length L3 IP header.
 	 *    if tunnel_ctrl[0]=1, this is the IP header length
 	 *    of the inner packet.  FIXME - check if includes IP
@@ -218,8 +206,7 @@ struct ena_eth_io_tx_meta_desc {
 	u32 word2;
 
 	/* word 3 : */
-	/*
-	 * word 3
+	/* word 3
 	 * 23:0 : crypto_info
 	 * 28:24 : outr_l3_hdr_len_words - valid if
 	 *    tunnel_ctrl[0]=1.  Counts in words
@@ -241,8 +228,7 @@ struct ena_eth_io_tx_cdesc {
 
 	u8 status;
 
-	/*
-	 * flags
+	/* flags
 	 * 0 : phase
 	 * 7:1 : reserved1
 	 */
@@ -264,8 +250,7 @@ struct ena_eth_io_rx_desc {
 	/* MBZ */
 	u8 reserved2;
 
-	/*
-	 * control flags
+	/* control flags
 	 * 0 : phase
 	 * 1 : reserved1 - MBZ
 	 * 2 : first - Indicates first descriptor in
@@ -294,14 +279,12 @@ struct ena_eth_io_rx_desc {
 	u16 reserved16_w3;
 };
 
-/*
- * ENA IO Queue Rx Completion Base Descriptor (4-word format). Note: all
+/* ENA IO Queue Rx Completion Base Descriptor (4-word format). Note: all
  * ethernet parsing information are valid only when last=1
  */
 struct ena_eth_io_rx_cdesc_base {
 	/* word 0 : */
-	/*
-	 * 4:0 : l3_proto_idx - L3 protocol index
+	/* 4:0 : l3_proto_idx - L3 protocol index
 	 * 6:5 : src_vlan_cnt - Source VLAN count
 	 * 7 : tunnel - Tunnel exists
 	 * 12:8 : l4_proto_idx - L4 protocol index
@@ -340,8 +323,7 @@ struct ena_eth_io_rx_cdesc_base {
 	u16 req_id;
 
 	/* word 2 : */
-	/*
-	 * 8:0 : tunnel_off - inner packet offset
+	/* 8:0 : tunnel_off - inner packet offset
 	 * 15:9 : l3_off - Offset of first byte in the L3
 	 *    header from the beginning of the packet. if
 	 *    tunnel=1, this is of the inner packet
@@ -358,8 +340,7 @@ struct ena_eth_io_rx_cdesc_base {
 
 	u8 reserved;
 
-	/*
-	 * Offset of first byte in the L4 header from the beginning of the
+	/* Offset of first byte in the L4 header from the beginning of the
 	 *    packet. if tunnel=1, this is of the inner packet
 	 */
 	u8 l4_off;
@@ -387,126 +368,126 @@ struct ena_eth_io_rx_cdesc_ext {
 };
 
 /* tx_desc */
-#define ENA_ETH_IO_TX_DESC_LENGTH_MASK		GENMASK(16, 0)
-#define ENA_ETH_IO_TX_DESC_REQ_ID_HI_SHIFT		16
-#define ENA_ETH_IO_TX_DESC_REQ_ID_HI_MASK		GENMASK(22, 16)
-#define ENA_ETH_IO_TX_DESC_META_DESC_SHIFT		23
-#define ENA_ETH_IO_TX_DESC_META_DESC_MASK		BIT(23)
-#define ENA_ETH_IO_TX_DESC_PHASE_SHIFT		24
-#define ENA_ETH_IO_TX_DESC_PHASE_MASK		BIT(24)
-#define ENA_ETH_IO_TX_DESC_FIRST_SHIFT		26
-#define ENA_ETH_IO_TX_DESC_FIRST_MASK		BIT(26)
-#define ENA_ETH_IO_TX_DESC_LAST_SHIFT		27
-#define ENA_ETH_IO_TX_DESC_LAST_MASK		BIT(27)
-#define ENA_ETH_IO_TX_DESC_COMP_REQ_SHIFT		28
-#define ENA_ETH_IO_TX_DESC_COMP_REQ_MASK		BIT(28)
-#define ENA_ETH_IO_TX_DESC_L3_PROTO_IDX_MASK		GENMASK(4, 0)
-#define ENA_ETH_IO_TX_DESC_TSO_EN_SHIFT		7
-#define ENA_ETH_IO_TX_DESC_TSO_EN_MASK		BIT(7)
-#define ENA_ETH_IO_TX_DESC_L4_PROTO_IDX_SHIFT		8
-#define ENA_ETH_IO_TX_DESC_L4_PROTO_IDX_MASK		GENMASK(13, 8)
-#define ENA_ETH_IO_TX_DESC_L3_CSUM_EN_SHIFT		13
-#define ENA_ETH_IO_TX_DESC_L3_CSUM_EN_MASK		BIT(13)
-#define ENA_ETH_IO_TX_DESC_L4_CSUM_EN_SHIFT		14
-#define ENA_ETH_IO_TX_DESC_L4_CSUM_EN_MASK		BIT(14)
-#define ENA_ETH_IO_TX_DESC_ETHERNET_FCS_DIS_SHIFT		15
-#define ENA_ETH_IO_TX_DESC_ETHERNET_FCS_DIS_MASK		BIT(15)
-#define ENA_ETH_IO_TX_DESC_L4_CSUM_PARTIAL_SHIFT		17
-#define ENA_ETH_IO_TX_DESC_L4_CSUM_PARTIAL_MASK		BIT(17)
-#define ENA_ETH_IO_TX_DESC_TUNNEL_CTRL_SHIFT		18
-#define ENA_ETH_IO_TX_DESC_TUNNEL_CTRL_MASK		GENMASK(21, 18)
-#define ENA_ETH_IO_TX_DESC_TS_REQ_SHIFT		21
-#define ENA_ETH_IO_TX_DESC_TS_REQ_MASK		BIT(21)
-#define ENA_ETH_IO_TX_DESC_REQ_ID_LO_SHIFT		22
-#define ENA_ETH_IO_TX_DESC_REQ_ID_LO_MASK		GENMASK(32, 22)
-#define ENA_ETH_IO_TX_DESC_ADDR_HI_MASK		GENMASK(16, 0)
-#define ENA_ETH_IO_TX_DESC_PUSH_BUFFER_LENGTH_SHIFT		24
-#define ENA_ETH_IO_TX_DESC_PUSH_BUFFER_LENGTH_MASK		GENMASK(32, 24)
+#define ENA_ETH_IO_TX_DESC_LENGTH_MASK GENMASK(15, 0)
+#define ENA_ETH_IO_TX_DESC_REQ_ID_HI_SHIFT 16
+#define ENA_ETH_IO_TX_DESC_REQ_ID_HI_MASK GENMASK(21, 16)
+#define ENA_ETH_IO_TX_DESC_META_DESC_SHIFT 23
+#define ENA_ETH_IO_TX_DESC_META_DESC_MASK BIT(23)
+#define ENA_ETH_IO_TX_DESC_PHASE_SHIFT 24
+#define ENA_ETH_IO_TX_DESC_PHASE_MASK BIT(24)
+#define ENA_ETH_IO_TX_DESC_FIRST_SHIFT 26
+#define ENA_ETH_IO_TX_DESC_FIRST_MASK BIT(26)
+#define ENA_ETH_IO_TX_DESC_LAST_SHIFT 27
+#define ENA_ETH_IO_TX_DESC_LAST_MASK BIT(27)
+#define ENA_ETH_IO_TX_DESC_COMP_REQ_SHIFT 28
+#define ENA_ETH_IO_TX_DESC_COMP_REQ_MASK BIT(28)
+#define ENA_ETH_IO_TX_DESC_L3_PROTO_IDX_MASK GENMASK(3, 0)
+#define ENA_ETH_IO_TX_DESC_TSO_EN_SHIFT 7
+#define ENA_ETH_IO_TX_DESC_TSO_EN_MASK BIT(7)
+#define ENA_ETH_IO_TX_DESC_L4_PROTO_IDX_SHIFT 8
+#define ENA_ETH_IO_TX_DESC_L4_PROTO_IDX_MASK GENMASK(12, 8)
+#define ENA_ETH_IO_TX_DESC_L3_CSUM_EN_SHIFT 13
+#define ENA_ETH_IO_TX_DESC_L3_CSUM_EN_MASK BIT(13)
+#define ENA_ETH_IO_TX_DESC_L4_CSUM_EN_SHIFT 14
+#define ENA_ETH_IO_TX_DESC_L4_CSUM_EN_MASK BIT(14)
+#define ENA_ETH_IO_TX_DESC_ETHERNET_FCS_DIS_SHIFT 15
+#define ENA_ETH_IO_TX_DESC_ETHERNET_FCS_DIS_MASK BIT(15)
+#define ENA_ETH_IO_TX_DESC_L4_CSUM_PARTIAL_SHIFT 17
+#define ENA_ETH_IO_TX_DESC_L4_CSUM_PARTIAL_MASK BIT(17)
+#define ENA_ETH_IO_TX_DESC_TUNNEL_CTRL_SHIFT 18
+#define ENA_ETH_IO_TX_DESC_TUNNEL_CTRL_MASK GENMASK(20, 18)
+#define ENA_ETH_IO_TX_DESC_TS_REQ_SHIFT 21
+#define ENA_ETH_IO_TX_DESC_TS_REQ_MASK BIT(21)
+#define ENA_ETH_IO_TX_DESC_REQ_ID_LO_SHIFT 22
+#define ENA_ETH_IO_TX_DESC_REQ_ID_LO_MASK GENMASK(31, 22)
+#define ENA_ETH_IO_TX_DESC_ADDR_HI_MASK GENMASK(15, 0)
+#define ENA_ETH_IO_TX_DESC_HEADER_LENGTH_SHIFT 24
+#define ENA_ETH_IO_TX_DESC_HEADER_LENGTH_MASK GENMASK(31, 24)
 
 /* tx_meta_desc */
-#define ENA_ETH_IO_TX_META_DESC_REQ_ID_LO_MASK		GENMASK(10, 0)
-#define ENA_ETH_IO_TX_META_DESC_OUTR_L3_OFF_HI_SHIFT		10
-#define ENA_ETH_IO_TX_META_DESC_OUTR_L3_OFF_HI_MASK		GENMASK(12, 10)
-#define ENA_ETH_IO_TX_META_DESC_EXT_VALID_SHIFT		14
-#define ENA_ETH_IO_TX_META_DESC_EXT_VALID_MASK		BIT(14)
-#define ENA_ETH_IO_TX_META_DESC_WORD3_VALID_SHIFT		15
-#define ENA_ETH_IO_TX_META_DESC_WORD3_VALID_MASK		BIT(15)
-#define ENA_ETH_IO_TX_META_DESC_MSS_HI_PTP_SHIFT		16
-#define ENA_ETH_IO_TX_META_DESC_MSS_HI_PTP_MASK		GENMASK(20, 16)
-#define ENA_ETH_IO_TX_META_DESC_ETH_META_TYPE_SHIFT		20
-#define ENA_ETH_IO_TX_META_DESC_ETH_META_TYPE_MASK		BIT(20)
-#define ENA_ETH_IO_TX_META_DESC_META_STORE_SHIFT		21
-#define ENA_ETH_IO_TX_META_DESC_META_STORE_MASK		BIT(21)
-#define ENA_ETH_IO_TX_META_DESC_META_DESC_SHIFT		23
-#define ENA_ETH_IO_TX_META_DESC_META_DESC_MASK		BIT(23)
-#define ENA_ETH_IO_TX_META_DESC_PHASE_SHIFT		24
-#define ENA_ETH_IO_TX_META_DESC_PHASE_MASK		BIT(24)
-#define ENA_ETH_IO_TX_META_DESC_FIRST_SHIFT		26
-#define ENA_ETH_IO_TX_META_DESC_FIRST_MASK		BIT(26)
-#define ENA_ETH_IO_TX_META_DESC_LAST_SHIFT		27
-#define ENA_ETH_IO_TX_META_DESC_LAST_MASK		BIT(27)
-#define ENA_ETH_IO_TX_META_DESC_COMP_REQ_SHIFT		28
-#define ENA_ETH_IO_TX_META_DESC_COMP_REQ_MASK		BIT(28)
-#define ENA_ETH_IO_TX_META_DESC_REQ_ID_HI_MASK		GENMASK(6, 0)
-#define ENA_ETH_IO_TX_META_DESC_L3_HDR_LEN_MASK		GENMASK(8, 0)
-#define ENA_ETH_IO_TX_META_DESC_L3_HDR_OFF_SHIFT		8
-#define ENA_ETH_IO_TX_META_DESC_L3_HDR_OFF_MASK		GENMASK(16, 8)
-#define ENA_ETH_IO_TX_META_DESC_L4_HDR_LEN_IN_WORDS_SHIFT		16
-#define ENA_ETH_IO_TX_META_DESC_L4_HDR_LEN_IN_WORDS_MASK		GENMASK(22, 16)
-#define ENA_ETH_IO_TX_META_DESC_MSS_LO_SHIFT		22
-#define ENA_ETH_IO_TX_META_DESC_MSS_LO_MASK		GENMASK(32, 22)
-#define ENA_ETH_IO_TX_META_DESC_CRYPTO_INFO_MASK		GENMASK(24, 0)
-#define ENA_ETH_IO_TX_META_DESC_OUTR_L3_HDR_LEN_WORDS_SHIFT		24
-#define ENA_ETH_IO_TX_META_DESC_OUTR_L3_HDR_LEN_WORDS_MASK		GENMASK(29, 24)
-#define ENA_ETH_IO_TX_META_DESC_OUTR_L3_OFF_LO_SHIFT		29
-#define ENA_ETH_IO_TX_META_DESC_OUTR_L3_OFF_LO_MASK		GENMASK(32, 29)
+#define ENA_ETH_IO_TX_META_DESC_REQ_ID_LO_MASK GENMASK(9, 0)
+#define ENA_ETH_IO_TX_META_DESC_OUTR_L3_OFF_HI_SHIFT 10
+#define ENA_ETH_IO_TX_META_DESC_OUTR_L3_OFF_HI_MASK GENMASK(11, 10)
+#define ENA_ETH_IO_TX_META_DESC_EXT_VALID_SHIFT 14
+#define ENA_ETH_IO_TX_META_DESC_EXT_VALID_MASK BIT(14)
+#define ENA_ETH_IO_TX_META_DESC_WORD3_VALID_SHIFT 15
+#define ENA_ETH_IO_TX_META_DESC_WORD3_VALID_MASK BIT(15)
+#define ENA_ETH_IO_TX_META_DESC_MSS_HI_PTP_SHIFT 16
+#define ENA_ETH_IO_TX_META_DESC_MSS_HI_PTP_MASK GENMASK(19, 16)
+#define ENA_ETH_IO_TX_META_DESC_ETH_META_TYPE_SHIFT 20
+#define ENA_ETH_IO_TX_META_DESC_ETH_META_TYPE_MASK BIT(20)
+#define ENA_ETH_IO_TX_META_DESC_META_STORE_SHIFT 21
+#define ENA_ETH_IO_TX_META_DESC_META_STORE_MASK BIT(21)
+#define ENA_ETH_IO_TX_META_DESC_META_DESC_SHIFT 23
+#define ENA_ETH_IO_TX_META_DESC_META_DESC_MASK BIT(23)
+#define ENA_ETH_IO_TX_META_DESC_PHASE_SHIFT 24
+#define ENA_ETH_IO_TX_META_DESC_PHASE_MASK BIT(24)
+#define ENA_ETH_IO_TX_META_DESC_FIRST_SHIFT 26
+#define ENA_ETH_IO_TX_META_DESC_FIRST_MASK BIT(26)
+#define ENA_ETH_IO_TX_META_DESC_LAST_SHIFT 27
+#define ENA_ETH_IO_TX_META_DESC_LAST_MASK BIT(27)
+#define ENA_ETH_IO_TX_META_DESC_COMP_REQ_SHIFT 28
+#define ENA_ETH_IO_TX_META_DESC_COMP_REQ_MASK BIT(28)
+#define ENA_ETH_IO_TX_META_DESC_REQ_ID_HI_MASK GENMASK(5, 0)
+#define ENA_ETH_IO_TX_META_DESC_L3_HDR_LEN_MASK GENMASK(7, 0)
+#define ENA_ETH_IO_TX_META_DESC_L3_HDR_OFF_SHIFT 8
+#define ENA_ETH_IO_TX_META_DESC_L3_HDR_OFF_MASK GENMASK(15, 8)
+#define ENA_ETH_IO_TX_META_DESC_L4_HDR_LEN_IN_WORDS_SHIFT 16
+#define ENA_ETH_IO_TX_META_DESC_L4_HDR_LEN_IN_WORDS_MASK GENMASK(21, 16)
+#define ENA_ETH_IO_TX_META_DESC_MSS_LO_SHIFT 22
+#define ENA_ETH_IO_TX_META_DESC_MSS_LO_MASK GENMASK(31, 22)
+#define ENA_ETH_IO_TX_META_DESC_CRYPTO_INFO_MASK GENMASK(23, 0)
+#define ENA_ETH_IO_TX_META_DESC_OUTR_L3_HDR_LEN_WORDS_SHIFT 24
+#define ENA_ETH_IO_TX_META_DESC_OUTR_L3_HDR_LEN_WORDS_MASK GENMASK(28, 24)
+#define ENA_ETH_IO_TX_META_DESC_OUTR_L3_OFF_LO_SHIFT 29
+#define ENA_ETH_IO_TX_META_DESC_OUTR_L3_OFF_LO_MASK GENMASK(31, 29)
 
 /* tx_cdesc */
-#define ENA_ETH_IO_TX_CDESC_PHASE_MASK		BIT(0)
+#define ENA_ETH_IO_TX_CDESC_PHASE_MASK BIT(0)
 
 /* rx_desc */
-#define ENA_ETH_IO_RX_DESC_PHASE_MASK		BIT(0)
-#define ENA_ETH_IO_RX_DESC_FIRST_SHIFT		2
-#define ENA_ETH_IO_RX_DESC_FIRST_MASK		BIT(2)
-#define ENA_ETH_IO_RX_DESC_LAST_SHIFT		3
-#define ENA_ETH_IO_RX_DESC_LAST_MASK		BIT(3)
-#define ENA_ETH_IO_RX_DESC_COMP_REQ_SHIFT		4
-#define ENA_ETH_IO_RX_DESC_COMP_REQ_MASK		BIT(4)
+#define ENA_ETH_IO_RX_DESC_PHASE_MASK BIT(0)
+#define ENA_ETH_IO_RX_DESC_FIRST_SHIFT 2
+#define ENA_ETH_IO_RX_DESC_FIRST_MASK BIT(2)
+#define ENA_ETH_IO_RX_DESC_LAST_SHIFT 3
+#define ENA_ETH_IO_RX_DESC_LAST_MASK BIT(3)
+#define ENA_ETH_IO_RX_DESC_COMP_REQ_SHIFT 4
+#define ENA_ETH_IO_RX_DESC_COMP_REQ_MASK BIT(4)
 
 /* rx_cdesc_base */
-#define ENA_ETH_IO_RX_CDESC_BASE_L3_PROTO_IDX_MASK		GENMASK(5, 0)
-#define ENA_ETH_IO_RX_CDESC_BASE_SRC_VLAN_CNT_SHIFT		5
-#define ENA_ETH_IO_RX_CDESC_BASE_SRC_VLAN_CNT_MASK		GENMASK(7, 5)
-#define ENA_ETH_IO_RX_CDESC_BASE_TUNNEL_SHIFT		7
-#define ENA_ETH_IO_RX_CDESC_BASE_TUNNEL_MASK		BIT(7)
-#define ENA_ETH_IO_RX_CDESC_BASE_L4_PROTO_IDX_SHIFT		8
-#define ENA_ETH_IO_RX_CDESC_BASE_L4_PROTO_IDX_MASK		GENMASK(13, 8)
-#define ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM_ERR_SHIFT		13
-#define ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM_ERR_MASK		BIT(13)
-#define ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_SHIFT		14
-#define ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_MASK		BIT(14)
-#define ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_SHIFT		15
-#define ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_MASK		BIT(15)
-#define ENA_ETH_IO_RX_CDESC_BASE_SECURED_PKT_SHIFT		20
-#define ENA_ETH_IO_RX_CDESC_BASE_SECURED_PKT_MASK		BIT(20)
-#define ENA_ETH_IO_RX_CDESC_BASE_CRYPTO_STATUS_SHIFT		21
-#define ENA_ETH_IO_RX_CDESC_BASE_CRYPTO_STATUS_MASK		GENMASK(23, 21)
-#define ENA_ETH_IO_RX_CDESC_BASE_PHASE_SHIFT		24
-#define ENA_ETH_IO_RX_CDESC_BASE_PHASE_MASK		BIT(24)
-#define ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM2_SHIFT		25
-#define ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM2_MASK		BIT(25)
-#define ENA_ETH_IO_RX_CDESC_BASE_FIRST_SHIFT		26
-#define ENA_ETH_IO_RX_CDESC_BASE_FIRST_MASK		BIT(26)
-#define ENA_ETH_IO_RX_CDESC_BASE_LAST_SHIFT		27
-#define ENA_ETH_IO_RX_CDESC_BASE_LAST_MASK		BIT(27)
-#define ENA_ETH_IO_RX_CDESC_BASE_INR_L4_CSUM_SHIFT		28
-#define ENA_ETH_IO_RX_CDESC_BASE_INR_L4_CSUM_MASK		BIT(28)
-#define ENA_ETH_IO_RX_CDESC_BASE_BUFFER_SHIFT		30
-#define ENA_ETH_IO_RX_CDESC_BASE_BUFFER_MASK		BIT(30)
-#define ENA_ETH_IO_RX_CDESC_BASE_TUNNEL_OFF_MASK		GENMASK(9, 0)
-#define ENA_ETH_IO_RX_CDESC_BASE_L3_OFF_SHIFT		9
-#define ENA_ETH_IO_RX_CDESC_BASE_L3_OFF_MASK		GENMASK(16, 9)
-#define ENA_ETH_IO_RX_CDESC_BASE_HASH_FRAG_CSUM_SHIFT		16
-#define ENA_ETH_IO_RX_CDESC_BASE_HASH_FRAG_CSUM_MASK		GENMASK(32, 16)
+#define ENA_ETH_IO_RX_CDESC_BASE_L3_PROTO_IDX_MASK GENMASK(4, 0)
+#define ENA_ETH_IO_RX_CDESC_BASE_SRC_VLAN_CNT_SHIFT 5
+#define ENA_ETH_IO_RX_CDESC_BASE_SRC_VLAN_CNT_MASK GENMASK(6, 5)
+#define ENA_ETH_IO_RX_CDESC_BASE_TUNNEL_SHIFT 7
+#define ENA_ETH_IO_RX_CDESC_BASE_TUNNEL_MASK BIT(7)
+#define ENA_ETH_IO_RX_CDESC_BASE_L4_PROTO_IDX_SHIFT 8
+#define ENA_ETH_IO_RX_CDESC_BASE_L4_PROTO_IDX_MASK GENMASK(12, 8)
+#define ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM_ERR_SHIFT 13
+#define ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM_ERR_MASK BIT(13)
+#define ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_SHIFT 14
+#define ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_MASK BIT(14)
+#define ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_SHIFT 15
+#define ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_MASK BIT(15)
+#define ENA_ETH_IO_RX_CDESC_BASE_SECURED_PKT_SHIFT 20
+#define ENA_ETH_IO_RX_CDESC_BASE_SECURED_PKT_MASK BIT(20)
+#define ENA_ETH_IO_RX_CDESC_BASE_CRYPTO_STATUS_SHIFT 21
+#define ENA_ETH_IO_RX_CDESC_BASE_CRYPTO_STATUS_MASK GENMASK(22, 21)
+#define ENA_ETH_IO_RX_CDESC_BASE_PHASE_SHIFT 24
+#define ENA_ETH_IO_RX_CDESC_BASE_PHASE_MASK BIT(24)
+#define ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM2_SHIFT 25
+#define ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM2_MASK BIT(25)
+#define ENA_ETH_IO_RX_CDESC_BASE_FIRST_SHIFT 26
+#define ENA_ETH_IO_RX_CDESC_BASE_FIRST_MASK BIT(26)
+#define ENA_ETH_IO_RX_CDESC_BASE_LAST_SHIFT 27
+#define ENA_ETH_IO_RX_CDESC_BASE_LAST_MASK BIT(27)
+#define ENA_ETH_IO_RX_CDESC_BASE_INR_L4_CSUM_SHIFT 28
+#define ENA_ETH_IO_RX_CDESC_BASE_INR_L4_CSUM_MASK BIT(28)
+#define ENA_ETH_IO_RX_CDESC_BASE_BUFFER_SHIFT 30
+#define ENA_ETH_IO_RX_CDESC_BASE_BUFFER_MASK BIT(30)
+#define ENA_ETH_IO_RX_CDESC_BASE_TUNNEL_OFF_MASK GENMASK(8, 0)
+#define ENA_ETH_IO_RX_CDESC_BASE_L3_OFF_SHIFT 9
+#define ENA_ETH_IO_RX_CDESC_BASE_L3_OFF_MASK GENMASK(15, 9)
+#define ENA_ETH_IO_RX_CDESC_BASE_HASH_FRAG_CSUM_SHIFT 16
+#define ENA_ETH_IO_RX_CDESC_BASE_HASH_FRAG_CSUM_MASK GENMASK(31, 16)
 
 #endif /*_ENA_ETH_IO_H_ */
