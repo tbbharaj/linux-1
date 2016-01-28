@@ -46,23 +46,11 @@ enum ena_admin_aq_opcode {
 	/* destroy completion queue */
 	ENA_ADMIN_DESTROY_CQ = 4,
 
-	/* suspend submission queue */
-	ENA_ADMIN_SUSPEND_SQ = 5,
-
-	/* resume submission queue */
-	ENA_ADMIN_RESUME_SQ = 6,
-
-	/* flush submission queue */
-	ENA_ADMIN_FLUSH_SQ = 7,
-
 	/* get capabilities of particular feature */
 	ENA_ADMIN_GET_FEATURE = 8,
 
 	/* get capabilities of particular feature */
 	ENA_ADMIN_SET_FEATURE = 9,
-
-	/* enabling events in AENQ */
-	ENA_ADMIN_ASYNC_EVENT_REQUEST = 10,
 
 	/* get statistics */
 	ENA_ADMIN_GET_STATS = 11,
@@ -145,12 +133,6 @@ enum ena_admin_aq_feature_id {
 	 */
 	ENA_ADMIN_ON_DEVICE_MEMORY_CONFIG = 7,
 
-	/* L2 bridging capabilities inside ENA */
-	ENA_ADMIN_L2_BRIDG_CONFIG = 8,
-
-	/* L3 routing capabilities inside ENA */
-	ENA_ADMIN_L3_ROUTER_CONFIG = 9,
-
 	/* Receive Side Scaling (RSS) function */
 	ENA_ADMIN_RSS_HASH_FUNCTION = 10,
 
@@ -160,22 +142,8 @@ enum ena_admin_aq_feature_id {
 	/* Multiple tuples flow table configuration */
 	ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG = 12,
 
-	/* Data center bridging (DCB) capabilities */
-	ENA_ADMIN_DCB_CONFIG = 13,
-
 	/* max MTU, current MTU */
 	ENA_ADMIN_MTU = 14,
-
-	/* Virtual memory address translation capabilities for userland
-	 * queues
-	 */
-	ENA_ADMIN_VA_TRANSLATION_CONFIG = 15,
-
-	/* traffic class capabilities */
-	ENA_ADMIN_TC_CONFIG = 16,
-
-	/* traffic class capabilities */
-	ENA_ADMIN_ENCRYPTION_CONFIG = 17,
 
 	/* Receive Side Scaling (RSS) hash input */
 	ENA_ADMIN_RSS_HASH_INPUT = 18,
@@ -189,19 +157,10 @@ enum ena_admin_aq_feature_id {
 	/* 1588v2 and Timing configuration */
 	ENA_ADMIN_1588_CONFIG = 21,
 
-	/* End-to-End invariant CRC configuration */
-	ENA_ADMIN_E2E_CRC_CONFIG = 22,
-
 	/* Packet Header format templates configuration for input and
 	 * output parsers
 	 */
 	ENA_ADMIN_PKT_HEADER_TEMPLATES_CONFIG = 23,
-
-	/* Direct Data Placement (DDP) configuration */
-	ENA_ADMIN_DDP_CONFIG = 24,
-
-	/* Wake on LAN configuration */
-	ENA_ADMIN_WOL_CONFIG = 25,
 
 	/* AENQ configuration */
 	ENA_ADMIN_AENQ_CONFIG = 26,
@@ -229,25 +188,25 @@ enum ena_admin_placement_policy_type {
 
 /* link speeds */
 enum ena_admin_link_types {
-	ENA_ADMIN_LINK_SPEED_1G = 0X1,
+	ENA_ADMIN_LINK_SPEED_1G = 0x1,
 
-	ENA_ADMIN_LINK_SPEED_2_HALF_G = 0X2,
+	ENA_ADMIN_LINK_SPEED_2_HALF_G = 0x2,
 
-	ENA_ADMIN_LINK_SPEED_5G = 0X4,
+	ENA_ADMIN_LINK_SPEED_5G = 0x4,
 
-	ENA_ADMIN_LINK_SPEED_10G = 0X8,
+	ENA_ADMIN_LINK_SPEED_10G = 0x8,
 
-	ENA_ADMIN_LINK_SPEED_25G = 0X10,
+	ENA_ADMIN_LINK_SPEED_25G = 0x10,
 
-	ENA_ADMIN_LINK_SPEED_40G = 0X20,
+	ENA_ADMIN_LINK_SPEED_40G = 0x20,
 
-	ENA_ADMIN_LINK_SPEED_50G = 0X40,
+	ENA_ADMIN_LINK_SPEED_50G = 0x40,
 
-	ENA_ADMIN_LINK_SPEED_100G = 0X80,
+	ENA_ADMIN_LINK_SPEED_100G = 0x80,
 
-	ENA_ADMIN_LINK_SPEED_200G = 0X100,
+	ENA_ADMIN_LINK_SPEED_200G = 0x100,
 
-	ENA_ADMIN_LINK_SPEED_400G = 0X200,
+	ENA_ADMIN_LINK_SPEED_400G = 0x200,
 };
 
 /* completion queue update policy */
@@ -256,12 +215,12 @@ enum ena_admin_completion_policy_type {
 	ENA_ADMIN_COMPLETION_POLICY_DESC = 0,
 
 	/* cqe upon request in sq descriptor */
-	ENA_ADMIN_COMPLETION_POLICY_DESC_ON_DENAMD = 1,
+	ENA_ADMIN_COMPLETION_POLICY_DESC_ON_DEMAND = 1,
 
 	/* current queue head pointer is updated in OS memory upon sq
 	 * descriptor request
 	 */
-	ENA_ADMIN_COMPLETION_POLICY_HEAD_ON_DEMAN = 2,
+	ENA_ADMIN_COMPLETION_POLICY_HEAD_ON_DEMAND = 2,
 
 	/* current queue head pointer is updated in OS memory for each sq
 	 * descriptor
@@ -327,9 +286,8 @@ struct ena_admin_sq {
 	/* queue id */
 	u16 sq_idx;
 
-	/* 4:0 : sq_type - 0x1 - ethernet queue; 0x2 - fabric
-	 *    queue; 0x3 fabric queue with RDMA; 0x4 - DPDK queue
-	 * 7:5 : sq_direction - 0x1 - Tx; 0x2 - Rx; 0x3 - SRQ
+	/* 4:0 : reserved
+	 * 7:5 : sq_direction - 0x1 - Tx; 0x2 - Rx
 	 */
 	u8 sq_identity;
 
@@ -400,30 +358,12 @@ struct ena_admin_aq_create_sq_cmd {
 	struct ena_admin_aq_common_desc aq_common_descriptor;
 
 	/* word 1 : */
-	/* 4:0 : sq_type - 0x1 - ethernet queue; 0x2 - fabric
-	 *    queue; 0x3 fabric queue with RDMA; 0x4 - DPDK queue
-	 * 7:5 : sq_direction - 0x1 - Tx; 0x2 - Rx; 0x3 - SRQ
+	/* 4:0 : reserved0_w1
+	 * 7:5 : sq_direction - 0x1 - Tx, 0x2 - Rx
 	 */
 	u8 sq_identity;
 
-	/* 0 : virtual_addressing_support - whether the
-	 *    specific queue is requested to handle Userland
-	 *    virtual addresses, which burdens the ENA perfom VA
-	 *    to Physical address translation
-	 * 3:1 : traffic_class - Default traffic class for
-	 *    packets transmitted on his queue
-	 * 7:4 : rx_fixed_sgl_size - In case this value is
-	 *    larger than 0, then each Rx packet, will consumed
-	 *    a fixed number of Rx Descriptors equal to
-	 *    rx_fixed_sgl_size, this feature will enable
-	 *    capabilities like header split and aligning
-	 *    packets to fixed numbers of pages. NOTE: that
-	 *    queue depth is still in number of Rx Descriptors.
-	 *    It is the programmer responsibility to make sure
-	 *    each set of SGL has enough buffer to accept the
-	 *    maximal receive packet length
-	 */
-	u8 sq_caps_1;
+	u8 reserved8_w1;
 
 	/* 3:0 : placement_policy - Describing where the SQ
 	 *    descriptor ring and the SQ packet headers reside:
@@ -438,14 +378,14 @@ struct ena_admin_aq_create_sq_cmd {
 	 *    updated in OS memory upon sq descriptor request
 	 *    0x3 - current queue head pointer is updated in OS
 	 *    memory for each sq descriptor
-	 * 7 : reserved7
+	 * 7 : reserved15_w1
 	 */
 	u8 sq_caps_2;
 
 	/* 0 : is_physically_contiguous - Described if the
 	 *    queue ring memory is allocated in physical
 	 *    contiguous pages or split.
-	 * 7:1 : reserved1
+	 * 7:1 : reserved17_w1
 	 */
 	u8 sq_caps_3;
 
@@ -455,7 +395,7 @@ struct ena_admin_aq_create_sq_cmd {
 	 */
 	u16 cq_idx;
 
-	/* submission queue depth in # of entries */
+	/* submission queue depth in entries */
 	u16 sq_depth;
 
 	/* words 3:4 : SQ physical base address in OS memory. This field
@@ -465,20 +405,17 @@ struct ena_admin_aq_create_sq_cmd {
 	struct ena_common_mem_addr sq_ba;
 
 	/* words 5:6 : specifies queue head writeback location in OS
-	 * memory. Valid if completion_policy is set to 0x3. Has to be
-	 * cache aligned
+	 * memory. Valid if completion_policy is set to
+	 * completion_policy_head_on_demand or completion_policy_head. Has
+	 * to be cache aligned
 	 */
 	struct ena_common_mem_addr sq_head_writeback;
 
-	/* word 7 : */
-	/* protection domain - needed if address translation is supported */
-	u16 pd;
-
-	/* reserved */
-	u16 reserved16_w8;
+	/* word 7 : reserved word */
+	u32 reserved0_w7;
 
 	/* word 8 : reserved word */
-	u32 reserved0_w9;
+	u32 reserved0_w8;
 };
 
 /* submission queue direction */
@@ -486,24 +423,6 @@ enum ena_admin_sq_direction {
 	ENA_ADMIN_SQ_DIRECTION_TX = 1,
 
 	ENA_ADMIN_SQ_DIRECTION_RX = 2,
-
-	/* Shared Receive queue */
-	ENA_ADMIN_SQ_DIRECTION_SRQ = 3,
-};
-
-/* submission queue type */
-enum ena_admin_sq_type {
-	/* ethernet queue */
-	ENA_ADMIN_ETH = 1,
-
-	/* fabric queue */
-	ENA_ADMIN_FABRIC = 2,
-
-	/* fabric queue with RDMA */
-	ENA_ADMIN_FABRIC_RDMA = 3,
-
-	/* DPDK queue */
-	ENA_ADMIN_DPDK = 4,
 };
 
 /* ENA Response for Create SQ Command. Appears in ACQ entry as
@@ -517,8 +436,7 @@ struct ena_admin_acq_create_sq_resp_desc {
 	/* sq identifier */
 	u16 sq_idx;
 
-	/* sq depth in # of entries */
-	u16 sq_actual_depth;
+	u16 reserved;
 
 	/* word 3 : queue doorbell address as and offset to PCIe MMIO REG
 	 * BAR
@@ -561,8 +479,7 @@ struct ena_admin_aq_create_cq_cmd {
 	struct ena_admin_aq_common_desc aq_common_descriptor;
 
 	/* word 1 : */
-	/* 4:0 : cq_type - 0x1 - eth cq; 0x2 - fabric cq; 0x3
-	 *    fabric cq with RDMA; 0x4 - DPDK cq
+	/* 4:0 : reserved5
 	 * 5 : interrupt_mode_enabled - if set, cq operates
 	 *    in interrupt mode, otherwise - polling
 	 * 7:6 : reserved6
@@ -575,7 +492,7 @@ struct ena_admin_aq_create_cq_cmd {
 	 */
 	u8 cq_caps_2;
 
-	/* completion queue depth in # of entries */
+	/* completion queue depth in # of entries. must be power of 2 */
 	u16 cq_depth;
 
 	/* word 2 : msix vector assigned to this cq */
@@ -641,63 +558,6 @@ struct ena_admin_aq_destroy_cq_cmd {
  * response_specific_data
  */
 struct ena_admin_acq_destroy_cq_resp_desc {
-	/* words 0:1 : Common Admin Queue completion descriptor */
-	struct ena_admin_acq_common_desc acq_common_desc;
-};
-
-/* ENA AQ Suspend Submission Queue command. Placed in control buffer
- * pointed by AQ entry
- */
-struct ena_admin_aq_suspend_sq_cmd {
-	/* words 0 :  */
-	struct ena_admin_aq_common_desc aq_common_descriptor;
-
-	/* words 1 :  */
-	struct ena_admin_sq sq;
-};
-
-/* ENA Response for Suspend SQ Command. Appears in ACQ entry as
- * response_specific_data
- */
-struct ena_admin_acq_suspend_sq_resp_desc {
-	/* words 0:1 : Common Admin Queue completion descriptor */
-	struct ena_admin_acq_common_desc acq_common_desc;
-};
-
-/* ENA AQ Resume Submission Queue command. Placed in control buffer pointed
- * by AQ entry
- */
-struct ena_admin_aq_resume_sq_cmd {
-	/* words 0 :  */
-	struct ena_admin_aq_common_desc aq_common_descriptor;
-
-	/* words 1 :  */
-	struct ena_admin_sq sq;
-};
-
-/* ENA Response for Resume SQ Command. Appears in ACQ entry as
- * response_specific_data
- */
-struct ena_admin_acq_resume_sq_resp_desc {
-	/* words 0:1 : Common Admin Queue completion descriptor */
-	struct ena_admin_acq_common_desc acq_common_desc;
-};
-
-/* ENA AQ Flush Submission Queue command. Placed in control buffer pointed
- * by AQ entry
- */
-struct ena_admin_aq_flush_sq_cmd {
-	/* words 0 :  */
-	struct ena_admin_aq_common_desc aq_common_descriptor;
-
-	/* words 1 :  */
-	struct ena_admin_sq sq;
-};
-
-/* ENA Response for Flush SQ Command. Appears in ACQ entry as
- * response_specific_data
- */
-struct ena_admin_acq_flush_sq_resp_desc {
 	/* words 0:1 : Common Admin Queue completion descriptor */
 	struct ena_admin_acq_common_desc acq_common_desc;
 };
@@ -819,13 +679,11 @@ struct ena_admin_device_attr_feature_desc {
 	u32 reserved3;
 
 	/* word 4 : Indicates how many bits are used physical address
-	 * access. Typically 48
+	 * access.
 	 */
 	u32 phys_addr_width;
 
-	/* word 5 : Indicates how many bits are used virtual address
-	 * access. Typically 48
-	 */
+	/* word 5 : Indicates how many bits are used virtual address access. */
 	u32 virt_addr_width;
 
 	/* unicast MAC address (in Network byte order) */
@@ -857,8 +715,17 @@ struct ena_admin_queue_feature_desc {
 	/* word 5 : Max submission queue depth of LLQ */
 	u32 max_llq_depth;
 
-	/* word 6 : Max header size for LLQ */
-	u32 max_llq_header_size;
+	/* word 6 : Max header size */
+	u32 max_header_size;
+
+	/* word 7 : */
+	/* Maximum Descriptors number, including meta descriptors, allowed
+	 *    for a single Tx packet
+	 */
+	u16 max_packet_tx_descs;
+
+	/* Maximum Descriptors number allowed for a single Rx packet */
+	u16 max_packet_rx_descs;
 };
 
 /* ENA MTU Set Feature descriptor. */
@@ -956,6 +823,7 @@ struct ena_admin_feature_offload_desc {
 	 * 0 : RX_L3_csum_ipv4 - IPv4 checksum
 	 * 1 : RX_L4_ipv4_csum - TCP/UDP/IPv4 checksum
 	 * 2 : RX_L4_ipv6_csum - TCP/UDP/IPv6 checksum
+	 * 3 : RX_hash - Hash calculation
 	 */
 	u32 rx_supported;
 
@@ -1222,7 +1090,7 @@ struct ena_admin_set_feat_cmd {
 		/* words 5:6 : AENQ configuration */
 		struct ena_admin_feature_aenq_desc aenq;
 
-		/* words 5:17 : rss flow hash function */
+		/* words 5:7 : rss flow hash function */
 		struct ena_admin_feature_rss_flow_hash_function flow_hash_func;
 
 		/* words 5 : rss flow hash input */
@@ -1281,19 +1149,6 @@ enum ena_admin_aenq_group {
 	ENA_ADMIN_AENQ_GROUPS_NUM = 5,
 };
 
-/* syndrom of AENQ warning group */
-enum ena_admin_aenq_warning_syndrom {
-	ENA_ADMIN_THERMAL = 0,
-
-	ENA_ADMIN_LOGGING_FIFO = 1,
-
-	ENA_ADMIN_DIRTY_PAGE_LOGGING_FIFO = 2,
-
-	ENA_ADMIN_MALICIOUS_MMIO_ACCESS = 3,
-
-	ENA_ADMIN_CQ_FULL = 4,
-};
-
 /* syndorm of AENQ notification group */
 enum ena_admin_aenq_notification_syndrom {
 	ENA_ADMIN_SUSPEND = 0,
@@ -1342,7 +1197,6 @@ struct ena_admin_ena_mmio_req_read_less_resp {
 #define ENA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT_MASK BIT(2)
 
 /* sq */
-#define ENA_ADMIN_SQ_SQ_TYPE_MASK GENMASK(4, 0)
 #define ENA_ADMIN_SQ_SQ_DIRECTION_SHIFT 5
 #define ENA_ADMIN_SQ_SQ_DIRECTION_MASK GENMASK(7, 5)
 
@@ -1351,21 +1205,14 @@ struct ena_admin_ena_mmio_req_read_less_resp {
 #define ENA_ADMIN_ACQ_COMMON_DESC_PHASE_MASK BIT(0)
 
 /* aq_create_sq_cmd */
-#define ENA_ADMIN_AQ_CREATE_SQ_CMD_SQ_TYPE_MASK GENMASK(4, 0)
 #define ENA_ADMIN_AQ_CREATE_SQ_CMD_SQ_DIRECTION_SHIFT 5
 #define ENA_ADMIN_AQ_CREATE_SQ_CMD_SQ_DIRECTION_MASK GENMASK(7, 5)
-#define ENA_ADMIN_AQ_CREATE_SQ_CMD_VIRTUAL_ADDRESSING_SUPPORT_MASK BIT(0)
-#define ENA_ADMIN_AQ_CREATE_SQ_CMD_TRAFFIC_CLASS_SHIFT 1
-#define ENA_ADMIN_AQ_CREATE_SQ_CMD_TRAFFIC_CLASS_MASK GENMASK(3, 1)
-#define ENA_ADMIN_AQ_CREATE_SQ_CMD_RX_FIXED_SGL_SIZE_SHIFT 4
-#define ENA_ADMIN_AQ_CREATE_SQ_CMD_RX_FIXED_SGL_SIZE_MASK GENMASK(7, 4)
 #define ENA_ADMIN_AQ_CREATE_SQ_CMD_PLACEMENT_POLICY_MASK GENMASK(3, 0)
 #define ENA_ADMIN_AQ_CREATE_SQ_CMD_COMPLETION_POLICY_SHIFT 4
 #define ENA_ADMIN_AQ_CREATE_SQ_CMD_COMPLETION_POLICY_MASK GENMASK(6, 4)
 #define ENA_ADMIN_AQ_CREATE_SQ_CMD_IS_PHYSICALLY_CONTIGUOUS_MASK BIT(0)
 
 /* aq_create_cq_cmd */
-#define ENA_ADMIN_AQ_CREATE_CQ_CMD_CQ_TYPE_MASK GENMASK(4, 0)
 #define ENA_ADMIN_AQ_CREATE_CQ_CMD_INTERRUPT_MODE_ENABLED_SHIFT 5
 #define ENA_ADMIN_AQ_CREATE_CQ_CMD_INTERRUPT_MODE_ENABLED_MASK BIT(5)
 #define ENA_ADMIN_AQ_CREATE_CQ_CMD_CQ_ENTRY_SIZE_WORDS_MASK GENMASK(4, 0)
@@ -1403,6 +1250,8 @@ struct ena_admin_ena_mmio_req_read_less_resp {
 #define ENA_ADMIN_FEATURE_OFFLOAD_DESC_RX_L4_IPV4_CSUM_MASK BIT(1)
 #define ENA_ADMIN_FEATURE_OFFLOAD_DESC_RX_L4_IPV6_CSUM_SHIFT 2
 #define ENA_ADMIN_FEATURE_OFFLOAD_DESC_RX_L4_IPV6_CSUM_MASK BIT(2)
+#define ENA_ADMIN_FEATURE_OFFLOAD_DESC_RX_HASH_SHIFT 3
+#define ENA_ADMIN_FEATURE_OFFLOAD_DESC_RX_HASH_MASK BIT(3)
 
 /* feature_rss_flow_hash_function */
 #define ENA_ADMIN_FEATURE_RSS_FLOW_HASH_FUNCTION_FUNCS_MASK GENMASK(7, 0)

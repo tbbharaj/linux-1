@@ -89,7 +89,9 @@ struct ena_eth_io_tx_desc {
 	 *    tunnel_ctrl[0] is set, then this is the inner
 	 *    packet L3. This field required when
 	 *    l3_csum_en,l3_csum or tso_en are set.
-	 * 4 : reserved4
+	 * 4 : DF - IPv4 DF, must be 0 if packet is IPv4 and
+	 *    DF flags of the IPv4 header is 0. Otherwise must
+	 *    be set to 1
 	 * 6:5 : reserved5
 	 * 7 : tso_en - Enable TSO, For TCP only. For packets
 	 *    with tunnel (tunnel_ctrl[0]=1), then the inner
@@ -115,9 +117,11 @@ struct ena_eth_io_tx_desc {
 	 *    TCP/UDP pseudo-header is taken from the actual
 	 *    packet L3 header. when set to 1, the ENA doesn't
 	 *    calculate the sum of the pseudo-header, instead,
-	 *    the checksum field of the L3 is used instead. L4
-	 *    partial checksum should be used for IPv6 packet
-	 *    that contains Routing Headers.
+	 *    the checksum field of the L4 is used instead. When
+	 *    TSO enabled, the checksum of the pseudo-header
+	 *    must not include the tcp length field. L4 partial
+	 *    checksum should be used for IPv6 packet that
+	 *    contains Routing Headers.
 	 * 20:18 : tunnel_ctrl - Bit 0: tunneling exists, Bit
 	 *    1: tunnel packet actually uses UDP as L4, Bit 2:
 	 *    tunnel packet L3 protocol: 0: IPv4 1: IPv6
@@ -134,11 +138,17 @@ struct ena_eth_io_tx_desc {
 	/* address high and header size
 	 * 15:0 : addr_hi - Buffer Pointer[47:32]
 	 * 23:16 : reserved16_w2
-	 * 31:24 : header_length - Header length, number of
-	 *    bytes written to the ENA memory. used only for low
-	 *    latency queues. Maximum allowed value is
-	 *    negotiated through Admin Aueue, Minimum allowed
-	 *    value should include the packet headers
+	 * 31:24 : header_length - Header length. For Low
+	 *    Latency Queues, this fields indicates the number
+	 *    of bytes written to the headers' memory. For
+	 *    normal queues, if packet is TCP or UDP, and longer
+	 *    than max_header_size, then this field should be
+	 *    set to the sum of L4 header offset and L4 header
+	 *    size(without options), otherwise, this field
+	 *    should be set to 0. For both modes, this field
+	 *    must not exceed the max_header_size.
+	 *    max_header_size value is reported by the Max
+	 *    Queues Feature descriptor
 	 */
 	u32 buff_addr_hi_hdr_sz;
 };
@@ -288,12 +298,17 @@ struct ena_eth_io_rx_cdesc_base {
 	 * 6:5 : src_vlan_cnt - Source VLAN count
 	 * 7 : tunnel - Tunnel exists
 	 * 12:8 : l4_proto_idx - L4 protocol index
-	 * 13 : l3_csum_err - when set, L3 checksum error
-	 *    detected, If tunnel exists, this result is for the
-	 *    inner packet
-	 * 14 : l4_csum_err - when set, L4 checksum error
-	 *    detected, If tunnel exists, this result is for the
-	 *    inner packet
+	 * 13 : l3_csum_err - when set, either the L3
+	 *    checksum error detected, or, the controller didn't
+	 *    validate the checksum, If tunnel exists, this
+	 *    result is for the inner packet. This bit is valid
+	 *    only when l3_proto_idx indicates IPv4 packet
+	 * 14 : l4_csum_err - when set, either the L4
+	 *    checksum error detected, or, the controller didn't
+	 *    validate the checksum. If tunnel exists, this
+	 *    result is for the inner packet. This bit is valid
+	 *    only when l4_proto_idx indicates TCP/UDP packet,
+	 *    and, ipv4_frag is not set
 	 * 15 : ipv4_frag - Indicates IPv4 fragmented packet
 	 * 17:16 : reserved16
 	 * 19:18 : reserved18
@@ -322,28 +337,14 @@ struct ena_eth_io_rx_cdesc_base {
 
 	u16 req_id;
 
-	/* word 2 : */
-	/* 8:0 : tunnel_off - inner packet offset
-	 * 15:9 : l3_off - Offset of first byte in the L3
-	 *    header from the beginning of the packet. if
-	 *    tunnel=1, this is of the inner packet
-	 * 31:16 : hash_frag_csum - 16-bit hash results for
-	 *    TCP/UDP packets (could be used by driver to
-	 *    accelerate flow lookup or LRO) OR partial checksum
-	 *    of IP packet was fragmented
-	 */
-	u32 word2;
+	/* word 2 : 32-bit hash result */
+	u32 hash;
 
 	/* word 3 : */
 	/* submission queue number */
 	u16 sub_qid;
 
-	u8 reserved;
-
-	/* Offset of first byte in the L4 header from the beginning of the
-	 *    packet. if tunnel=1, this is of the inner packet
-	 */
-	u8 l4_off;
+	u16 reserved;
 };
 
 /* ENA IO Queue Rx Completion Descriptor (8-word format) */
@@ -382,6 +383,8 @@ struct ena_eth_io_rx_cdesc_ext {
 #define ENA_ETH_IO_TX_DESC_COMP_REQ_SHIFT 28
 #define ENA_ETH_IO_TX_DESC_COMP_REQ_MASK BIT(28)
 #define ENA_ETH_IO_TX_DESC_L3_PROTO_IDX_MASK GENMASK(3, 0)
+#define ENA_ETH_IO_TX_DESC_DF_SHIFT 4
+#define ENA_ETH_IO_TX_DESC_DF_MASK BIT(4)
 #define ENA_ETH_IO_TX_DESC_TSO_EN_SHIFT 7
 #define ENA_ETH_IO_TX_DESC_TSO_EN_MASK BIT(7)
 #define ENA_ETH_IO_TX_DESC_L4_PROTO_IDX_SHIFT 8
@@ -484,10 +487,5 @@ struct ena_eth_io_rx_cdesc_ext {
 #define ENA_ETH_IO_RX_CDESC_BASE_INR_L4_CSUM_MASK BIT(28)
 #define ENA_ETH_IO_RX_CDESC_BASE_BUFFER_SHIFT 30
 #define ENA_ETH_IO_RX_CDESC_BASE_BUFFER_MASK BIT(30)
-#define ENA_ETH_IO_RX_CDESC_BASE_TUNNEL_OFF_MASK GENMASK(8, 0)
-#define ENA_ETH_IO_RX_CDESC_BASE_L3_OFF_SHIFT 9
-#define ENA_ETH_IO_RX_CDESC_BASE_L3_OFF_MASK GENMASK(15, 9)
-#define ENA_ETH_IO_RX_CDESC_BASE_HASH_FRAG_CSUM_SHIFT 16
-#define ENA_ETH_IO_RX_CDESC_BASE_HASH_FRAG_CSUM_MASK GENMASK(31, 16)
 
 #endif /*_ENA_ETH_IO_H_ */

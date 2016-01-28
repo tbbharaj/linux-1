@@ -84,9 +84,9 @@ static inline void ena_com_copy_curr_sq_desc_to_dev(struct ena_com_io_sq *io_sq)
 	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_HOST)
 		return;
 
-	memcpy(io_sq->desc_addr.pbuf_dev_addr + offset,
-	       io_sq->desc_addr.virt_addr + offset,
-	       io_sq->desc_entry_size);
+	memcpy_toio(io_sq->desc_addr.pbuf_dev_addr + offset,
+		    io_sq->desc_addr.virt_addr + offset,
+		    io_sq->desc_entry_size);
 }
 
 static inline void ena_com_sq_update_tail(struct ena_com_io_sq *io_sq)
@@ -102,7 +102,7 @@ static inline int ena_com_write_header(struct ena_com_io_sq *io_sq,
 				       u8 *head_src, u16 header_len)
 {
 	u16 tail_masked = io_sq->tail & (io_sq->q_depth - 1);
-	u8 *dev_head_addr =
+	u8 __iomem *dev_head_addr =
 		io_sq->header_addr + (tail_masked * ENA_MAX_PUSH_PKT_SIZE);
 
 	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_HOST)
@@ -115,7 +115,7 @@ static inline int ena_com_write_header(struct ena_com_io_sq *io_sq,
 		return -EINVAL;
 	}
 
-	memcpy(dev_head_addr, head_src, header_len);
+	memcpy_toio(dev_head_addr, head_src, header_len);
 
 	return 0;
 }
@@ -249,9 +249,7 @@ static inline void ena_com_rx_set_flags(struct ena_com_rx_ctx *ena_rx_ctx,
 	ena_rx_ctx->l4_csum_err =
 		(cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_MASK) >>
 		ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_SHIFT;
-	ena_rx_ctx->hash_frag_csum =
-		(cdesc->word2 & ENA_ETH_IO_RX_CDESC_BASE_HASH_FRAG_CSUM_MASK) >>
-		ENA_ETH_IO_RX_CDESC_BASE_HASH_FRAG_CSUM_SHIFT;
+	ena_rx_ctx->hash = cdesc->hash;
 	ena_rx_ctx->frag =
 		(cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_MASK) >>
 		ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_SHIFT;
@@ -261,7 +259,7 @@ static inline void ena_com_rx_set_flags(struct ena_com_rx_ctx *ena_rx_ctx,
 		    ena_rx_ctx->l4_proto,
 		    ena_rx_ctx->l3_csum_err,
 		    ena_rx_ctx->l4_csum_err,
-		    ena_rx_ctx->hash_frag_csum,
+		    ena_rx_ctx->hash,
 		    ena_rx_ctx->frag,
 		    cdesc->status);
 }
@@ -296,6 +294,9 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 			ena_tx_ctx);
 	if (have_meta)
 		ena_com_create_and_store_tx_meta_desc(io_sq, ena_tx_ctx);
+
+	if (unlikely(!num_bufs))
+		return have_meta ? 0 : 1;
 
 	/* start with pushing the header (if needed) */
 	rc = ena_com_write_header(io_sq, push_header, header_len);
@@ -410,9 +411,9 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 	ena_trc_dbg("fetch rx packet: queue %d completed desc: %d\n",
 		    io_cq->qid, nb_hw_desc);
 
-	if (unlikely(ena_rx_ctx->descs >= ena_rx_ctx->max_bufs)) {
+	if (unlikely(nb_hw_desc >= ena_rx_ctx->max_bufs)) {
 		ena_trc_err("Too many RX cdescs (%d) > MAX(%d)\n",
-			    ena_rx_ctx->descs, nb_hw_desc);
+			    nb_hw_desc, ena_rx_ctx->max_bufs);
 		return -ENOSPC;
 	}
 
