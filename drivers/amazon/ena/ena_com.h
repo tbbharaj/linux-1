@@ -33,13 +33,18 @@
 #ifndef ENA_COM
 #define ENA_COM
 
-#include <linux/types.h>
-#include <linux/spinlock.h>
-#include <linux/wait.h>
-#include <linux/gfp.h>
-#include <linux/dma-mapping.h>
-#include <linux/sched.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/gfp.h>
+#include <linux/sched.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
+#include <linux/wait.h>
+
+#include "ena_common_defs.h"
+#include "ena_admin_defs.h"
+#include "ena_eth_io_defs.h"
+#include "ena_regs_defs.h"
 
 #define ena_trc_dbg(format, arg...) \
 	pr_debug("[ENA_COM: %s] " format, __func__, ##arg)
@@ -59,10 +64,6 @@
 			WARN_ON(cond);					\
 		}							\
 	} while (0)
-#include "ena_common_defs.h"
-#include "ena_regs_defs.h"
-#include "ena_admin_defs.h"
-#include "ena_eth_io_defs.h"
 
 #define ENA_MAX_NUM_IO_QUEUES		128U
 /* We need to queues for each IO (on for Tx and one for Rx) */
@@ -72,10 +73,8 @@
 
 #define ENA_MAX_PHYS_ADDR_SIZE_BITS 48
 
-#define ENA_MAC_LEN 6
-
 /* Unit in usec */
-#define ENA_REG_READ_TIMEOUT 5000
+#define ENA_REG_READ_TIMEOUT 200000
 
 #define ADMIN_SQ_SIZE(depth)	((depth) * sizeof(struct ena_admin_aq_entry))
 #define ADMIN_CQ_SIZE(depth)	((depth) * sizeof(struct ena_admin_acq_entry))
@@ -100,8 +99,8 @@ struct ena_com_rx_buf_info {
 };
 
 struct ena_com_io_desc_addr {
-	u8 __iomem *pbuf_dev_addr; /* LLQ address */
-	u8 __iomem *virt_addr;
+	void  __iomem *pbuf_dev_addr; /* LLQ address */
+	void  *virt_addr;
 	dma_addr_t phys_addr;
 };
 
@@ -243,6 +242,7 @@ struct ena_com_mmio_read {
 
 struct ena_rss {
 	/* Indirect table */
+	u16 *host_rss_ind_tbl;
 	struct ena_admin_rss_ind_table_entry *rss_ind_tbl;
 	dma_addr_t rss_ind_tbl_dma_addr;
 	u16 tbl_log_size;
@@ -684,8 +684,8 @@ int ena_com_set_default_hash_ctrl(struct ena_com_dev *ena_dev);
 /* ena_com_indirect_table_fill_entry - Fill a single entry in the RSS
  * indirection table
  * @ena_dev: ENA communication layer struct.
- * @qid - the caller virtual queue id.
- * @entry_idx: RSS hash entry index.
+ * @entry_idx - indirection table entry.
+ * @entry_value - redirection value
  *
  * Fill a single entry of the RSS indirection table in the ena_dev resources.
  * To flush the indirection table to the device, the called should call
@@ -694,7 +694,7 @@ int ena_com_set_default_hash_ctrl(struct ena_com_dev *ena_dev);
  * @return: 0 on Success and negative value otherwise.
  */
 int ena_com_indirect_table_fill_entry(struct ena_com_dev *ena_dev,
-				      u16 qid, u16 entry_idx);
+				      u16 entry_idx, u16 entry_value);
 
 /* ena_com_indirect_table_set - Flush the indirection table to the device.
  * @ena_dev: ENA communication layer struct

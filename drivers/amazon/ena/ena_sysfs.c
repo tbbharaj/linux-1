@@ -30,17 +30,14 @@
  * SOFTWARE.
  */
 
-#include <linux/sysfs.h>
-#include <linux/kernel.h>
-
 #include <linux/device.h>
+#include <linux/kernel.h>
 #include <linux/stat.h>
 #include <linux/sysfs.h>
 
-#include "ena_netdev.h"
 #include "ena_com.h"
-
-#define to_ext_attr(x) container_of(x, struct dev_ext_attribute, attr)
+#include "ena_netdev.h"
+#include "ena_sysfs.h"
 
 static int ena_validate_small_copy_len(struct ena_adapter *adapter,
 				       unsigned long len)
