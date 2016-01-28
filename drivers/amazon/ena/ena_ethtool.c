@@ -30,8 +30,9 @@
  * SOFTWARE.
  */
 
-#include "ena_netdev.h"
 #include <linux/pci.h>
+
+#include "ena_netdev.h"
 
 struct ena_stats {
 	char name[ETH_GSTRING_LEN];
@@ -78,6 +79,7 @@ static const struct ena_stats ena_stats_tx_strings[] = {
 	ENA_STAT_TX_ENTRY(tx_poll),
 	ENA_STAT_TX_ENTRY(doorbells),
 	ENA_STAT_TX_ENTRY(prepare_ctx_err),
+	ENA_STAT_TX_ENTRY(missing_tx_comp),
 };
 
 static const struct ena_stats ena_stats_rx_strings[] = {
@@ -590,8 +592,8 @@ static int ena_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
 	case ETHTOOL_SRXCLSRLDEL:
 	case ETHTOOL_SRXCLSRLINS:
 	default:
-		netdev_err(netdev, "Command parameters %d doesn't supported\n",
-			   info->cmd);
+		netif_err(adapter, drv, netdev,
+			  "Command parameters %d doesn't support\n", info->cmd);
 		rc = -EOPNOTSUPP;
 	}
 
@@ -616,8 +618,8 @@ static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 	case ETHTOOL_GRXCLSRULE:
 	case ETHTOOL_GRXCLSRLALL:
 	default:
-		netdev_err(netdev, "Command parameters %x doesn't supported\n",
-			   info->cmd);
+		netif_err(adapter, drv, netdev,
+			  "Command parameters %x doesn't support\n", info->cmd);
 		rc = -EOPNOTSUPP;
 	}
 
@@ -656,7 +658,8 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 	case ENA_ADMIN_CRC32:
 		func = ETH_RSS_HASH_XOR;
 	default:
-		netdev_err(netdev, "Command parameters doesn't supported\n");
+		netif_err(adapter, drv, netdev,
+			  "Command parameters doesn't support\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -680,15 +683,16 @@ static int ena_set_rxfh(struct net_device *netdev, const u32 *indir,
 							       ENA_IO_RXQ_IDX(indir[i]),
 							       i);
 			if (unlikely(rc)) {
-				netdev_err(adapter->netdev,
-					   "Cannot fill indirect table (index is too large)\n");
+				netif_err(adapter, drv, netdev,
+					  "Cannot fill indirect table (index is too large)\n");
 				return rc;
 			}
 		}
 
 		rc = ena_com_indirect_table_set(ena_dev);
 		if (rc) {
-			netdev_err(adapter->netdev, "Cannot set indirect table\n");
+			netif_err(adapter, drv, netdev,
+				  "Cannot set indirect table\n");
 			return rc == -EPERM ? -EOPNOTSUPP : rc;
 		}
 	}
@@ -701,15 +705,17 @@ static int ena_set_rxfh(struct net_device *netdev, const u32 *indir,
 		func = ENA_ADMIN_CRC32;
 		break;
 	default:
-		netdev_err(adapter->netdev, "Unsupported hfunc %d\n", hfunc);
+		netif_err(adapter, drv, netdev, "Unsupported hfunc %d\n",
+			  hfunc);
 		return -EOPNOTSUPP;
 	}
 
 	if (key) {
 		rc = ena_com_fill_hash_function(ena_dev, func, key,
-						ENA_HASH_KEY_SIZE, 0);
+						ENA_HASH_KEY_SIZE,
+						0xFFFFFFFF);
 		if (unlikely(rc)) {
-			netdev_err(adapter->netdev, "Cannot fill key\n");
+			netif_err(adapter, drv, netdev, "Cannot fill key\n");
 			return rc == -EPERM ? -EOPNOTSUPP : rc;
 		}
 	}
@@ -759,17 +765,17 @@ void ena_set_ethtool_ops(struct net_device *netdev)
 	netdev->ethtool_ops = &ena_ethtool_ops;
 }
 
-void ena_dmup_stats_to_dmesg(struct ena_adapter *adapter)
+void ena_dump_stats_to_dmesg(struct ena_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	u8* strings_buf;
-	u64* data_buf;
+	u8 *strings_buf;
+	u64 *data_buf;
 	int strings_num;
 	int i;
 
 	strings_num = ena_get_sset_count(netdev, ETH_SS_STATS);
 	if (strings_num < 0) {
-		ena_trc_err("Can't get stats num\n");
+		netif_err(adapter, drv, netdev, "Can't get stats num\n");
 		return;
 	}
 
@@ -777,7 +783,8 @@ void ena_dmup_stats_to_dmesg(struct ena_adapter *adapter)
 				   strings_num * ETH_GSTRING_LEN,
 				   GFP_KERNEL);
 	if (!strings_buf) {
-		ena_trc_err("failed to alloc strings_buf\n");
+		netif_err(adapter, drv, netdev,
+			  "failed to alloc strings_buf\n");
 		return;
 	}
 
@@ -785,7 +792,8 @@ void ena_dmup_stats_to_dmesg(struct ena_adapter *adapter)
 				strings_num * sizeof(u64),
 				GFP_KERNEL);
 	if (!data_buf) {
-		ena_trc_err("failed to allocate data buf\n");
+		netif_err(adapter, drv, netdev,
+			  "failed to allocate data buf\n");
 		devm_kfree(&adapter->pdev->dev, strings_buf);
 		return;
 	}
@@ -794,8 +802,8 @@ void ena_dmup_stats_to_dmesg(struct ena_adapter *adapter)
 	ena_get_ethtool_stats(netdev, NULL, data_buf);
 
 	for (i = 0; i < strings_num; i++)
-		ena_trc_err("%s: %llu\n", strings_buf + i * ETH_GSTRING_LEN,
-			    data_buf[i]);
+		netif_err(adapter, drv, netdev, "%s: %llu\n",
+			  strings_buf + i * ETH_GSTRING_LEN, data_buf[i]);
 
 	devm_kfree(&adapter->pdev->dev, strings_buf);
 	devm_kfree(&adapter->pdev->dev, data_buf);

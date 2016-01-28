@@ -33,20 +33,21 @@
 #ifndef ENA_H
 #define ENA_H
 
+#include <linux/bitops.h>
+#include <linux/etherdevice.h>
+#include <linux/inetdevice.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
-#include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/inetdevice.h>
 
 #include "ena_com.h"
 #include "ena_eth_com.h"
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_VERSION
-#define DRV_MODULE_VERSION      "0.2"
+#define DRV_MODULE_VERSION      "0.3"
 #endif
-#define DRV_MODULE_RELDATE      "OCT 14, 2015"
+#define DRV_MODULE_RELDATE      "2015-10-14"
 
 #define DEVICE_NAME	"Elastic Network Adapter (ENA)"
 
@@ -55,6 +56,7 @@
 
 #define ENA_REG_BAR			0
 #define ENA_MEM_BAR			2
+#define ENA_BAR_MASK (BIT(ENA_REG_BAR) | BIT(ENA_MEM_BAR))
 
 #define ENA_DEFAULT_TX_DESCS	(1024)
 #define ENA_DEFAULT_RX_DESCS	(1024)
@@ -93,6 +95,11 @@
  * QUEUE_SIZE / ENA_RX_REFILL_THRESH_DEVIDER
  */
 #define ENA_RX_REFILL_THRESH_DEVIDER	8
+
+/* Number of queues to check for missing queues per timer service */
+#define ENA_MONITORED_TX_QUEUES	4
+/* Max timeout packets before device reset */
+#define MAX_NUM_OF_TIMEOUTED_PACKETS 32
 
 #define ENA_TX_RING_IDX_NEXT(idx, ring_size) (((idx) + 1) & ((ring_size) - 1))
 
@@ -138,6 +145,8 @@ struct ena_tx_buffer {
 	u32 tx_descs;
 	/* num of buffers used by this skb */
 	u32 num_of_bufs;
+	/* Save the last jiffies to detect missing tx packets */
+	unsigned long last_jiffies;
 	struct ena_com_buf bufs[ENA_PKT_MAX_BUFS];
 } ____cacheline_aligned;
 
@@ -162,6 +171,7 @@ struct ena_stats_tx {
 	u64 napi_comp;
 	u64 tx_poll;
 	u64 doorbells;
+	u64 missing_tx_comp;
 };
 
 struct ena_stats_rx {
@@ -256,6 +266,7 @@ struct ena_adapter {
 	bool link_status;
 
 	bool up;
+	bool trigger_reset;
 
 	/* TX */
 	struct ena_ring tx_ring[ENA_MAX_NUM_IO_QUEUES]
@@ -270,7 +281,6 @@ struct ena_adapter {
 	struct ena_irq irq_tbl[ENA_MAX_MSIX_VEC(ENA_MAX_NUM_IO_QUEUES)];
 
 	/* timer service */
-	struct work_struct reset_task;
 	struct work_struct suspend_io_task;
 	struct work_struct resume_io_task;
 	struct timer_list timer_service;
@@ -279,10 +289,13 @@ struct ena_adapter {
 
 	struct u64_stats_sync syncp;
 	struct ena_stats_dev dev_stats;
+
+	/* last queue index that was checked for uncompleted tx packets */
+	u32 last_monitored_tx_qid;
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev);
 
-void ena_dmup_stats_to_dmesg(struct ena_adapter *adapter);
+void ena_dump_stats_to_dmesg(struct ena_adapter *adapter);
 
 #endif /* !(ENA_H) */

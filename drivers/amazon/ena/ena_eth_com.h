@@ -67,7 +67,7 @@ struct ena_com_rx_ctx {
 	bool l4_csum_err;
 	/* fragmented packet */
 	bool frag;
-	u16 hash_frag_csum;
+	u32 hash;
 	u16 descs;
 	int max_bufs;
 };

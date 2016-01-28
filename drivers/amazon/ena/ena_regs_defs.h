@@ -78,7 +78,8 @@ struct ena_regs_ena_registers {
 
 	/* word 6 : */
 	/* admin queue capabilities register [WO]
-	 * 15:0 : aq_depth - admin queue depth in entries
+	 * 15:0 : aq_depth - admin queue depth in entries.
+	 *    must be power of 2
 	 * 31:16 : aq_entry_size - admin queue entry size in
 	 *    32-bit words
 	 */
@@ -102,7 +103,9 @@ struct ena_regs_ena_registers {
 	 */
 	u32 acq_caps;
 
-	/* word 11 : AQ Doorbell [WO] */
+	/* word 11 : AQ Doorbell. incremented by number of new added
+	 * entries, written value should wrap-around on 2^16 [WO]
+	 */
 	u32 aq_db;
 
 	/* word 12 : ACQ tail pointer, indicates where new completions will
@@ -138,14 +141,14 @@ struct ena_regs_ena_registers {
 	 */
 	u32 aenq_tail;
 
-	/* word 18 :  [RO] */
-	u32 intr_cause;
+	/* word 18 :  */
+	u32 reserved_48;
 
 	/* word 19 :  [RW] */
 	u32 intr_mask;
 
-	/* word 20 :  [WO] */
-	u32 intr_clear;
+	/* word 20 :  */
+	u32 reserved_50;
 
 	/* word 21 : */
 	/* Device Control Register, some of these features may not be
@@ -200,11 +203,20 @@ struct ena_regs_ena_registers {
 	 */
 	u32 mmio_reg_read;
 
-	/* word 24 : read response address bits [31:0] [WO] */
+	/* word 24 : read response address bits [31:3], bits [2:0] must set
+	 * to 0 [WO]
+	 */
 	u32 mmio_resp_lo;
 
 	/* word 25 : read response address bits [64:32] [WO] */
 	u32 mmio_resp_hi;
+
+	/* word 26 : */
+	/* RSS Indirection table entry update register [WO]
+	 * 15:0 : index - entry index
+	 * 31:16 : cq_idx - cq identifier
+	 */
+	u32 rss_ind_entry_update;
 };
 
 /* admin interrupt register */
@@ -229,14 +241,13 @@ struct ena_regs_ena_registers {
 #define ENA_REGS_AENQ_BASE_HI_OFF		0x3c
 #define ENA_REGS_AENQ_HEAD_DB_OFF		0x40
 #define ENA_REGS_AENQ_TAIL_OFF		0x44
-#define ENA_REGS_INTR_CAUSE_OFF		0x48
 #define ENA_REGS_INTR_MASK_OFF		0x4c
-#define ENA_REGS_INTR_CLEAR_OFF		0x50
 #define ENA_REGS_DEV_CTL_OFF		0x54
 #define ENA_REGS_DEV_STS_OFF		0x58
 #define ENA_REGS_MMIO_REG_READ_OFF		0x5c
 #define ENA_REGS_MMIO_RESP_LO_OFF		0x60
 #define ENA_REGS_MMIO_RESP_HI_OFF		0x64
+#define ENA_REGS_RSS_IND_ENTRY_UPDATE_OFF		0x68
 
 /* version register */
 #define ENA_REGS_VERSION_MINOR_VERSION_MASK		0xff
@@ -304,5 +315,10 @@ struct ena_regs_ena_registers {
 #define ENA_REGS_MMIO_REG_READ_REQ_ID_MASK		0xffff
 #define ENA_REGS_MMIO_REG_READ_REG_OFF_SHIFT		16
 #define ENA_REGS_MMIO_REG_READ_REG_OFF_MASK		0xffff0000
+
+/* rss_ind_entry_update register */
+#define ENA_REGS_RSS_IND_ENTRY_UPDATE_INDEX_MASK		0xffff
+#define ENA_REGS_RSS_IND_ENTRY_UPDATE_CQ_IDX_SHIFT		16
+#define ENA_REGS_RSS_IND_ENTRY_UPDATE_CQ_IDX_MASK		0xffff0000
 
 #endif /*_ENA_REGS_H_ */
