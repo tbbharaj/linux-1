@@ -117,6 +117,10 @@ function commit_tree {
         local _author=$(sed -n -r -e '0,/^(--$|diff -|--- )/p;' <$ptmp | \
             sed -r -e '/From: /!d;s|\s*From:\s*(.+)$|\1|' \
                    -e 's|(\S)[<]|\1 <|')
+        # ignore multiple lines From: 
+        if [[ ! "$_author" =~ ^.*\<.*@.*\>$ ]]; then
+            unset -v _author
+        fi
         local _msg=$(sed -n -r -e '0,/^(--$|diff -|--- )/p;' <$ptmp | \
             sed -r -e '/Subject: /!d;s|\s*Subject:\s*(.+)$|\1|')
     fi
