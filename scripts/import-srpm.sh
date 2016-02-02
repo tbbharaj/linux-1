@@ -22,7 +22,7 @@ function usage {
 Usage : $0 --<series> <src.rpm> <vTAG>
 valid options are:
     --fedoraREL    define and import a Fedora REL package
-                   currently REL in [13..21]
+                   currently REL in [13..29]
 * vTAG is a linux kernel tree version release base tag for the package being
   imported, ie, v2.6.39
 EOF
@@ -37,7 +37,7 @@ declare -a RPM_PREP=(--define 'dist linux')
 while [ $# -gt 0 ] ; do
     case $1 in
         -h | --help ) usage ; exit 0 ;;
-        --fedora1[3-9] | --fedora2[01] )
+        --fedora1[3-9] | --fedora2[0-9] )
             SERIES_NAME=fedora
             SERIES_REL=${1##--fedora}
             RPM_PREP=( --define "dist .fc${SERIES_REL}" \
