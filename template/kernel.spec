@@ -1315,6 +1315,7 @@ fi
 %{_bindir}/trace
 %dir %{_libexecdir}/perf-core
 %{_libexecdir}/perf-core/*
+%{_datadir}/perf-core/*
 %dir %{_libdir}/traceevent/plugins
 %{_libdir}/traceevent/plugins/*
 %{_mandir}/man[1-8]/perf*
