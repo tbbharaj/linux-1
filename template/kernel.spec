@@ -289,6 +289,7 @@ BuildRequires: binutils >= 2.12
 BuildRequires: system-rpm-config, gdb, bc
 BuildRequires: net-tools
 BuildRequires: xmlto, asciidoc
+BuildRequires: openssl-devel
 %if %{with_sparse}
 BuildRequires: sparse >= 0.4.1
 %endif
