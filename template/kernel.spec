@@ -1117,8 +1117,15 @@ tar -f - --exclude=man --exclude='.*' -c Documentation | tar xf - -C $docdir
 
 # Install man pages for the kernel API.
 mkdir -p $man9dir
-find Documentation/DocBook/man -name '*.9.gz' -print0 |
+pushd Documentation/DocBook/man
+for manfile in $(find -type f -name "*.9.gz");
+do
+	# simulate old non-duplicate layout
+	ln -f -s $manfile $(basename $manfile);
+done
+find -maxdepth 1 -type l -name '*.9.gz' -print0 |
 xargs -0 --no-run-if-empty %{__install} -m 444 -t $man9dir $m
+popd
 ls $man9dir | grep -q '' || > $man9dir/BROKEN
 %endif # with_doc
 
