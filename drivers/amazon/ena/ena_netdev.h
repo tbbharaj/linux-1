@@ -33,7 +33,6 @@
 #ifndef ENA_H
 #define ENA_H
 
-#include <linux/bitops.h>
 #include <linux/etherdevice.h>
 #include <linux/inetdevice.h>
 #include <linux/interrupt.h>
@@ -43,11 +42,18 @@
 #include "ena_com.h"
 #include "ena_eth_com.h"
 
+#define DRV_MODULE_VER_MAJOR	0
+#define DRV_MODULE_VER_MINOR	4
+#define DRV_MODULE_VER_SUBMINOR	0
+
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_VERSION
-#define DRV_MODULE_VERSION      "0.3"
+#define DRV_MODULE_VERSION \
+	__stringify(DRV_MODULE_VER_MAJOR) "."	\
+	__stringify(DRV_MODULE_VER_MINOR) "."	\
+	__stringify(DRV_MODULE_VER_SUBMINOR)
 #endif
-#define DRV_MODULE_RELDATE      "2015-10-14"
+#define DRV_MODULE_RELDATE      "2016-02-15"
 
 #define DEVICE_NAME	"Elastic Network Adapter (ENA)"
 
@@ -56,7 +62,6 @@
 
 #define ENA_REG_BAR			0
 #define ENA_MEM_BAR			2
-#define ENA_BAR_MASK (BIT(ENA_REG_BAR) | BIT(ENA_MEM_BAR))
 
 #define ENA_DEFAULT_TX_DESCS	(1024)
 #define ENA_DEFAULT_RX_DESCS	(1024)
@@ -119,6 +124,8 @@
  */
 #define ENA_DEVICE_KALIVE_TIMEOUT	(3 * HZ)
 
+#define ENA_MMIO_DISABLE_REG_READ	BIT(0)
+
 struct ena_irq {
 	irq_handler_t handler;
 	void *data;
@@ -172,6 +179,7 @@ struct ena_stats_tx {
 	u64 tx_poll;
 	u64 doorbells;
 	u64 missing_tx_comp;
+	u64 bad_req_id;
 };
 
 struct ena_stats_rx {
@@ -199,6 +207,7 @@ struct ena_ring {
 	struct pci_dev *pdev;
 	struct napi_struct *napi;
 	struct net_device *netdev;
+	struct ena_com_dev *ena_dev;
 	struct ena_adapter *adapter;
 	struct ena_com_io_cq *ena_com_io_cq;
 	struct ena_com_io_sq *ena_com_io_sq;
@@ -214,7 +223,10 @@ struct ena_ring {
 	enum ena_admin_placement_policy_type tx_mem_queue_type;
 
 	struct ena_com_rx_buf_info ena_bufs[ENA_PKT_MAX_BUFS];
-
+	u32  smoothed_interval;
+	u32  per_napi_packets;
+	u32  per_napi_bytes;
+	enum ena_intr_moder_level moder_tbl_idx;
 	struct u64_stats_sync syncp;
 	union {
 		struct ena_stats_tx tx_stats;
@@ -281,6 +293,7 @@ struct ena_adapter {
 	struct ena_irq irq_tbl[ENA_MAX_MSIX_VEC(ENA_MAX_NUM_IO_QUEUES)];
 
 	/* timer service */
+	struct work_struct reset_task;
 	struct work_struct suspend_io_task;
 	struct work_struct resume_io_task;
 	struct timer_list timer_service;
@@ -297,5 +310,9 @@ struct ena_adapter {
 void ena_set_ethtool_ops(struct net_device *netdev);
 
 void ena_dump_stats_to_dmesg(struct ena_adapter *adapter);
+
+void ena_dump_stats_to_buf(struct ena_adapter *adapter, u8 *buf);
+
+int ena_get_sset_count(struct net_device *netdev, int sset);
 
 #endif /* !(ENA_H) */

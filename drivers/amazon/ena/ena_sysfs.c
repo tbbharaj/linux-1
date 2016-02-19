@@ -39,6 +39,7 @@
 #include "ena_netdev.h"
 #include "ena_sysfs.h"
 
+#define to_ext_attr(x) container_of(x, struct dev_ext_attribute, attr)
 static int ena_validate_small_copy_len(struct ena_adapter *adapter,
 				       unsigned long len)
 {
@@ -91,12 +92,163 @@ static struct device_attribute dev_attr_small_copy_len = {
 	.store = ena_store_small_copy_len,
 };
 
+
+/* adaptive interrupt moderation */
+
+static ssize_t ena_show_intr_moderation(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct ena_intr_moder_entry entry;
+	struct dev_ext_attribute *ea = to_ext_attr(attr);
+	enum ena_intr_moder_level level = (enum ena_intr_moder_level)ea->var;
+	struct ena_adapter *adapter = dev_get_drvdata(dev);
+	ssize_t rc = 0;
+
+	ena_com_get_intr_moderation_entry(adapter->ena_dev, level, &entry);
+
+	rc = sprintf(buf, "%u %u %u\n",
+		     entry.intr_moder_interval,
+		     entry.pkts_per_interval,
+		     entry.bytes_per_interval);
+
+	return rc;
+}
+
+static ssize_t ena_store_intr_moderation(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf,
+					 size_t count)
+{
+	struct ena_intr_moder_entry entry;
+	struct dev_ext_attribute *ea = to_ext_attr(attr);
+	struct ena_adapter *adapter = dev_get_drvdata(dev);
+	enum ena_intr_moder_level level = (enum ena_intr_moder_level)ea->var;
+	int cnt;
+
+	cnt = sscanf(buf, "%u %u %u",
+		     &entry.intr_moder_interval,
+		     &entry.pkts_per_interval,
+		     &entry.bytes_per_interval);
+
+	if (cnt != 3)
+		return -EINVAL;
+
+	ena_com_init_intr_moderation_entry(adapter->ena_dev, level, &entry);
+
+	return count;
+}
+
+static ssize_t ena_store_intr_moderation_restore_default(struct device *dev,
+							 struct device_attribute *attr,
+							 const char *buf,
+							 size_t len)
+{
+	struct ena_adapter *adapter = dev_get_drvdata(dev);
+	struct ena_com_dev *ena_dev = adapter->ena_dev;
+	unsigned long restore_default;
+	int err;
+
+	err = kstrtoul(buf, 10, &restore_default);
+	if (err < 0)
+		return err;
+
+	if (ena_com_interrupt_moderation_supported(ena_dev) && restore_default) {
+		ena_com_config_default_interrupt_moderation_table(ena_dev);
+		ena_com_set_adaptive_moderation_state(ena_dev, true);
+	}
+
+	return len;
+}
+
+static ssize_t ena_store_enable_adaptive_intr_moderation(struct device *dev,
+							 struct device_attribute *attr,
+							 const char *buf,
+							 size_t len)
+{
+	struct ena_adapter *adapter = dev_get_drvdata(dev);
+	unsigned long enable_moderation;
+	bool state;
+	int err;
+
+	err = kstrtoul(buf, 10, &enable_moderation);
+	if (err < 0)
+		return err;
+
+	if ((state != 0) || (state != 1))
+		return -1;
+
+	ena_com_set_adaptive_moderation_state(adapter->ena_dev, state);
+
+	return len;
+}
+
+static ssize_t ena_show_enable_adaptive_intr_moderation(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	struct ena_adapter *adapter = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n",
+		       ena_com_get_adaptive_moderation_state(adapter->ena_dev));
+}
+
+static struct device_attribute dev_attr_enable_adaptive_intr_moderation = {
+	.attr = {.name = "enable_adaptive_intr_moderation", .mode = (S_IRUGO | S_IWUSR)},
+	.show = ena_show_enable_adaptive_intr_moderation,
+	.store = ena_store_enable_adaptive_intr_moderation,
+};
+static struct device_attribute dev_attr_intr_moderation_restore_default = {
+	.attr = {.name = "intr_moderation_restore_default", .mode = (S_IWUSR | S_IWGRP)},
+	.show = NULL,
+	.store = ena_store_intr_moderation_restore_default,
+};
+
+
+#define INTR_MODERATION_PREPARE_ATTR(_name, _type) {			\
+	__ATTR(intr_moderation_##_name, (S_IRUGO | S_IWUSR | S_IWGRP),	\
+		ena_show_intr_moderation, ena_store_intr_moderation), \
+		(void *)_type }
+
+/* Device attrs - intr moderation */
+static struct dev_ext_attribute dev_attr_intr_moderation[] = {
+	INTR_MODERATION_PREPARE_ATTR(lowest, ENA_INTR_MODER_LOWEST),
+	INTR_MODERATION_PREPARE_ATTR(low, ENA_INTR_MODER_LOW),
+	INTR_MODERATION_PREPARE_ATTR(mid, ENA_INTR_MODER_MID),
+	INTR_MODERATION_PREPARE_ATTR(high, ENA_INTR_MODER_HIGH),
+	INTR_MODERATION_PREPARE_ATTR(highest, ENA_INTR_MODER_HIGHEST),
+};
+
 /******************************************************************************
  *****************************************************************************/
 int ena_sysfs_init(struct device *dev)
 {
+	int i, rc;
+	struct ena_adapter *adapter = dev_get_drvdata(dev);
 	if (device_create_file(dev, &dev_attr_small_copy_len))
-		dev_info(dev, "failed to create small_copy_len sysfs entry");
+		dev_err(dev, "failed to create small_copy_len sysfs entry");
+
+	if (ena_com_interrupt_moderation_supported(adapter->ena_dev)) {
+		if (device_create_file(dev,
+				       &dev_attr_intr_moderation_restore_default))
+			dev_err(dev,
+				"failed to create intr_moderation_restore_default");
+
+		if (device_create_file(dev,
+				       &dev_attr_enable_adaptive_intr_moderation))
+			dev_err(dev,
+				"failed to create adaptive_intr_moderation_enable");
+
+		for (i = 0; i < ARRAY_SIZE(dev_attr_intr_moderation); i++) {
+			rc = sysfs_create_file(&dev->kobj,
+					       &dev_attr_intr_moderation[i].attr.attr);
+			if (rc) {
+				dev_err(dev,
+					"%s: sysfs_create_file(intr_moderation %d) failed\n",
+					__func__, i);
+				return rc;
+			}
+		}
+	}
 
 	return 0;
 }
@@ -105,5 +257,16 @@ int ena_sysfs_init(struct device *dev)
  *****************************************************************************/
 void ena_sysfs_terminate(struct device *dev)
 {
+	struct ena_adapter *adapter = dev_get_drvdata(dev);
+	int i;
 	device_remove_file(dev, &dev_attr_small_copy_len);
+	if (ena_com_interrupt_moderation_supported(adapter->ena_dev)) {
+		for (i = 0; i < ARRAY_SIZE(dev_attr_intr_moderation); i++)
+			sysfs_remove_file(&dev->kobj,
+					  &dev_attr_intr_moderation[i].attr.attr);
+		device_remove_file(dev,
+				   &dev_attr_enable_adaptive_intr_moderation);
+		device_remove_file(dev,
+				   &dev_attr_intr_moderation_restore_default);
+	}
 }
