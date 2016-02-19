@@ -323,6 +323,10 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 		ENA_ETH_IO_TX_DESC_REQ_ID_LO_SHIFT) &
 		ENA_ETH_IO_TX_DESC_REQ_ID_LO_MASK;
 
+	desc->meta_ctrl |= (ena_tx_ctx->df <<
+		ENA_ETH_IO_TX_DESC_DF_SHIFT) &
+		ENA_ETH_IO_TX_DESC_DF_MASK;
+
 	/* Bits 10-15 */
 	desc->len_ctrl |= ((ena_tx_ctx->req_id >> 10) <<
 		ENA_ETH_IO_TX_DESC_REQ_ID_HI_SHIFT) &
