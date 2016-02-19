@@ -368,6 +368,17 @@ struct ena_eth_io_rx_cdesc_ext {
 	u32 reserved_w7;
 };
 
+/* ENA Interrupt Unmask Register */
+struct ena_eth_io_intr_reg {
+	/* word 0 : */
+	/* 14:0 : rx_intr_delay - rx interrupt delay value
+	 * 29:15 : tx_intr_delay - tx interrupt delay value
+	 * 30 : intr_unmask - if set, unmasks interrupt
+	 * 31 : reserved
+	 */
+	u32 intr_control;
+};
+
 /* tx_desc */
 #define ENA_ETH_IO_TX_DESC_LENGTH_MASK GENMASK(15, 0)
 #define ENA_ETH_IO_TX_DESC_REQ_ID_HI_SHIFT 16
@@ -487,5 +498,12 @@ struct ena_eth_io_rx_cdesc_ext {
 #define ENA_ETH_IO_RX_CDESC_BASE_INR_L4_CSUM_MASK BIT(28)
 #define ENA_ETH_IO_RX_CDESC_BASE_BUFFER_SHIFT 30
 #define ENA_ETH_IO_RX_CDESC_BASE_BUFFER_MASK BIT(30)
+
+/* intr_reg */
+#define ENA_ETH_IO_INTR_REG_RX_INTR_DELAY_MASK GENMASK(14, 0)
+#define ENA_ETH_IO_INTR_REG_TX_INTR_DELAY_SHIFT 15
+#define ENA_ETH_IO_INTR_REG_TX_INTR_DELAY_MASK GENMASK(29, 15)
+#define ENA_ETH_IO_INTR_REG_INTR_UNMASK_SHIFT 30
+#define ENA_ETH_IO_INTR_REG_INTR_UNMASK_MASK BIT(30)
 
 #endif /*_ENA_ETH_IO_H_ */

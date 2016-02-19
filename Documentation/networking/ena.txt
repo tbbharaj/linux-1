@@ -173,12 +173,27 @@ modes. That is, once MSI-X is delivered to the host, its Cause bit is
 automatically cleared and the interrupt is masked. The interrupt is
 unmasked by the driver after NAPI processing is complete.
 
-The driver can operate in conventional interrupt coalescing mode
-(parameters are configured through ethtool(8)) or adaptive interrupt
-coalescing mode (parameters are configured through sysfs).
-
-Interrupt mode is set through SetFeature AQ command
-(ENA_ADMIN_INTERRUPT_MODERATION property)
+Interrupt Moderation:
+=====================
+ENA driver and device can operate in conventional or adaptive interrupt 
+moderation mode. 
+In conventional mode the driver instructs device to postpone interrupt posting
+according to static interrupt delay value. The interrupt delay value can be 
+configured through ethtool(8). The following ethtool parameters are supported
+by the driver: tx-usecs, rx-usecs
+In adaptive interrupt moderation mode the interrupt delay value is updated by 
+the driver dynamically and adjusted every NAPI cycle according to the traffic
+nature.
+By default ENA driver applies adaptive coalescing on Rx traffic and conventional
+coalescing on Tx traffic.
+Adaptive coalescing can be switched on/off through ethtool(8) adaptive_rx on|off
+parameter.
+The driver chooses interrupt delay value according to the number of bytes and
+packets received between interrupt unmasking and interrupt posting. The driver
+uses interrupt delay table that subdivides the range of received bytes/packets
+into 5 levels and assignes interrupt delay value to each level.
+The user can enable/disable adaptive moderation, modify the interrupt delay table
+and restore its default values through sysfs.      
 
 Memory Allocations:
 ===================
