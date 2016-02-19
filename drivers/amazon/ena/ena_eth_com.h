@@ -36,6 +36,8 @@
 #include "ena_com.h"
 
 #define ENA_MAX_PUSH_PKT_SIZE 128
+/* head update threshold in units of (queue size / ENA_COMP_HEAD_THRESH) */
+#define ENA_COMP_HEAD_THRESH 4
 
 struct ena_com_tx_ctx {
 	struct ena_com_tx_meta ena_meta;
@@ -52,11 +54,12 @@ struct ena_com_tx_ctx {
 	 */
 	u16 header_len;
 
-	bool meta_valid;
-	bool tso_enable;
-	bool l3_csum_enable;
-	bool l4_csum_enable;
-	bool l4_csum_partial;
+	u8 meta_valid;
+	u8 tso_enable;
+	u8 l3_csum_enable;
+	u8 l4_csum_enable;
+	u8 l4_csum_partial;
+	u8 df; /* Don't fragment */
 };
 
 struct ena_com_rx_ctx {
@@ -86,9 +89,10 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 
 int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq, u16 *req_id);
 
-static inline void ena_com_unmask_intr(struct ena_com_io_cq *io_cq)
+static inline void ena_com_unmask_intr(struct ena_com_io_cq *io_cq,
+				       struct ena_eth_io_intr_reg *intr_reg)
 {
-	writel(io_cq->unmask_val, io_cq->unmask_reg);
+	writel(intr_reg->intr_control, io_cq->unmask_reg);
 }
 
 static inline int ena_com_sq_empty_space(struct ena_com_io_sq *io_sq)
@@ -108,9 +112,29 @@ static inline int ena_com_write_sq_doorbell(struct ena_com_io_sq *io_sq)
 
 	tail = io_sq->tail;
 
-	ena_trc_dbg("write db for queue: %d tail: %d\n", io_sq->qid, tail);
+	ena_trc_dbg("write submission queue doorbell for queue: %d tail: %d\n",
+		    io_sq->qid, tail);
 
 	writel(tail, io_sq->db_addr);
+
+	return 0;
+}
+
+static inline int ena_com_update_dev_comp_head(struct ena_com_io_cq *io_cq)
+{
+	u16 unreported_comp, head;
+	bool need_update;
+
+	head = io_cq->head;
+	unreported_comp = head - io_cq->last_head_update;
+	need_update = unreported_comp > (io_cq->q_depth / ENA_COMP_HEAD_THRESH);
+
+	if (io_cq->cq_head_db_reg && need_update) {
+		ena_trc_dbg("Write completion queue doorbell for queue %d: head: %d\n",
+			    io_cq->qid, head);
+		writel(head, io_cq->cq_head_db_reg);
+		io_cq->last_head_update = head;
+	}
 
 	return 0;
 }

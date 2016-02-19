@@ -151,7 +151,7 @@ enum ena_admin_aq_feature_id {
 	/* overlay tunnels configuration */
 	ENA_ADMIN_TUNNEL_CONFIG = 19,
 
-	/* interrupt moderation: count,interval,adaptive */
+	/* interrupt moderation parameters */
 	ENA_ADMIN_INTERRUPT_MODERATION = 20,
 
 	/* 1588v2 and Timing configuration */
@@ -530,14 +530,6 @@ struct ena_admin_acq_create_cq_resp_desc {
 	 * PCIe MMIO REG BAR
 	 */
 	u32 cq_interrupt_unmask_register;
-
-	/* word 6 : value to be written into interrupt unmask register */
-	u32 cq_interrupt_unmask_value;
-
-	/* word 7 : interrupt moderation register address as an offset into
-	 * PCIe MMIO REG BAR. 1 usec granularity
-	 */
-	u32 cq_interrupt_moderation_register;
 };
 
 /* ENA AQ Destroy Completion Queue command. Placed in control buffer
@@ -736,17 +728,27 @@ struct ena_admin_set_feature_mtu_desc {
 
 /* ENA host attributes Set Feature descriptor. */
 struct ena_admin_set_feature_host_attr_desc {
-	/* word 0 : driver version */
-	u32 driver_version;
+	/* words 0:1 : host OS info base address in OS memory. host info is
+	 * 4KB of physically contiguous
+	 */
+	struct ena_common_mem_addr os_info_ba;
+
+	/* words 2:3 : host debug area base address in OS memory. debug
+	 * area must be physically contiguous
+	 */
+	struct ena_common_mem_addr debug_ba;
+
+	/* word 4 : debug area size */
+	u32 debug_area_size;
 };
 
-/* ENA Interrupt Moderation metrics. */
-struct ena_admin_intr_moder_metrics_desc {
+/* ENA Interrupt Moderation Get Feature descriptor. */
+struct ena_admin_feature_intr_moder_desc {
 	/* word 0 : */
-	u16 count;
+	/* interrupt delay granularity in usec */
+	u16 intr_delay_resolution;
 
-	/* interval in us */
-	u16 interval;
+	u16 reserved;
 };
 
 /* ENA Link Get Feature descriptor. */
@@ -765,27 +767,6 @@ struct ena_admin_get_feature_link_desc {
 	 * 31:2 : reserved2
 	 */
 	u32 flags;
-};
-
-/* ENA Interrupt Moderation Set Feature descriptor. */
-struct ena_admin_set_feature_intr_moder_desc {
-	/* word 0 : */
-	/* associated queue id. */
-	u16 cq_idx;
-
-	/* 2:0 : sq_direction - 0x1 - Tx; 0x2 - Rx */
-	u8 queue_identity;
-
-	u8 reserved1;
-
-	/* word 1 : */
-	/* 0 : enable
-	 * 31:1 : reserved1
-	 */
-	u32 flags;
-
-	/* words 2 :  */
-	struct ena_admin_intr_moder_metrics_desc intr_moder_metrics;
 };
 
 /* ENA AENQ Feature descriptor. */
@@ -971,6 +952,53 @@ struct ena_admin_feature_rss_flow_hash_input {
 	u16 enabled_input_sort;
 };
 
+/* Operating system type */
+enum ena_admin_os_type {
+	/* Linux OS */
+	ENA_ADMIN_OS_LINUX = 1,
+
+	/* Windows OS */
+	ENA_ADMIN_OS_WIN = 2,
+
+	/* DPDK OS */
+	ENA_ADMIN_OS_DPDK = 3,
+
+	/* FreeBSD OS */
+	ENA_ADMIN_OS_FREE_BSD = 4,
+
+	/* PXE OS */
+	ENA_ADMIN_OS_PXE = 5,
+};
+
+/* host info */
+struct ena_admin_host_info {
+	/* word 0 : OS type defined in enum ena_os_type */
+	u32 os_type;
+
+	/* os distribution string format */
+	u8 os_dist_str[128];
+
+	/* word 33 : OS distribution numeric format */
+	u32 os_dist;
+
+	/* kernel version string format */
+	u8 kernel_ver_str[32];
+
+	/* word 42 : Kernel version numeric format */
+	u32 kernel_ver;
+
+	/* word 43 : */
+	/* driver version
+	 * 7:0 : major - major
+	 * 15:8 : minor - minor
+	 * 23:16 : sub_minor - sub minor
+	 */
+	u32 driver_version;
+
+	/* features bitmap */
+	u32 supported_network_features[4];
+};
+
 /* ENA RSS indirection table entry */
 struct ena_admin_rss_ind_table_entry {
 	/* word 0 : */
@@ -1057,6 +1085,9 @@ struct ena_admin_get_feat_resp {
 
 		/* words 2:3 : rss indirection table */
 		struct ena_admin_feature_rss_ind_table ind_table;
+
+		/* words 2 : interrupt moderation configuration */
+		struct ena_admin_feature_intr_moder_desc intr_moderation;
 	} u;
 };
 
@@ -1083,9 +1114,6 @@ struct ena_admin_set_feat_cmd {
 
 		/* words 5:7 : host attributes */
 		struct ena_admin_set_feature_host_attr_desc host_attr;
-
-		/* words 5:7 : interrupt moderation */
-		struct ena_admin_set_feature_intr_moder_desc intr_moder;
 
 		/* words 5:6 : AENQ configuration */
 		struct ena_admin_feature_aenq_desc aenq;
@@ -1225,10 +1253,6 @@ struct ena_admin_ena_mmio_req_read_less_resp {
 #define ENA_ADMIN_GET_FEATURE_LINK_DESC_DUPLEX_SHIFT 1
 #define ENA_ADMIN_GET_FEATURE_LINK_DESC_DUPLEX_MASK BIT(1)
 
-/* set_feature_intr_moder_desc */
-#define ENA_ADMIN_SET_FEATURE_INTR_MODER_DESC_SQ_DIRECTION_MASK GENMASK(2, 0)
-#define ENA_ADMIN_SET_FEATURE_INTR_MODER_DESC_ENABLE_MASK BIT(0)
-
 /* feature_offload_desc */
 #define ENA_ADMIN_FEATURE_OFFLOAD_DESC_TX_L3_CSUM_IPV4_MASK BIT(0)
 #define ENA_ADMIN_FEATURE_OFFLOAD_DESC_TX_L4_IPV4_CSUM_PART_SHIFT 1
@@ -1269,6 +1293,13 @@ struct ena_admin_ena_mmio_req_read_less_resp {
 #define ENA_ADMIN_FEATURE_RSS_FLOW_HASH_INPUT_ENABLE_L3_SORT_MASK BIT(1)
 #define ENA_ADMIN_FEATURE_RSS_FLOW_HASH_INPUT_ENABLE_L4_SORT_SHIFT 2
 #define ENA_ADMIN_FEATURE_RSS_FLOW_HASH_INPUT_ENABLE_L4_SORT_MASK BIT(2)
+
+/* host_info */
+#define ENA_ADMIN_HOST_INFO_MAJOR_MASK GENMASK(7, 0)
+#define ENA_ADMIN_HOST_INFO_MINOR_SHIFT 8
+#define ENA_ADMIN_HOST_INFO_MINOR_MASK GENMASK(15, 8)
+#define ENA_ADMIN_HOST_INFO_SUB_MINOR_SHIFT 16
+#define ENA_ADMIN_HOST_INFO_SUB_MINOR_MASK GENMASK(23, 16)
 
 /* aenq_common_desc */
 #define ENA_ADMIN_AENQ_COMMON_DESC_PHASE_MASK BIT(0)

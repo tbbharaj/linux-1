@@ -399,8 +399,7 @@ static void ena_com_handle_single_admin_completion(struct ena_com_admin_queue *a
 		complete(&comp_ctx->wait_event);
 }
 
-static void ena_com_handle_admin_completion(
-		struct ena_com_admin_queue *admin_queue)
+static void ena_com_handle_admin_completion(struct ena_com_admin_queue *admin_queue)
 {
 	struct ena_admin_acq_entry *cqe = NULL;
 	u16 comp_num = 0;
@@ -410,12 +409,14 @@ static void ena_com_handle_admin_completion(
 	head_masked = admin_queue->cq.head & (admin_queue->q_depth - 1);
 	phase = admin_queue->cq.phase;
 
-	rmb();
 	cqe = &admin_queue->cq.entries[head_masked];
 
 	/* Go over all the completions */
 	while ((cqe->acq_common_descriptor.flags &
 			ENA_ADMIN_ACQ_COMMON_DESC_PHASE_MASK) == phase) {
+		/* Do not read the rest of the completion entry before the
+		 * phase bit was validated */
+		rmb();
 		ena_com_handle_single_admin_completion(admin_queue, cqe);
 
 		head_masked++;
@@ -425,7 +426,6 @@ static void ena_com_handle_admin_completion(
 			phase = !phase;
 		}
 
-		rmb();
 		cqe = &admin_queue->cq.entries[head_masked];
 	}
 
@@ -567,6 +567,12 @@ static u32 ena_com_reg_bar_read32(struct ena_com_dev *ena_dev, u16 offset)
 
 	might_sleep();
 
+	/* If readless is disabled, perform regular read */
+	if (!mmio_read->readless_supported) {
+		u8 *addr = (u8 *)((uintptr_t)ena_dev->reg_bar + offset);
+		return readl(addr);
+	}
+
 	spin_lock_irqsave(&mmio_read->lock, flags);
 	mmio_read->seq_num++;
 
@@ -657,8 +663,8 @@ static int ena_com_destroy_io_sq(struct ena_com_dev *ena_dev,
 					    (struct ena_admin_acq_entry *)&destroy_resp,
 					    sizeof(destroy_resp));
 
-	if (unlikely(ret))
-		ena_trc_err("failed to create io cq error: %d\n", ret);
+	if (unlikely(ret && (ret != -ENODEV)))
+		ena_trc_err("failed to destroy io sq error: %d\n", ret);
 
 	return ret;
 }
@@ -748,7 +754,7 @@ static int ena_com_get_feature_ex(struct ena_com_dev *ena_dev,
 	}
 
 	if (!ena_com_check_supported_feature_id(ena_dev, feature_id)) {
-		ena_trc_err("Feature %d isn't supported\n", feature_id);
+		ena_trc_info("Feature %d isn't supported\n", feature_id);
 		return -EPERM;
 	}
 
@@ -1048,6 +1054,41 @@ static int ena_com_ind_tbl_convert_from_device(struct ena_com_dev *ena_dev)
 	return 0;
 }
 
+static int ena_com_init_intrrupt_moderation_table(struct ena_com_dev *ena_dev)
+{
+	size_t size;
+
+	size = sizeof(struct ena_intr_moder_entry) * ENA_INTR_MAX_NUM_OF_LEVELS;
+
+	ena_dev->intr_moder_tbl = devm_kzalloc(ena_dev->dmadev, size, GFP_KERNEL);
+	if (!ena_dev->intr_moder_tbl)
+		return -ENOMEM;
+
+	ena_com_config_default_interrupt_moderation_table(ena_dev);
+
+	return 0;
+}
+
+static void ena_com_update_intr_delay_resolution(struct ena_com_dev *ena_dev,
+						 unsigned int intr_delay_resolution)
+{
+	struct ena_intr_moder_entry *intr_moder_tbl = ena_dev->intr_moder_tbl;
+	unsigned int i;
+
+	if (!intr_delay_resolution) {
+		ena_trc_err("Illegal intr_delay_resolution provided. Going to use default 1 usec resolution\n");
+		intr_delay_resolution = 1;
+	}
+	ena_dev->intr_delay_resolution = intr_delay_resolution;
+
+	/* update Rx */
+	for (i = 0; i < ENA_INTR_MAX_NUM_OF_LEVELS; i++)
+		intr_moder_tbl[i].intr_moder_interval /= intr_delay_resolution;
+
+	/* update Tx */
+	ena_dev->intr_moder_tx_interval /= intr_delay_resolution;
+}
+
 /*****************************************************************************/
 /*******************************      API       ******************************/
 /*****************************************************************************/
@@ -1127,7 +1168,10 @@ int ena_com_create_io_cq(struct ena_com_dev *ena_dev,
 
 	io_cq->unmask_reg = (u32 __iomem *)((uintptr_t)ena_dev->reg_bar +
 		cmd_completion.cq_interrupt_unmask_register);
-	io_cq->unmask_val = cmd_completion.cq_interrupt_unmask_value;
+
+	if (cmd_completion.cq_head_db_offset)
+		io_cq->cq_head_db_reg = (u32 *)((u8 *)ena_dev->reg_bar +
+			cmd_completion.cq_head_db_offset);
 
 	ena_trc_dbg("created cq[%u], depth[%u]\n", io_cq->idx, io_cq->q_depth);
 
@@ -1200,7 +1244,8 @@ int ena_com_destroy_io_cq(struct ena_com_dev *ena_dev,
 					    (struct ena_admin_acq_entry *)&destroy_resp,
 					    sizeof(destroy_resp));
 
-	if (unlikely(ret))
+
+	if (unlikely(ret && (ret != -ENODEV)))
 		ena_trc_err("Failed to destroy IO CQ. error: %d\n", ret);
 
 	return ret;
@@ -1252,7 +1297,7 @@ int ena_com_set_aenq_config(struct ena_com_dev *ena_dev, u32 groups_flag)
 	}
 
 	if ((get_resp.u.aenq.supported_groups & groups_flag) != groups_flag) {
-		ena_trc_info("Trying to set unsupported aenq events. supported flag: %x asked flag: %x\n",
+		ena_trc_warn("Trying to set unsupported aenq events. supported flag: %x asked flag: %x\n",
 			     get_resp.u.aenq.supported_groups,
 			     groups_flag);
 		return -EPERM;
@@ -1410,8 +1455,16 @@ int ena_com_mmio_reg_read_request_init(struct ena_com_dev *ena_dev)
 
 	mmio_read->read_resp->req_id = 0x0;
 	mmio_read->seq_num = 0x0;
+	mmio_read->readless_supported = true;
 
 	return 0;
+}
+
+void ena_com_set_mmio_read_mode(struct ena_com_dev *ena_dev, bool readless_supported)
+{
+	struct ena_com_mmio_read *mmio_read = &ena_dev->mmio_read;
+
+	mmio_read->readless_supported = readless_supported;
 }
 
 void ena_com_mmio_reg_read_request_destroy(struct ena_com_dev *ena_dev)
@@ -1906,64 +1959,6 @@ int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, int mtu)
 	return 0;
 }
 
-int ena_com_set_interrupt_moderation(struct ena_com_dev *ena_dev, int qid,
-				     bool enable, u16 count, u16 interval)
-{
-	struct ena_com_io_cq *io_cq = &ena_dev->io_cq_queues[qid];
-
-	struct ena_com_admin_queue *admin_queue;
-	struct ena_admin_set_feat_cmd cmd;
-	struct ena_admin_set_feat_resp resp;
-	u8 direction;
-	int ret = 0;
-
-	if (unlikely(!ena_dev)) {
-		ena_trc_err("%s : ena_dev is NULL\n", __func__);
-		return -ENODEV;
-	}
-
-	if (!ena_com_check_supported_feature_id(ena_dev,
-						ENA_ADMIN_INTERRUPT_MODERATION)) {
-		ena_trc_err("Feature %d isn't supported\n",
-			    ENA_ADMIN_INTERRUPT_MODERATION);
-		return -EPERM;
-	}
-
-	memset(&cmd, 0x0, sizeof(cmd));
-	admin_queue = &ena_dev->admin_queue;
-
-	cmd.aq_common_descriptor.opcode = ENA_ADMIN_SET_FEATURE;
-	cmd.aq_common_descriptor.flags = 0;
-	cmd.feat_common.feature_id = ENA_ADMIN_INTERRUPT_MODERATION;
-	cmd.u.intr_moder.cq_idx = io_cq->idx;
-	if (io_cq->direction == ENA_COM_IO_QUEUE_DIRECTION_TX)
-		direction = ENA_ADMIN_SQ_DIRECTION_TX;
-	else
-		direction = ENA_ADMIN_SQ_DIRECTION_RX;
-
-	cmd.u.intr_moder.queue_identity |= direction &
-		ENA_ADMIN_SET_FEATURE_INTR_MODER_DESC_SQ_DIRECTION_MASK;
-
-	if (enable) {
-		cmd.u.intr_moder.flags |=
-			ENA_ADMIN_SET_FEATURE_INTR_MODER_DESC_ENABLE_MASK;
-		cmd.u.intr_moder.intr_moder_metrics.count = count;
-		cmd.u.intr_moder.intr_moder_metrics.interval = interval;
-	}
-
-	ret = ena_com_execute_admin_command(admin_queue,
-					    (struct ena_admin_aq_entry *)&cmd,
-					    sizeof(cmd),
-					    (struct ena_admin_acq_entry *)&resp,
-					    sizeof(resp));
-
-	if (unlikely(ret)) {
-		ena_trc_err("Failed to set interrupt moderation %d\n", ret);
-		return -EINVAL;
-	}
-	return 0;
-}
-
 int ena_com_get_offload_settings(struct ena_com_dev *ena_dev,
 				 struct ena_admin_feature_offload_desc *offload)
 {
@@ -1993,8 +1988,8 @@ int ena_com_set_hash_function(struct ena_com_dev *ena_dev)
 
 	if (!ena_com_check_supported_feature_id(ena_dev,
 						ENA_ADMIN_RSS_HASH_FUNCTION)) {
-		ena_trc_err("Feature %d isn't supported\n",
-			    ENA_ADMIN_RSS_HASH_FUNCTION);
+		ena_trc_info("Feature %d isn't supported\n",
+			     ENA_ADMIN_RSS_HASH_FUNCTION);
 		return -EPERM;
 	}
 
@@ -2157,8 +2152,8 @@ int ena_com_set_hash_ctrl(struct ena_com_dev *ena_dev)
 
 	if (!ena_com_check_supported_feature_id(ena_dev,
 						ENA_ADMIN_RSS_HASH_INPUT)) {
-		ena_trc_err("Feature %d isn't supported\n",
-			    ENA_ADMIN_RSS_HASH_INPUT);
+		ena_trc_info("Feature %d isn't supported\n",
+			     ENA_ADMIN_RSS_HASH_INPUT);
 		return -EPERM;
 	}
 
@@ -2316,8 +2311,8 @@ int ena_com_indirect_table_set(struct ena_com_dev *ena_dev)
 
 	if (!ena_com_check_supported_feature_id(ena_dev,
 						ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG)) {
-		ena_trc_err("Feature %d isn't supported\n",
-			    ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG);
+		ena_trc_info("Feature %d isn't supported\n",
+			     ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG);
 		return -EPERM;
 	}
 
@@ -2429,4 +2424,291 @@ int ena_com_rss_destroy(struct ena_com_dev *ena_dev)
 	memset(&ena_dev->rss, 0x0, sizeof(ena_dev->rss));
 
 	return 0;
+}
+
+int ena_com_allocate_host_attribute(struct ena_com_dev *ena_dev,
+				    u32 debug_area_size)
+{
+	struct ena_host_attribute *host_attr = &ena_dev->host_attr;
+	int rc;
+
+	host_attr->host_info =
+		dma_alloc_coherent(ena_dev->dmadev,
+				   SZ_4K,
+				   &host_attr->host_info_dma_addr,
+				   GFP_KERNEL | __GFP_ZERO);
+	if (unlikely(!host_attr->host_info))
+			return -ENOMEM;
+
+	if (debug_area_size) {
+		host_attr->debug_area_virt_addr =
+			dma_alloc_coherent(ena_dev->dmadev,
+					   debug_area_size,
+					   &host_attr->debug_area_dma_addr,
+					   GFP_KERNEL | __GFP_ZERO);
+		if (unlikely(!host_attr->debug_area_virt_addr)) {
+			rc = -ENOMEM;
+			goto err;
+		}
+	}
+
+	host_attr->debug_area_size = debug_area_size;
+
+	return 0;
+err:
+
+	dma_free_coherent(ena_dev->dmadev,
+			  SZ_4K,
+			  host_attr->host_info,
+			  host_attr->host_info_dma_addr);
+	return rc;
+}
+
+void ena_com_delete_host_attribute(struct ena_com_dev *ena_dev)
+{
+	struct ena_host_attribute *host_attr = &ena_dev->host_attr;
+
+	if (host_attr->host_info) {
+		dma_free_coherent(ena_dev->dmadev,
+				  SZ_4K,
+				  host_attr->host_info,
+				  host_attr->host_info_dma_addr);
+		host_attr->host_info = NULL;
+	}
+
+	if (host_attr->debug_area_virt_addr) {
+		dma_free_coherent(ena_dev->dmadev,
+				  host_attr->debug_area_size,
+				  host_attr->debug_area_virt_addr,
+				  host_attr->debug_area_dma_addr);
+		host_attr->debug_area_virt_addr = NULL;
+	}
+}
+
+int ena_com_set_host_attributes(struct ena_com_dev *ena_dev)
+{
+	struct ena_host_attribute *host_attr = &ena_dev->host_attr;
+	struct ena_com_admin_queue *admin_queue;
+	struct ena_admin_set_feat_cmd cmd;
+	struct ena_admin_set_feat_resp resp;
+
+	int ret = 0;
+
+	if (unlikely(!ena_dev)) {
+		ena_trc_err("%s : ena_dev is NULL\n", __func__);
+		return -ENODEV;
+	}
+
+	if (!ena_com_check_supported_feature_id(ena_dev,
+						ENA_ADMIN_HOST_ATTR_CONFIG)) {
+		ena_trc_warn("Set host attribute isn't supported\n");
+		return -EPERM;
+	}
+
+	memset(&cmd, 0x0, sizeof(cmd));
+	admin_queue = &ena_dev->admin_queue;
+
+	cmd.aq_common_descriptor.opcode = ENA_ADMIN_SET_FEATURE;
+	cmd.feat_common.feature_id = ENA_ADMIN_HOST_ATTR_CONFIG;
+
+	ret = ena_com_mem_addr_set(ena_dev,
+				   &cmd.u.host_attr.debug_ba,
+				   host_attr->debug_area_dma_addr);
+	if (unlikely(ret)) {
+		ena_trc_err("memory address set failed\n");
+		return ret;
+	}
+
+	ret = ena_com_mem_addr_set(ena_dev,
+				   &cmd.u.host_attr.os_info_ba,
+				   host_attr->host_info_dma_addr);
+	if (unlikely(ret)) {
+		ena_trc_err("memory address set failed\n");
+		return ret;
+	}
+
+	cmd.u.host_attr.debug_area_size = host_attr->debug_area_size;
+
+	ret = ena_com_execute_admin_command(admin_queue,
+					    (struct ena_admin_aq_entry *)&cmd,
+					    sizeof(cmd),
+					    (struct ena_admin_acq_entry *)&resp,
+					    sizeof(resp));
+
+	if (unlikely(ret))
+		ena_trc_err("Failed to set host attributes: %d\n", ret);
+
+	return ret;
+}
+
+/* Interrupt moderation */
+bool ena_com_interrupt_moderation_supported(struct ena_com_dev *ena_dev)
+{
+	return ena_com_check_supported_feature_id(ena_dev,
+						  ENA_ADMIN_INTERRUPT_MODERATION);
+}
+
+int ena_com_update_nonadaptive_moderation_interval_tx(struct ena_com_dev *ena_dev,
+						      u32 tx_coalesce_usecs)
+{
+	if (!ena_dev->intr_delay_resolution) {
+		ena_trc_err("Illegal interrupt delay granularity value\n");
+		return -EFAULT;
+	}
+
+	ena_dev->intr_moder_tx_interval = tx_coalesce_usecs /
+		ena_dev->intr_delay_resolution;
+
+	return 0;
+}
+int ena_com_update_nonadaptive_moderation_interval_rx(struct ena_com_dev *ena_dev,
+						      u32 rx_coalesce_usecs)
+{
+	if (!ena_dev->intr_delay_resolution) {
+		ena_trc_err("Illegal interrupt delay granularity value\n");
+		return -EFAULT;
+	}
+
+	/* We use LOWEST entry of moderation table for storing
+	nonadaptive interrupt coalescing values */
+	ena_dev->intr_moder_tbl[ENA_INTR_MODER_LOWEST].intr_moder_interval =
+		rx_coalesce_usecs/ena_dev->intr_delay_resolution;
+
+	return 0;
+}
+
+void ena_com_destroy_interrupt_moderation(struct ena_com_dev *ena_dev)
+{
+	devm_kfree(ena_dev->dmadev, ena_dev->intr_moder_tbl);
+}
+
+int ena_com_init_intrrupt_moderation(struct ena_com_dev *ena_dev)
+{
+	struct ena_admin_get_feat_resp get_resp;
+	u32 delay_resolution;
+	int rc;
+
+	rc = ena_com_get_feature(ena_dev, &get_resp,
+				 ENA_ADMIN_INTERRUPT_MODERATION);
+
+	if (rc) {
+		if (rc == -EPERM) {
+			ena_trc_info("Feature %d isn't supported\n",
+				     ENA_ADMIN_INTERRUPT_MODERATION);
+			rc = 0;
+		} else {
+			ena_trc_err("Failed to get interrupt moderation admin cmd. rc: %d\n",
+				    rc);
+		}
+
+		/* no moderation supported, disable adaptive support  */
+		ena_com_set_adaptive_moderation_state(ena_dev, false);
+		return rc;
+	}
+
+	rc = ena_com_init_intrrupt_moderation_table(ena_dev);
+	if (rc)
+		goto err;
+
+	/* if moderation is supported by device we set adaptive moderation */
+	delay_resolution = get_resp.u.intr_moderation.intr_delay_resolution;
+	ena_com_update_intr_delay_resolution(ena_dev, delay_resolution);
+	ena_com_set_adaptive_moderation_state(ena_dev, true);
+
+	return 0;
+err:
+	ena_com_destroy_interrupt_moderation(ena_dev);
+	return rc;
+}
+
+void ena_com_config_default_interrupt_moderation_table(struct ena_com_dev *ena_dev)
+{
+	struct ena_intr_moder_entry *intr_moder_tbl = ena_dev->intr_moder_tbl;
+
+	if (!intr_moder_tbl)
+		return;
+
+	intr_moder_tbl[ENA_INTR_MODER_LOWEST].intr_moder_interval =
+		ENA_INTR_LOWEST_USECS;
+	intr_moder_tbl[ENA_INTR_MODER_LOWEST].pkts_per_interval =
+		ENA_INTR_LOWEST_PKTS;
+	intr_moder_tbl[ENA_INTR_MODER_LOWEST].bytes_per_interval =
+		ENA_INTR_LOWEST_BYTES;
+
+	intr_moder_tbl[ENA_INTR_MODER_LOW].intr_moder_interval =
+		ENA_INTR_LOW_USECS;
+	intr_moder_tbl[ENA_INTR_MODER_LOW].pkts_per_interval =
+		ENA_INTR_LOW_PKTS;
+	intr_moder_tbl[ENA_INTR_MODER_LOW].bytes_per_interval =
+		ENA_INTR_LOW_BYTES;
+
+	intr_moder_tbl[ENA_INTR_MODER_MID].intr_moder_interval =
+		ENA_INTR_MID_USECS;
+	intr_moder_tbl[ENA_INTR_MODER_MID].pkts_per_interval =
+		ENA_INTR_MID_PKTS;
+	intr_moder_tbl[ENA_INTR_MODER_MID].bytes_per_interval =
+		ENA_INTR_MID_BYTES;
+
+	intr_moder_tbl[ENA_INTR_MODER_HIGH].intr_moder_interval =
+		ENA_INTR_HIGH_USECS;
+	intr_moder_tbl[ENA_INTR_MODER_HIGH].pkts_per_interval =
+		ENA_INTR_HIGH_PKTS;
+	intr_moder_tbl[ENA_INTR_MODER_HIGH].bytes_per_interval =
+		ENA_INTR_HIGH_BYTES;
+
+	intr_moder_tbl[ENA_INTR_MODER_HIGHEST].intr_moder_interval =
+		ENA_INTR_HIGHEST_USECS;
+	intr_moder_tbl[ENA_INTR_MODER_HIGHEST].pkts_per_interval =
+		ENA_INTR_HIGHEST_PKTS;
+	intr_moder_tbl[ENA_INTR_MODER_HIGHEST].bytes_per_interval =
+		ENA_INTR_HIGHEST_BYTES;
+}
+
+unsigned int ena_com_get_nonadaptive_moderation_interval_tx(struct ena_com_dev *ena_dev)
+{
+	return ena_dev->intr_moder_tx_interval;
+}
+
+unsigned int ena_com_get_nonadaptive_moderation_interval_rx(struct ena_com_dev *ena_dev)
+{
+	struct ena_intr_moder_entry *intr_moder_tbl = ena_dev->intr_moder_tbl;
+
+	if (intr_moder_tbl)
+		return intr_moder_tbl[ENA_INTR_MODER_LOWEST].intr_moder_interval;
+
+	return 0;
+}
+
+void ena_com_init_intr_moderation_entry(struct ena_com_dev *ena_dev,
+					enum ena_intr_moder_level level,
+					struct ena_intr_moder_entry *entry)
+{
+	struct ena_intr_moder_entry *intr_moder_tbl = ena_dev->intr_moder_tbl;
+
+	if (level >= ENA_INTR_MAX_NUM_OF_LEVELS)
+		return;
+
+	intr_moder_tbl[level].intr_moder_interval = entry->intr_moder_interval;
+	if (ena_dev->intr_delay_resolution)
+		intr_moder_tbl[level].intr_moder_interval /=
+			ena_dev->intr_delay_resolution;
+	intr_moder_tbl[level].pkts_per_interval = entry->pkts_per_interval;
+	intr_moder_tbl[level].bytes_per_interval = entry->bytes_per_interval;
+}
+
+void ena_com_get_intr_moderation_entry(struct ena_com_dev *ena_dev,
+				       enum ena_intr_moder_level level,
+				       struct ena_intr_moder_entry *entry)
+{
+	struct ena_intr_moder_entry *intr_moder_tbl = ena_dev->intr_moder_tbl;
+
+	if (level >= ENA_INTR_MAX_NUM_OF_LEVELS)
+		return;
+
+	entry->intr_moder_interval = intr_moder_tbl[level].intr_moder_interval;
+	if (ena_dev->intr_delay_resolution)
+		entry->intr_moder_interval *= ena_dev->intr_delay_resolution;
+	entry->pkts_per_interval =
+	intr_moder_tbl[level].pkts_per_interval;
+	entry->bytes_per_interval = intr_moder_tbl[level].bytes_per_interval;
 }
