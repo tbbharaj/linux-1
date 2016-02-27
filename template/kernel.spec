@@ -296,6 +296,7 @@ BuildRequires: sparse >= 0.4.1
 %if %{with_perf}
 BuildRequires: elfutils-devel zlib-devel binutils-devel newt-devel perl(ExtUtils::Embed) bison
 BuildRequires: audit-libs-devel
+BuildRequires: numactl-devel
 %if 0%{?sys_python_pkg:1}
 BuildRequires: %{sys_python_pkg}-devel
 %else
@@ -993,7 +994,7 @@ BuildKernel %make_target %kernel_image
 %endif
 %global perf_make \
   make %{?_smp_mflags} -C tools/perf -s V=1 EXTRA_CFLAGS="-Wno-error=array-bounds" \\\
-  HAVE_CPLUS_DEMANGLE=1 NO_LIBUNWIND=1 NO_GTK2=1 NO_LIBNUMA=1 NO_STRLCPY=1 \\\
+  HAVE_CPLUS_DEMANGLE=1 NO_LIBUNWIND=1 NO_GTK2=1 NO_STRLCPY=1 \\\
   prefix=%{_prefix} \\\
   PYTHON=$perfPYTHON \\\
   PYTHON_INSTALL_LAYOUT="amzn"
