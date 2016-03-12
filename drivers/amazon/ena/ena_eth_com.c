@@ -103,17 +103,12 @@ static inline int ena_com_write_header(struct ena_com_io_sq *io_sq,
 {
 	u16 tail_masked = io_sq->tail & (io_sq->q_depth - 1);
 	u8 __iomem *dev_head_addr =
-		io_sq->header_addr + (tail_masked * ENA_MAX_PUSH_PKT_SIZE);
+		io_sq->header_addr + (tail_masked * io_sq->tx_max_header_size);
 
 	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_HOST)
 		return 0;
 
 	ENA_ASSERT(io_sq->header_addr, "header address is NULL\n");
-
-	if (unlikely(header_len > ENA_MAX_PUSH_PKT_SIZE)) {
-		ena_trc_err("header size is too large\n");
-		return -EINVAL;
-	}
 
 	memcpy_toio(dev_head_addr, head_src, header_len);
 
@@ -184,9 +179,8 @@ static inline bool ena_com_meta_desc_changed(struct ena_com_io_sq *io_sq,
 	return false;
 }
 
-static inline void ena_com_create_and_store_tx_meta_desc(
-	struct ena_com_io_sq *io_sq,
-	struct ena_com_tx_ctx *ena_tx_ctx)
+static inline void ena_com_create_and_store_tx_meta_desc(struct ena_com_io_sq *io_sq,
+							 struct ena_com_tx_ctx *ena_tx_ctx)
 {
 	struct ena_eth_io_tx_meta_desc *meta_desc = NULL;
 	struct ena_com_tx_meta *ena_meta = &ena_tx_ctx->ena_meta;
@@ -290,18 +284,27 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 		return -ENOMEM;
 	}
 
-	have_meta = ena_tx_ctx->meta_valid && ena_com_meta_desc_changed(io_sq,
-			ena_tx_ctx);
-	if (have_meta)
-		ena_com_create_and_store_tx_meta_desc(io_sq, ena_tx_ctx);
-
-	if (unlikely(!num_bufs))
-		return have_meta ? 0 : 1;
+	if (unlikely(header_len > io_sq->tx_max_header_size)) {
+		ena_trc_err("header size is too large %d max header: %d\n",
+			    header_len, io_sq->tx_max_header_size);
+		return -EINVAL;
+	}
 
 	/* start with pushing the header (if needed) */
 	rc = ena_com_write_header(io_sq, push_header, header_len);
 	if (unlikely(rc))
 		return rc;
+
+	have_meta = ena_tx_ctx->meta_valid && ena_com_meta_desc_changed(io_sq,
+			ena_tx_ctx);
+	if (have_meta)
+		ena_com_create_and_store_tx_meta_desc(io_sq, ena_tx_ctx);
+
+	/* If the caller doesn't want send packets */
+	if (unlikely(!num_bufs && !header_len)) {
+		*nb_hw_desc = have_meta ? 0 : 1;
+		return 0;
+	}
 
 	desc = get_sq_desc(io_sq);
 	memset(desc, 0x0, sizeof(struct ena_eth_io_tx_desc));

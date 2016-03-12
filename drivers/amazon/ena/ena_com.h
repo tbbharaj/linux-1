@@ -37,6 +37,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/gfp.h>
 #include <linux/sched.h>
+#include <linux/sizes.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/wait.h>
@@ -208,6 +209,7 @@ struct ena_com_io_sq {
 	u16 idx;
 	u16 tail;
 	u16 next_to_comp;
+	u16 tx_max_header_size;
 	u8 phase;
 	u8 desc_entry_size;
 	u8 dma_addr_bits;
@@ -321,7 +323,7 @@ struct ena_com_dev {
 	struct ena_com_aenq aenq;
 	struct ena_com_io_cq io_cq_queues[ENA_TOTAL_NUM_QUEUES];
 	struct ena_com_io_sq io_sq_queues[ENA_TOTAL_NUM_QUEUES];
-	struct ena_regs_ena_registers __iomem *reg_bar;
+	u8 __iomem *reg_bar;
 	void __iomem *mem_bar;
 	void *dmadev;
 
@@ -329,6 +331,8 @@ struct ena_com_dev {
 
 	u16 stats_func; /* Selected function for extended statistic dump */
 	u16 stats_queue; /* Selected queue for extended statistic dump */
+
+	u16 tx_max_header_size;
 
 	struct ena_com_mmio_read mmio_read;
 
@@ -843,12 +847,12 @@ int ena_com_execute_admin_command(struct ena_com_admin_queue *admin_queue,
 				  struct ena_admin_acq_entry *cmd_comp,
 				  size_t cmd_comp_size);
 
-/* ena_com_init_intrrupt_moderation - Init interrupt moderation
+/* ena_com_init_interrupt_moderation - Init interrupt moderation
  * @ena_dev: ENA communication layer struct
  *
  * @return - 0 on success, negative value on failure.
  */
-int ena_com_init_intrrupt_moderation(struct ena_com_dev *ena_dev);
+int ena_com_init_interrupt_moderation(struct ena_com_dev *ena_dev);
 
 /* ena_com_destroy_interrupt_moderation - Destroy interrupt moderation resources
  * @ena_dev: ENA communication layer struct
@@ -927,15 +931,19 @@ void ena_com_get_intr_moderation_entry(struct ena_com_dev *ena_dev,
 				       enum ena_intr_moder_level level,
 				       struct ena_intr_moder_entry *entry);
 
-static inline bool ena_com_get_adaptive_moderation_state(struct ena_com_dev *ena_dev)
+static inline bool ena_com_get_adaptive_moderation_enabled(struct ena_com_dev *ena_dev)
 {
 	return ena_dev->adaptive_coalescing;
 }
 
-static inline void ena_com_set_adaptive_moderation_state(struct ena_com_dev *ena_dev,
-							 bool state)
+static inline void ena_com_enable_adaptive_moderation(struct ena_com_dev *ena_dev)
 {
-	ena_dev->adaptive_coalescing = state;
+	ena_dev->adaptive_coalescing = true;
+}
+
+static inline void ena_com_disable_adaptive_moderation(struct ena_com_dev *ena_dev)
+{
+	ena_dev->adaptive_coalescing = false;
 }
 
 /* ena_com_calculate_interrupt_delay - Calculate new interrupt delay
@@ -979,16 +987,16 @@ static inline void ena_com_calculate_interrupt_delay(struct ena_com_dev *ena_dev
 
 	if (curr_moder_idx == ENA_INTR_MODER_LOWEST) {
 		if ((pkts > curr_moder_entry->pkts_per_interval) ||
-		   (bytes > curr_moder_entry->bytes_per_interval))
+		    (bytes > curr_moder_entry->bytes_per_interval))
 			new_moder_idx = curr_moder_idx + 1;
 	} else {
 		pred_moder_entry = &intr_moder_tbl[curr_moder_idx - 1];
 
 		if ((pkts <= pred_moder_entry->pkts_per_interval) ||
-		   (bytes <= pred_moder_entry->bytes_per_interval))
+		    (bytes <= pred_moder_entry->bytes_per_interval))
 			new_moder_idx = curr_moder_idx - 1;
 		else if ((pkts > curr_moder_entry->pkts_per_interval) ||
-			(bytes > curr_moder_entry->bytes_per_interval)) {
+			 (bytes > curr_moder_entry->bytes_per_interval)) {
 			if (curr_moder_idx != ENA_INTR_MODER_HIGHEST)
 				new_moder_idx = curr_moder_idx + 1;
 		}
