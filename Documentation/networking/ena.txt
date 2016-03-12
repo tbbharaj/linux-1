@@ -175,13 +175,13 @@ unmasked by the driver after NAPI processing is complete.
 
 Interrupt Moderation:
 =====================
-ENA driver and device can operate in conventional or adaptive interrupt 
-moderation mode. 
+ENA driver and device can operate in conventional or adaptive interrupt
+moderation mode.
 In conventional mode the driver instructs device to postpone interrupt posting
-according to static interrupt delay value. The interrupt delay value can be 
+according to static interrupt delay value. The interrupt delay value can be
 configured through ethtool(8). The following ethtool parameters are supported
 by the driver: tx-usecs, rx-usecs
-In adaptive interrupt moderation mode the interrupt delay value is updated by 
+In adaptive interrupt moderation mode the interrupt delay value is updated by
 the driver dynamically and adjusted every NAPI cycle according to the traffic
 nature.
 By default ENA driver applies adaptive coalescing on Rx traffic and conventional
@@ -192,8 +192,8 @@ The driver chooses interrupt delay value according to the number of bytes and
 packets received between interrupt unmasking and interrupt posting. The driver
 uses interrupt delay table that subdivides the range of received bytes/packets
 into 5 levels and assignes interrupt delay value to each level.
-The user can enable/disable adaptive moderation, modify the interrupt delay table
-and restore its default values through sysfs.      
+The user can enable/disable adaptive moderation, modify the interrupt delay
+table and restore its default values through sysfs.
 
 Memory Allocations:
 ===================
@@ -207,8 +207,7 @@ DMA Coherent buffers are allocated for the following DMA rings:
 - Admin completion ring
 - AENQ ring
 
-The ENA device AQ and AENQ are allocated on probe and freed on
-termination.
+The ENA device AQ and AENQ are allocated on probe and freed ontermination.
 
 Regular allocations:
 - Tx buffers info ring

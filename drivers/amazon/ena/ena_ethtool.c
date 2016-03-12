@@ -304,12 +304,12 @@ static int ena_get_coalesce(struct net_device *net_dev,
 	coalesce->tx_coalesce_usecs =
 		ena_com_get_nonadaptive_moderation_interval_tx(ena_dev) /
 			ena_dev->intr_delay_resolution;
-	if (!ena_com_get_adaptive_moderation_state(ena_dev))
+	if (!ena_com_get_adaptive_moderation_enabled(ena_dev))
 		coalesce->rx_coalesce_usecs =
 			ena_com_get_nonadaptive_moderation_interval_rx(ena_dev)
 			/ ena_dev->intr_delay_resolution;
 	coalesce->use_adaptive_rx_coalesce =
-		ena_com_get_adaptive_moderation_state(ena_dev);
+		ena_com_get_adaptive_moderation_enabled(ena_dev);
 
 	return 0;
 }
@@ -366,9 +366,9 @@ static int ena_set_coalesce(struct net_device *net_dev,
 
 	ena_update_tx_rings_intr_moderation(adapter);
 
-	if (ena_com_get_adaptive_moderation_state(ena_dev)) {
+	if (ena_com_get_adaptive_moderation_enabled(ena_dev)) {
 		if (!coalesce->use_adaptive_rx_coalesce) {
-			ena_com_set_adaptive_moderation_state(ena_dev, false);
+			ena_com_disable_adaptive_moderation(ena_dev);
 			rc = ena_com_update_nonadaptive_moderation_interval_rx(ena_dev,
 									       coalesce->rx_coalesce_usecs);
 			if (rc)
@@ -382,7 +382,7 @@ static int ena_set_coalesce(struct net_device *net_dev,
 		}
 	} else { /* was in non-adaptive mode */
 		if (coalesce->use_adaptive_rx_coalesce) {
-			ena_com_set_adaptive_moderation_state(ena_dev, true);
+			ena_com_enable_adaptive_moderation(ena_dev);
 		} else {
 			rc = ena_com_update_nonadaptive_moderation_interval_rx(ena_dev,
 									       coalesce->rx_coalesce_usecs);
@@ -432,8 +432,8 @@ static void ena_get_ringparam(struct net_device *netdev,
 	struct ena_ring *tx_ring = &adapter->tx_ring[0];
 	struct ena_ring *rx_ring = &adapter->rx_ring[0];
 
-	ring->rx_max_pending = ENA_DEFAULT_RX_DESCS;
-	ring->tx_max_pending = ENA_DEFAULT_TX_DESCS;
+	ring->rx_max_pending = rx_ring->ring_size;
+	ring->tx_max_pending = tx_ring->ring_size;
 	ring->rx_pending = rx_ring->ring_size;
 	ring->tx_pending = tx_ring->ring_size;
 }
@@ -784,7 +784,7 @@ static void ena_dump_stats_ex(struct ena_adapter *adapter, u8 *buf)
 
 	strings_buf = devm_kzalloc(&adapter->pdev->dev,
 				   strings_num * ETH_GSTRING_LEN,
-				   GFP_KERNEL);
+				   GFP_ATOMIC);
 	if (!strings_buf) {
 		netif_err(adapter, drv, netdev,
 			  "failed to alloc strings_buf\n");
@@ -793,7 +793,7 @@ static void ena_dump_stats_ex(struct ena_adapter *adapter, u8 *buf)
 
 	data_buf = devm_kzalloc(&adapter->pdev->dev,
 				strings_num * sizeof(u64),
-				GFP_KERNEL);
+				GFP_ATOMIC);
 	if (!data_buf) {
 		netif_err(adapter, drv, netdev,
 			  "failed to allocate data buf\n");
