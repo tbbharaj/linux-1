@@ -35,7 +35,6 @@
 
 #include "ena_com.h"
 
-#define ENA_MAX_PUSH_PKT_SIZE 128
 /* head update threshold in units of (queue size / ENA_COMP_HEAD_THRESH) */
 #define ENA_COMP_HEAD_THRESH 4
 

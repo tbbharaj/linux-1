@@ -33,6 +33,7 @@
 #ifndef ENA_H
 #define ENA_H
 
+#include <linux/bitops.h>
 #include <linux/etherdevice.h>
 #include <linux/inetdevice.h>
 #include <linux/interrupt.h>
@@ -43,8 +44,8 @@
 #include "ena_eth_com.h"
 
 #define DRV_MODULE_VER_MAJOR	0
-#define DRV_MODULE_VER_MINOR	4
-#define DRV_MODULE_VER_SUBMINOR	0
+#define DRV_MODULE_VER_MINOR	5
+#define DRV_MODULE_VER_SUBMINOR	2
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_VERSION
@@ -53,7 +54,7 @@
 	__stringify(DRV_MODULE_VER_MINOR) "."	\
 	__stringify(DRV_MODULE_VER_SUBMINOR)
 #endif
-#define DRV_MODULE_RELDATE      "2016-02-15"
+#define DRV_MODULE_RELDATE      "10-MARCH-2016"
 
 #define DEVICE_NAME	"Elastic Network Adapter (ENA)"
 
@@ -62,15 +63,11 @@
 
 #define ENA_REG_BAR			0
 #define ENA_MEM_BAR			2
+#define ENA_BAR_MASK (BIT(ENA_REG_BAR) | BIT(ENA_MEM_BAR))
 
-#define ENA_DEFAULT_TX_DESCS	(1024)
-#define ENA_DEFAULT_RX_DESCS	(1024)
+#define ENA_DEFAULT_RING_SIZE	(1024)
 
-#if ((ENA_DEFAULT_TX_DESCS / 4) < (MAX_SKB_FRAGS + 2))
-#define ENA_TX_WAKEUP_THRESH		(ENA_DEFAULT_TX_SW_DESCS / 4)
-#else
 #define ENA_TX_WAKEUP_THRESH		(MAX_SKB_FRAGS + 2)
-#endif
 #define ENA_DEFAULT_SMALL_PACKET_LEN		(128 - NET_IP_ALIGN)
 
 /* minimum the buffer size to 600 to avoid situation the mtu will be changed
@@ -217,6 +214,8 @@ struct ena_ring {
 	u16 rx_small_copy_len;
 	u16 qid;
 	u16 mtu;
+	/* The maximum length the driver can push to the device (For LLQ) */
+	u8 tx_max_header_size;
 
 	int ring_size; /* number of tx/rx_buffer_info's entries */
 

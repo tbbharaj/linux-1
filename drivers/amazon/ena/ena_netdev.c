@@ -41,6 +41,7 @@
 #include <linux/pci.h>
 #include <linux/utsname.h>
 #include <linux/version.h>
+#include <linux/vmalloc.h>
 #include <net/ip.h>
 
 #include "ena_netdev.h"
@@ -77,9 +78,9 @@ static int enable_wd = 1;
 module_param(enable_wd, int, 0);
 MODULE_PARM_DESC(enable_wd, "Enable keepalive watchdog (0=disable,1=enable,default=1)");
 
-static int enable_missing_tx_detection;
+static int enable_missing_tx_detection = 1;
 module_param(enable_missing_tx_detection, int, 0);
-MODULE_PARM_DESC(enable_missing_tx_detection, "Enable missing Tx completions. (default=0)");
+MODULE_PARM_DESC(enable_missing_tx_detection, "Enable missing Tx completions. (default=1)");
 
 static struct ena_aenq_handlers aenq_handlers;
 
@@ -154,6 +155,21 @@ static int ena_init_rx_cpu_rmap(struct ena_adapter *adapter)
 	return 0;
 }
 
+static void ena_init_io_rings_common(struct ena_adapter *adapter,
+				     struct ena_ring *ring, u16 qid)
+{
+	ring->qid = qid;
+	ring->pdev = adapter->pdev;
+	ring->dev = &adapter->pdev->dev;
+	ring->netdev = adapter->netdev;
+	ring->napi = &adapter->ena_napi[qid].napi;
+	ring->adapter = adapter;
+	ring->ena_dev = adapter->ena_dev;
+	ring->per_napi_packets = 0;
+	ring->per_napi_bytes = 0;
+	u64_stats_init(&ring->syncp);
+}
+
 static void ena_init_io_rings(struct ena_adapter *adapter)
 {
 	struct ena_com_dev *ena_dev;
@@ -167,20 +183,12 @@ static void ena_init_io_rings(struct ena_adapter *adapter)
 		rxr = &adapter->rx_ring[i];
 
 		/* TX/RX common ring state */
-		txr->qid     = rxr->qid     = i;
-		txr->pdev    = rxr->pdev    = adapter->pdev;
-		txr->dev     = rxr->dev     = &adapter->pdev->dev;
-		txr->netdev  = rxr->netdev  = adapter->netdev;
-		txr->napi    = rxr->napi    = &adapter->ena_napi[i].napi;
-		txr->adapter = rxr->adapter = adapter;
-		txr->ena_dev = rxr->ena_dev = adapter->ena_dev;
-		txr->per_napi_packets = rxr->per_napi_packets = 0;
-		txr->per_napi_bytes   = rxr->per_napi_bytes = 0;
-		u64_stats_init(&txr->syncp);
-		u64_stats_init(&rxr->syncp);
+		ena_init_io_rings_common(adapter, txr, i);
+		ena_init_io_rings_common(adapter, rxr, i);
 
 		/* TX specific ring state */
 		txr->ring_size = adapter->tx_ring_size;
+		txr->tx_max_header_size = ena_dev->tx_max_header_size;
 		txr->tx_mem_queue_type = ena_dev->tx_mem_queue_type;
 		txr->smoothed_interval =
 			ena_com_get_nonadaptive_moderation_interval_tx(ena_dev);
@@ -650,7 +658,7 @@ static int validate_tx_req_id(struct ena_ring *tx_ring, u16 req_id)
 
 	if (tx_info)
 		netif_err(tx_ring->adapter, tx_done, tx_ring->netdev,
-				  "tx_info doesn't have valid skb\n");
+			  "tx_info doesn't have valid skb\n");
 	else
 		netif_err(tx_ring->adapter, tx_done, tx_ring->netdev,
 			  "Invalid req_id: %hu\n", req_id);
@@ -920,10 +928,7 @@ static inline void ena_rx_checksum(struct ena_ring *rx_ring,
 			return;
 		}
 
-		if (!ena_rx_ctx->frag)
-			skb->ip_summed = CHECKSUM_NONE;
-		else
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 }
 
@@ -1078,7 +1083,6 @@ inline void ena_adjust_intr_moderation(struct ena_ring *rx_ring,
 	rx_ring->per_napi_bytes = 0;
 }
 
-
 static int ena_io_poll(struct napi_struct *napi, int budget)
 {
 	struct ena_napi *ena_napi = container_of(napi, struct ena_napi, napi);
@@ -1104,18 +1108,20 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 
 		napi_comp_call = 1;
 		/* Tx and Rx share the same interrupt vector */
-		if (ena_com_get_adaptive_moderation_state(rx_ring->ena_dev))
+		if (ena_com_get_adaptive_moderation_enabled(rx_ring->ena_dev))
 			ena_adjust_intr_moderation(rx_ring, tx_ring);
 
 		/* Update intr register: rx intr delay, tx intr delay and
-		 * interupt unmask */
+		 * interrupt unmask
+		 */
 		ena_com_update_intr_reg(&intr_reg,
 					rx_ring->smoothed_interval,
 					tx_ring->smoothed_interval,
 					true);
 
-		/*It is a shared MSI-X. Tx and Rx CQ have pointer to it.
-		 * So we use one of them to reach the intr reg */
+		/* It is a shared MSI-X. Tx and Rx CQ have pointer to it.
+		 * So we use one of them to reach the intr reg
+		 */
 		ena_com_unmask_intr(rx_ring->ena_com_io_cq, &intr_reg);
 
 		ret = rx_work_done;
@@ -1154,8 +1160,7 @@ static irqreturn_t ena_intr_msix_io(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int ena_enable_msix(struct ena_adapter *adapter,
-			   int num_queues)
+static int ena_enable_msix(struct ena_adapter *adapter, int num_queues)
 {
 	int i, msix_vecs, rc;
 
@@ -1169,17 +1174,12 @@ static int ena_enable_msix(struct ena_adapter *adapter,
 	msix_vecs = ENA_MAX_MSIX_VEC(num_queues);
 
 	netif_dbg(adapter, probe, adapter->netdev,
-		  "trying to enable MSI-X, vectors %d\n",
-		  msix_vecs);
+		  "trying to enable MSI-X, vectors %d\n", msix_vecs);
 
 	adapter->msix_entries = vzalloc(msix_vecs * sizeof(struct msix_entry));
 
-	if (!adapter->msix_entries) {
-		netif_err(adapter, probe, adapter->netdev,
-			  "Failed to allocate msix_entries, vectors %d\n",
-			  msix_vecs);
+	if (!adapter->msix_entries)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < msix_vecs; i++)
 		adapter->msix_entries[i].entry = i;
@@ -1820,12 +1820,12 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb,
 
 	if (tx_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
 		/* prepared the push buffer */
-		push_len = min_t(u32, len, ENA_MAX_PUSH_PKT_SIZE);
+		push_len = min_t(u32, len, tx_ring->tx_max_header_size);
 		header_len = push_len;
 		push_hdr = skb->data;
 	} else {
 		push_len = 0;
-		header_len = min_t(u32, len, ENA_MAX_PUSH_PKT_SIZE);
+		header_len = min_t(u32, len, tx_ring->tx_max_header_size);
 		push_hdr = NULL;
 	}
 
@@ -2045,6 +2045,7 @@ static void ena_config_host_attribute(struct ena_adapter *adapter)
 {
 	u32 debug_area_size;
 	int rc, ss_count;
+
 	ss_count = ena_get_sset_count(adapter->netdev, ETH_SS_STATS);
 	if (ss_count <= 0) {
 		netif_err(adapter, drv, adapter->netdev,
@@ -2500,7 +2501,7 @@ static void check_for_missing_tx_completions(struct ena_adapter *adapter)
 }
 
 /* Check for keep alive expiration */
-static void check_for_missing_keep_alive(struct ena_adapter* adapter)
+static void check_for_missing_keep_alive(struct ena_adapter *adapter)
 {
 	unsigned long keep_alive_expired;
 
@@ -2519,7 +2520,7 @@ static void check_for_missing_keep_alive(struct ena_adapter* adapter)
 	}
 }
 
-static void check_for_admin_com_state(struct ena_adapter* adapter)
+static void check_for_admin_com_state(struct ena_adapter *adapter)
 {
 	if (unlikely(!ena_com_get_admin_running_state(adapter->ena_dev))) {
 		netif_err(adapter, drv, adapter->netdev,
@@ -2585,19 +2586,25 @@ static int ena_calc_io_queue_num(struct pci_dev *pdev,
 			     get_feat_ctx->max_queues.max_cq_num);
 	/* 1 IRQ for for mgmnt and 1 IRQs for each IO direction */
 	io_queue_num = min_t(int, io_queue_num, pci_msix_vec_count(pdev) - 1);
-
-	ENA_ASSERT(io_queue_num > 0, "Invalid queue number: %d\n",
-		   io_queue_num);
+	if (unlikely(!io_queue_num)) {
+		dev_err(&pdev->dev, "The device doesn't have io queues\n");
+		return -EFAULT;
+	}
 
 	return io_queue_num;
 }
 
-static int ena_set_push_mode(struct pci_dev *pdev, struct ena_com_dev *ena_dev)
+static int ena_set_push_mode(struct pci_dev *pdev, struct ena_com_dev *ena_dev,
+			     struct ena_com_dev_get_features_ctx *get_feat_ctx)
 {
+	bool has_mem_bar;
+
+	has_mem_bar = pci_select_bars(pdev, IORESOURCE_MEM) & BIT(ENA_MEM_BAR);
+
 	switch (push_mode) {
 	case 0:
 		/* Enable push mode if device supports LLQ */
-		if (pdev->device == PCI_DEV_ID_ENA_LLQ_VF)
+		if (has_mem_bar && (get_feat_ctx->max_queues.max_llq_num > 0))
 			ena_dev->tx_mem_queue_type =
 				ENA_ADMIN_PLACEMENT_POLICY_DEV;
 		else
@@ -2608,7 +2615,7 @@ static int ena_set_push_mode(struct pci_dev *pdev, struct ena_com_dev *ena_dev)
 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
 		break;
 	case ENA_ADMIN_PLACEMENT_POLICY_DEV:
-		if (pdev->device != PCI_DEV_ID_ENA_LLQ_VF)
+		if (!has_mem_bar || (get_feat_ctx->max_queues.max_llq_num == 0))
 			return -1;
 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_DEV;
 		break;
@@ -2729,11 +2736,33 @@ static void ena_release_bars(struct ena_com_dev *ena_dev, struct pci_dev *pdev)
 {
 	int release_bars;
 
-	release_bars = (1 << ENA_REG_BAR);
-	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
-		release_bars |= (1 << ENA_MEM_BAR);
-
+	release_bars = pci_select_bars(pdev, IORESOURCE_MEM) & ENA_BAR_MASK;
 	pci_release_selected_regions(pdev, release_bars);
+}
+
+static int ena_calc_queue_size(struct pci_dev *pdev,
+			       struct ena_com_dev *ena_dev,
+			       struct ena_com_dev_get_features_ctx *get_feat_ctx)
+{
+	u32 queue_size = ENA_DEFAULT_RING_SIZE;
+
+	queue_size = min_t(u32, queue_size,
+			   get_feat_ctx->max_queues.max_cq_depth);
+	queue_size = min_t(u32, queue_size,
+			   get_feat_ctx->max_queues.max_sq_depth);
+
+	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
+		queue_size = min_t(u32, queue_size,
+				   get_feat_ctx->max_queues.max_llq_depth);
+
+	queue_size = rounddown_pow_of_two(queue_size);
+
+	if (unlikely(!queue_size)) {
+		dev_err(&pdev->dev, "Invalid queue size\n");
+		return -EFAULT;
+	}
+
+	return queue_size;
 }
 
 /* ena_probe - Device Initialization Routine
@@ -2755,7 +2784,8 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ena_com_dev *ena_dev = NULL;
 	static int adapters_found;
 	int io_queue_num;
-	int regions;
+	int queue_size;
+	int bars;
 	int rc;
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
@@ -2772,23 +2802,14 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_master(pdev);
 	pci_save_state(pdev);
 
-	ena_dev = vzalloc(sizeof(struct ena_com_dev));
+	ena_dev = vzalloc(sizeof(*ena_dev));
 	if (!ena_dev) {
 		rc = -ENOMEM;
 		goto err_disable_device;
 	}
 
-	rc = ena_set_push_mode(pdev, ena_dev);
-	if (rc) {
-		dev_err(&pdev->dev, "Invalid module param(push_mode)\n");
-		goto err_free_ena_dev;
-	}
-
-	regions = (1 << ENA_REG_BAR);
-	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
-		regions |= (1 << ENA_MEM_BAR);
-
-	rc = pci_request_selected_regions(pdev, regions, DRV_MODULE_NAME);
+	bars = pci_select_bars(pdev, IORESOURCE_MEM) & ENA_BAR_MASK;
+	rc = pci_request_selected_regions(pdev, bars, DRV_MODULE_NAME);
 	if (rc) {
 		dev_err(&pdev->dev, "pci_request_selected_regions failed %d\n",
 			rc);
@@ -2803,24 +2824,8 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_free_region;
 	}
 
-	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
-		ena_dev->mem_bar = ioremap_wc(pci_resource_start(pdev, ENA_MEM_BAR),
-					      pci_resource_len(pdev, ENA_MEM_BAR));
-		if (!ena_dev->mem_bar) {
-			rc = -EFAULT;
-			goto err_free_region;
-		}
-	}
-
-	dev_info(&pdev->dev, "mapped bars to %p %p", ena_dev->reg_bar,
-		 ena_dev->mem_bar);
-
 	ena_dev->dmadev = &pdev->dev;
 
-	/* initial Tx interrupt delay, Assumes 1 usec granularity.
-	* Updated during device initialization with the real granularity
-	*/
-	ena_dev->intr_moder_tx_interval = ENA_INTR_INITIAL_TX_INTERVAL_USECS;
 	rc = ena_device_init(ena_dev, pdev, &get_feat_ctx);
 	if (rc) {
 		dev_err(&pdev->dev, "ena device init failed\n");
@@ -2829,8 +2834,34 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_free_region;
 	}
 
+	rc = ena_set_push_mode(pdev, ena_dev, &get_feat_ctx);
+	if (rc) {
+		dev_err(&pdev->dev, "Invalid module param(push_mode)\n");
+		goto err_device_destroy;
+	}
+
+	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
+		ena_dev->mem_bar = ioremap_wc(pci_resource_start(pdev, ENA_MEM_BAR),
+					      pci_resource_len(pdev, ENA_MEM_BAR));
+		if (!ena_dev->mem_bar) {
+			rc = -EFAULT;
+			goto err_device_destroy;
+		}
+	}
+
+	/* initial Tx interrupt delay, Assumes 1 usec granularity.
+	* Updated during device initialization with the real granularity
+	*/
+	ena_dev->intr_moder_tx_interval = ENA_INTR_INITIAL_TX_INTERVAL_USECS;
 	io_queue_num = ena_calc_io_queue_num(pdev, ena_dev, &get_feat_ctx);
-	dev_info(&pdev->dev, "creating %d io queues\n", io_queue_num);
+	queue_size = ena_calc_queue_size(pdev, ena_dev, &get_feat_ctx);
+	if ((queue_size <= 0) || (io_queue_num <= 0)) {
+		rc = -EFAULT;
+		goto err_device_destroy;
+	}
+
+	dev_info(&pdev->dev, "creating %d io queues. queue size: %d\n",
+		 io_queue_num, queue_size);
 
 	/* dev zeroed in init_etherdev */
 	netdev = alloc_etherdev_mq(sizeof(struct ena_adapter), io_queue_num);
@@ -2853,9 +2884,8 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 
-	/* set default ring sizes */
-	adapter->tx_ring_size = ENA_DEFAULT_TX_DESCS;
-	adapter->rx_ring_size = ENA_DEFAULT_RX_DESCS;
+	adapter->tx_ring_size = queue_size;
+	adapter->rx_ring_size = queue_size;
 
 	adapter->num_queues = io_queue_num;
 	adapter->last_monitored_tx_qid = 0;
@@ -2864,7 +2894,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	snprintf(adapter->name, ENA_NAME_MAX_LEN, "ena_%d", adapters_found);
 
-	rc = ena_com_init_intrrupt_moderation(adapter->ena_dev);
+	rc = ena_com_init_interrupt_moderation(adapter->ena_dev);
 	if (rc) {
 		dev_err(&pdev->dev,
 			"Failed to query interrupt moderation feature\n");
@@ -3007,8 +3037,6 @@ static void ena_remove(struct pci_dev *pdev)
 
 	unregister_netdev(dev);
 
-	ena_release_bars(ena_dev, pdev);
-
 	ena_sysfs_terminate(&pdev->dev);
 
 	del_timer_sync(&adapter->timer_service);
@@ -3019,13 +3047,13 @@ static void ena_remove(struct pci_dev *pdev)
 
 	cancel_work_sync(&adapter->resume_io_task);
 
-	free_netdev(dev);
-
 	ena_com_dev_reset(ena_dev);
 
 	ena_free_mgmnt_irq(adapter);
 
 	ena_disable_msix(adapter);
+
+	free_netdev(dev);
 
 	ena_com_mmio_reg_read_request_destroy(ena_dev);
 
@@ -3038,6 +3066,8 @@ static void ena_remove(struct pci_dev *pdev)
 	ena_com_rss_destroy(ena_dev);
 
 	ena_com_delete_host_attribute(ena_dev);
+
+	ena_release_bars(ena_dev, pdev);
 
 	pci_set_drvdata(pdev, NULL);
 
