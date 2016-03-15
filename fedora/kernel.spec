@@ -52,7 +52,7 @@ Summary: The Linux kernel
 %if 0%{?released_kernel}
 
 # Do we have a -stable update to apply?
-%define stable_update 8
+%define stable_update 10
 # Set rpm version accordingly
 %if 0%{?stable_update}
 %define stablerev %{stable_update}
@@ -631,9 +631,6 @@ Patch509: ideapad-laptop-Add-Lenovo-Yoga-3-14-to-no_hw_rfkill-.patch
 #rhbz 1253789
 Patch511: iSCSI-let-session-recovery_tmo-sysfs-writes-persist.patch
 
-#rhbz 1250717
-Patch512: ext4-dont-manipulate-recovery-flag-when-freezing.patch
-
 #CVE-2015-6666 rhbz 1256746 1256753
 Patch513: Revert-sched-x86_64-Don-t-save-flags-on-context-swit.patch
 
@@ -652,6 +649,20 @@ Patch523: RDS-verify-the-underlying-transport-exists-before-cr.patch
 
 #rhbz 1263762
 Patch526: 0001-x86-cpu-cacheinfo-Fix-teardown-path.patch
+
+#CVE-2015-5257 rhbz 1265607 1265612
+Patch527: USB-whiteheat-fix-potential-null-deref-at-probe.patch
+
+#CVE-2015-2925 rhbz 1209367 1209373
+Patch528: dcache-Handle-escaped-paths-in-prepend_path.patch
+Patch529: vfs-Test-for-and-handle-paths-that-are-unreachable-f.patch
+
+#CVE-2015-7613 rhbz 1268270 1268273
+Patch532: Initialize-msg-shm-IPC-objects-before-doing-ipc_addi.patch
+
+#rhbz 1266691
+Patch534: inet-fix-potential-deadlock-in-reqsk_queue_unlink.patch
+Patch535: inet-fix-race-in-reqsk_queue_unlink.patch
 
 # END OF PATCH DEFINITIONS
 
@@ -1402,9 +1413,6 @@ ApplyPatch ideapad-laptop-Add-Lenovo-Yoga-3-14-to-no_hw_rfkill-.patch
 #rhbz 1253789
 ApplyPatch iSCSI-let-session-recovery_tmo-sysfs-writes-persist.patch
 
-#rhbz 1250717
-ApplyPatch ext4-dont-manipulate-recovery-flag-when-freezing.patch
-
 #CVE-2015-6666 rhbz 1256746 1256753
 ApplyPatch Revert-sched-x86_64-Don-t-save-flags-on-context-swit.patch
 
@@ -1423,6 +1431,20 @@ ApplyPatch RDS-verify-the-underlying-transport-exists-before-cr.patch
 
 #rhbz 1263762
 ApplyPatch 0001-x86-cpu-cacheinfo-Fix-teardown-path.patch
+
+#CVE-2015-5257 rhbz 1265607 1265612
+ApplyPatch USB-whiteheat-fix-potential-null-deref-at-probe.patch
+
+#CVE-2015-2925 rhbz 1209367 1209373
+ApplyPatch dcache-Handle-escaped-paths-in-prepend_path.patch
+ApplyPatch vfs-Test-for-and-handle-paths-that-are-unreachable-f.patch
+
+#CVE-2015-7613 rhbz 1268270 1268273
+ApplyPatch Initialize-msg-shm-IPC-objects-before-doing-ipc_addi.patch
+
+#rhbz 1266691
+ApplyPatch inet-fix-potential-deadlock-in-reqsk_queue_unlink.patch
+ApplyPatch inet-fix-race-in-reqsk_queue_unlink.patch
 
 # END OF PATCH APPLICATIONS
 
@@ -2274,6 +2296,22 @@ fi
 #
 # 
 %changelog
+* Mon Oct 05 2015 Josh Boyer <jwboyer@fedoraproject.org> - 4.1.10-200
+- Linxu v4.1.10
+- Add patch to fix soft lockups in network stack (rhbz 1266691)
+
+* Fri Oct 02 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2015-7613 Unauthorized access to IPC via SysV shm (rhbz 1268270 1268273)
+
+* Thu Oct 01 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2015-2925 Don't allow bind mount escape (rhbz 1209367 1209373)
+
+* Tue Sep 29 2015 Josh Boyer <jwboyer@fedoraproject.org> - 4.1.9-200
+- Linux v4.1.9
+
+* Thu Sep 24 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2015-5257 Null ptr deref in usb whiteheat driver (rhbz 1265607 1265612)
+
 * Mon Sep 21 2015 Josh Boyer <jwboyer@fedoraproject.org> - 4.1.8-200
 - Linux v4.1.8
 
