@@ -52,7 +52,7 @@ Summary: The Linux kernel
 %if 0%{?released_kernel}
 
 # Do we have a -stable update to apply?
-%define stable_update 7
+%define stable_update 8
 # Set rpm version accordingly
 %if 0%{?stable_update}
 %define stablerev %{stable_update}
@@ -643,12 +643,15 @@ Patch26265: mmc-sdhci-fix-dma-memory-leak-in-sdhci_pre_req.patch
 #rhbz 1257534
 Patch515: nv46-Change-mc-subdev-oclass-from-nv44-to-nv4c.patch
 
-#rhbz 1212201
-Patch514: drm-qxl-validate-monitors-config-modes.patch
-
 #rhbz 1257500
 Patch517: vmwgfx-Rework-device-initialization.patch
 Patch518: drm-vmwgfx-Allow-dropped-masters-render-node-like-ac.patch
+
+#CVE-2015-6937 rhbz 1263139 1263140
+Patch523: RDS-verify-the-underlying-transport-exists-before-cr.patch
+
+#rhbz 1263762
+Patch526: 0001-x86-cpu-cacheinfo-Fix-teardown-path.patch
 
 # END OF PATCH DEFINITIONS
 
@@ -1411,12 +1414,15 @@ ApplyPatch mmc-sdhci-fix-dma-memory-leak-in-sdhci_pre_req.patch
 #rhbz 1257534
 ApplyPatch nv46-Change-mc-subdev-oclass-from-nv44-to-nv4c.patch
 
-#rhbz 1212201
-ApplyPatch drm-qxl-validate-monitors-config-modes.patch
-
 #rhbz 1257500
 ApplyPatch vmwgfx-Rework-device-initialization.patch
 ApplyPatch drm-vmwgfx-Allow-dropped-masters-render-node-like-ac.patch
+
+#CVE-2015-6937 rhbz 1263139 1263140
+ApplyPatch RDS-verify-the-underlying-transport-exists-before-cr.patch
+
+#rhbz 1263762
+ApplyPatch 0001-x86-cpu-cacheinfo-Fix-teardown-path.patch
 
 # END OF PATCH APPLICATIONS
 
@@ -2268,6 +2274,15 @@ fi
 #
 # 
 %changelog
+* Mon Sep 21 2015 Josh Boyer <jwboyer@fedoraproject.org> - 4.1.8-200
+- Linux v4.1.8
+
+* Fri Sep 18 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- Fix oops in 32-bit kernel on 64-bit AMD cpus (rhbz 1263762)
+
+* Tue Sep 15 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2015-6937 net: rds null pointer (rhbz 1263139 1263140)
+
 * Mon Sep 14 2015 Laura Abbott <labbott@redhat.com> - 4.1.7-200
 - Linux v4.1.7
 
