@@ -40,19 +40,19 @@ Summary: The Linux kernel
 # For non-released -rc kernels, this will be appended after the rcX and
 # gitX tags, so a 3 here would become part of release "0.rcX.gitX.3"
 #
-%global baserelease 201
+%global baserelease 200
 %global fedora_build %{baserelease}
 
 # base_sublevel is the kernel version we're starting with and patching
 # on top of -- for example, 3.1-rc7-git1 starts with a 3.0 base,
 # which yields a base_sublevel of 0.
-%define base_sublevel 2
+%define base_sublevel 3
 
 ## If this is a released kernel ##
 %if 0%{?released_kernel}
 
 # Do we have a -stable update to apply?
-%define stable_update 5
+%define stable_update 4
 # Set rpm version accordingly
 %if 0%{?stable_update}
 %define stablerev %{stable_update}
@@ -378,7 +378,7 @@ BuildRequires: net-tools, hostname, bc
 BuildRequires: sparse
 %endif
 %if %{with_perf}
-BuildRequires: elfutils-devel zlib-devel binutils-devel newt-devel python-devel perl(ExtUtils::Embed) bison flex
+BuildRequires: elfutils-devel zlib-devel binutils-devel newt-devel python-devel perl(ExtUtils::Embed) bison flex xz-devel
 BuildRequires: audit-libs-devel
 %ifnarch s390 s390x %{arm}
 BuildRequires: numactl-devel
@@ -393,8 +393,12 @@ BuildRequires: rpm-build, elfutils
 %define debuginfo_args --strict-build-id -r
 %endif
 
+%ifarch %{ix86} x86_64
+# MODULE_SIG is enabled in config-x86-generic and needs these:
+BuildRequires: openssl openssl-devel
+%endif
+
 %if %{signmodules}
-BuildRequires: openssl
 BuildRequires: pesign >= 0.10-4
 %endif
 
@@ -436,7 +440,7 @@ Source32: config-x86-32-generic
 
 Source40: config-x86_64-generic
 
-Source50: config-powerpc-generic
+Source50: config-powerpc64-generic
 Source53: config-powerpc64
 Source54: config-powerpc64p7
 Source55: config-powerpc64le
@@ -496,137 +500,203 @@ Patch05: kbuild-AFTER_LINK.patch
 
 # Standalone patches
 
-Patch450: input-kill-stupid-messages.patch
-Patch452: no-pcspkr-modalias.patch
+Patch451: lib-cpumask-Make-CPUMASK_OFFSTACK-usable-without-deb.patch
 
-Patch458: regulator-axp20x-module-alias.patch
-Patch470: die-floppy-die.patch
+Patch452: amd-xgbe-a0-Add-support-for-XGBE-on-A0.patch
 
-Patch510: input-silence-i8042-noise.patch
-Patch530: silence-fbcon-logo.patch
+Patch453: amd-xgbe-phy-a0-Add-support-for-XGBE-PHY-on-A0.patch
 
-Patch600: lib-cpumask-Make-CPUMASK_OFFSTACK-usable-without-deb.patch
+Patch454: arm64-avoid-needing-console-to-enable-serial-console.patch
 
-#rhbz 1126580
-Patch601: Kbuild-Add-an-option-to-enable-GCC-VTA.patch
+Patch455: usb-make-xhci-platform-driver-use-64-bit-or-32-bit-D.patch
 
-Patch800: crash-driver.patch
+Patch456: arm64-acpi-drop-expert-patch.patch
 
-# crypto/
+Patch457: ARM-tegra-usb-no-reset.patch
 
-# secure boot
-Patch1000: Add-secure_modules-call.patch
-Patch1001: PCI-Lock-down-BAR-access-when-module-security-is-ena.patch
-Patch1002: x86-Lock-down-IO-port-access-when-module-security-is.patch
-Patch1003: ACPI-Limit-access-to-custom_method.patch
-Patch1004: asus-wmi-Restrict-debugfs-interface-when-module-load.patch
-Patch1005: Restrict-dev-mem-and-dev-kmem-when-module-loading-is.patch
-Patch1006: acpi-Ignore-acpi_rsdp-kernel-parameter-when-module-l.patch
-Patch1007: kexec-Disable-at-runtime-if-the-kernel-enforces-modu.patch
-Patch1008: x86-Restrict-MSR-access-when-module-loading-is-restr.patch
-Patch1009: Add-option-to-automatically-enforce-module-signature.patch
-Patch1010: efi-Disable-secure-boot-if-shim-is-in-insecure-mode.patch
-Patch1011: efi-Make-EFI_SECURE_BOOT_SIG_ENFORCE-depend-on-EFI.patch
-Patch1012: efi-Add-EFI_SECURE_BOOT-bit.patch
-Patch1013: hibernate-Disable-in-a-signed-modules-environment.patch
+Patch458: ARM-dts-Add-am335x-bonegreen.patch
 
-Patch1014: Add-EFI-signature-data-types.patch
-Patch1015: Add-an-EFI-signature-blob-parser-and-key-loader.patch
-Patch1016: KEYS-Add-a-system-blacklist-keyring.patch
-Patch1017: MODSIGN-Import-certificates-from-UEFI-Secure-Boot.patch
-Patch1018: MODSIGN-Support-not-importing-certs-from-db.patch
+Patch459: 0001-watchdog-omap_wdt-fix-null-pointer-dereference.patch
 
-Patch1019: Add-sysrq-option-to-disable-secure-boot-mode.patch
+Patch460: mfd-wm8994-Ensure-that-the-whole-MFD-is-built-into-a.patch
 
-# virt + ksm patches
+Patch463: arm-i.MX6-Utilite-device-dtb.patch
 
-# DRM
+Patch466: input-kill-stupid-messages.patch
 
-# nouveau + drm fixes
-# intel drm is all merged upstream
-Patch1826: drm-i915-hush-check-crtc-state.patch
+Patch467: die-floppy-die.patch
 
-# Quiet boot fixes
+Patch468: no-pcspkr-modalias.patch
 
-# fs fixes
+Patch470: silence-fbcon-logo.patch
 
-# NFSv4
+Patch471: Kbuild-Add-an-option-to-enable-GCC-VTA.patch
 
-# patches headed upstream
-Patch12016: disable-i8042-check-on-apple-mac.patch
+Patch472: crash-driver.patch
 
-Patch14010: lis3-improve-handling-of-null-rate.patch
+Patch473: Add-secure_modules-call.patch
 
-Patch15000: watchdog-Disable-watchdog-on-virtual-machines.patch
+Patch474: PCI-Lock-down-BAR-access-when-module-security-is-ena.patch
 
-# PPC
+Patch475: x86-Lock-down-IO-port-access-when-module-security-is.patch
 
-# ARM64
-Patch16000: amd-xgbe-a0-Add-support-for-XGBE-on-A0.patch
-Patch16001: amd-xgbe-phy-a0-Add-support-for-XGBE-PHY-on-A0.patch
-Patch16002: arm64-avoid-needing-console-to-enable-serial-console.patch
-Patch16003: usb-make-xhci-platform-driver-use-64-bit-or-32-bit-D.patch
-Patch16004: showmem-cma-correct-reserved-memory-calculation.patch
+Patch476: ACPI-Limit-access-to-custom_method.patch
 
-# ARMv7
-Patch16020: ARM-tegra-usb-no-reset.patch
-Patch16021: arm-dts-am335x-boneblack-lcdc-add-panel-info.patch
-Patch16022: arm-dts-am335x-boneblack-add-cpu0-opp-points.patch
-Patch16025: arm-dts-am335x-bone-common-add-uart2_pins-uart4_pins.patch
-Patch16026: pinctrl-pinctrl-single-must-be-initialized-early.patch
+Patch477: asus-wmi-Restrict-debugfs-interface-when-module-load.patch
 
-Patch16028: arm-i.MX6-Utilite-device-dtb.patch
+Patch478: Restrict-dev-mem-and-dev-kmem-when-module-loading-is.patch
 
-#rhbz 754518
-Patch21235: scsi-sd_revalidate_disk-prevent-NULL-ptr-deref.patch
+Patch479: acpi-Ignore-acpi_rsdp-kernel-parameter-when-module-l.patch
 
-# https://fedoraproject.org/wiki/Features/Checkpoint_Restore
-Patch21242: criu-no-expert.patch
+Patch480: kexec-Disable-at-runtime-if-the-kernel-enforces-modu.patch
 
-#rhbz 892811
-Patch21247: ath9k-rx-dma-stop-check.patch
+Patch481: x86-Restrict-MSR-access-when-module-loading-is-restr.patch
 
-#CVE-2015-2150 rhbz 1196266 1200397
-Patch26175: xen-pciback-Don-t-disable-PCI_COMMAND-on-PCI-device-.patch
+Patch482: Add-option-to-automatically-enforce-module-signature.patch
 
-#rhbz 1212230
-Patch26176: Input-synaptics-pin-3-touches-when-the-firmware-repo.patch
+Patch483: efi-Disable-secure-boot-if-shim-is-in-insecure-mode.patch
 
-#rhbz 1133378
-Patch26219: firmware-Drop-WARN-from-usermodehelper_read_trylock-.patch
+Patch484: efi-Make-EFI_SECURE_BOOT_SIG_ENFORCE-depend-on-EFI.patch
 
-#rhbz 1226743
-Patch26221: drm-i915-turn-off-wc-mmaps.patch
+Patch485: efi-Add-EFI_SECURE_BOOT-bit.patch
 
+Patch486: hibernate-Disable-in-a-signed-modules-environment.patch
 
-#rhbz 1244511
-Patch507: HID-chicony-Add-support-for-Acer-Aspire-Switch-12.patch
+Patch487: Add-EFI-signature-data-types.patch
+
+Patch488: Add-an-EFI-signature-blob-parser-and-key-loader.patch
+
+Patch489: KEYS-Add-a-system-blacklist-keyring.patch
+
+Patch490: MODSIGN-Import-certificates-from-UEFI-Secure-Boot.patch
+
+Patch491: MODSIGN-Support-not-importing-certs-from-db.patch
+
+Patch492: Add-sysrq-option-to-disable-secure-boot-mode.patch
+
+Patch493: drm-i915-hush-check-crtc-state.patch
+
+Patch494: disable-i8042-check-on-apple-mac.patch
+
+Patch495: lis3-improve-handling-of-null-rate.patch
+
+Patch496: watchdog-Disable-watchdog-on-virtual-machines.patch
+
+Patch497: scsi-sd_revalidate_disk-prevent-NULL-ptr-deref.patch
+
+Patch498: criu-no-expert.patch
+
+Patch499: ath9k-rx-dma-stop-check.patch
+
+Patch500: xen-pciback-Don-t-disable-PCI_COMMAND-on-PCI-device-.patch
+
+Patch501: Input-synaptics-pin-3-touches-when-the-firmware-repo.patch
+
+Patch502: firmware-Drop-WARN-from-usermodehelper_read_trylock-.patch
+
+Patch503: drm-i915-turn-off-wc-mmaps.patch
 
 Patch508: kexec-uefi-copy-secure_boot-flag-in-boot-params.patch
 
-#rhbz 1239050
-Patch509: ideapad-laptop-Add-Lenovo-Yoga-3-14-to-no_hw_rfkill-.patch
+#CVE-2015-7799 rhbz 1271134 1271135
+Patch512: isdn_ppp-Add-checks-for-allocation-failure-in-isdn_p.patch
+Patch513: ppp-slip-Validate-VJ-compression-slot-parameters-com.patch
 
-#rhbz 1253789
-Patch511: iSCSI-let-session-recovery_tmo-sysfs-writes-persist.patch
+#CVE-2015-8104 rhbz 1278496 1279691
+Patch551: KVM-svm-unconditionally-intercept-DB.patch
 
-#rhbz 1257534
-Patch515: nv46-Change-mc-subdev-oclass-from-nv44-to-nv4c.patch
+#rhbz 1269300
+Patch552: megaraid_sas-Do-not-use-PAGE_SIZE-for-max_sectors.patch
 
-#rhbz 1257500
-Patch517: vmwgfx-Rework-device-initialization.patch
-Patch518: drm-vmwgfx-Allow-dropped-masters-render-node-like-ac.patch
+#rhbz 1275490
+Patch553: ideapad-laptop-Add-Lenovo-Yoga-900-to-no_hw_rfkill-d.patch
 
-#CVE-2015-6937 rhbz 1263139 1263140
-Patch523: RDS-verify-the-underlying-transport-exists-before-cr.patch
+#rhbz 1279189
+Patch556: netfilter-ipset-Fix-extension-alignment.patch
+Patch557: netfilter-ipset-Fix-hash-type-expiration.patch
+Patch558: netfilter-ipset-Fix-hash-type-expire-release-empty-h.patch
 
-#rhbz 1265978
-Patch536: si2168-Bounds-check-firmware.patch
-Patch537: si2157-Bounds-check-firmware.patch
+#rhbz 1284059
+Patch566: KEYS-Fix-handling-of-stored-error-in-a-negatively-in.patch
 
-#rhbz 1272172
-Patch540: 0001-KEYS-Fix-crash-when-attempt-to-garbage-collect-an-un.patch
-Patch541: 0002-KEYS-Don-t-permit-request_key-to-construct-a-new-key.patch
+#CVE-2015-7833 rhbz 1270158 1270160
+Patch567: usbvision-fix-crash-on-detecting-device-with-invalid.patch
+
+#CVE-2015-7515 rhbz 1285326 1285331
+Patch568: Input-aiptek-fix-crash-on-detecting-device-without-e.patch
+
+#rhbz 1287819
+Patch570: HID-multitouch-enable-palm-rejection-if-device-imple.patch
+
+#rhbz 1286293
+Patch571: ideapad-laptop-Add-Lenovo-ideapad-Y700-17ISK-to-no_h.patch
+
+#rhbz 1288687
+Patch572: alua_fix.patch
+
+#CVE-XXXX-XXXX rhbz 1291329 1291332
+Patch574: ovl-fix-permission-checking-for-setattr.patch
+
+#CVE-2015-8709 rhbz 1295287 1295288
+Patch603: ptrace-being-capable-wrt-a-process-requires-mapped-u.patch
+
+#atch604: drm-i915-shut-up-gen8-SDE-irq-dmesg-noise-again.patch
+
+#CVE-2015-7513 rhbz 1284847 1296142
+Patch605: KVM-x86-Reload-pit-counters-for-all-channels-when-re.patch
+
+#rhbz 1296677
+Patch606: HID-multitouch-Fetch-feature-reports-on-demand-for-W.patch
+Patch641: HID-multitouch-fix-input-mode-switching-on-some-Elan.patch
+
+#rhbz 1281368
+Patch607: drm-nouveau-Fix-pre-nv50-pageflip-events-v4.patch
+
+#rhbz 1296820
+Patch608: drm-nouveau-pmu-do-not-assume-a-PMU-is-present.patch
+
+#rhbz 1083853
+Patch610: PNP-Add-Broadwell-to-Intel-MCH-size-workaround.patch
+
+#CVE-2015-7566 rhbz 1296466 1297517
+Patch623: usb-serial-visor-fix-crash-on-detecting-device-witho.patch
+
+#rhbz 1298309
+#atch624: drm-i915-Do-a-better-job-at-disabling-primary-plane-.patch
+
+#rhbz 1298996
+Patch625: block-ensure-to-split-after-potentially-bouncing-a-b.patch
+
+#rhbz 1298192
+Patch626: selinux-fix-bug-in-conditional-rules-handling.patch
+
+#rhbz 1295272
+Patch627: ideapad-laptop-Add-Lenovo-Yoga-700-to-no_hw_rfkill-d.patch
+
+Patch628: i915-stable-backports.patch
+Patch635: nouveau-stable-backports.patch
+
+#rhbz 1299810
+Patch629: SCSI-refactor-device-matching-code-in-scsi_devinfo.c.patch
+Patch630: SCSI-fix-bug-in-scsi_dev_info_list-matching.patch
+
+Patch631: btrfs-handle-invalid-num_stripes-in-sys_array.patch
+Patch632: Btrfs-fix-fitrim-discarding-device-area-reserved-for.patch
+
+#CVE-2013-4312 rhbz 1297813 1300216
+Patch636: unix-properly-account-for-FDs-passed-over-unix-socke.patch
+
+#CVE-2016-0723 rhbz 1296253 1300224
+Patch637: tty-Fix-unsafe-ldisc-reference-via-ioctl-TIOCGETD.patch
+
+#rhbz 1279653
+Patch638: rtlwifi-rtl8821ae-Fix-5G-failure-when-EEPROM-is-inco.patch
+
+#CVE-XXXX-XXXX rhbz 1300731 1300732
+Patch639: netfilter-nf_nat_redirect-add-missing-NULL-pointer-c.patch
+
+#rhbz 1300955
+Patch640: PNP-Add-Haswell-ULT-to-Intel-MCH-size-workaround.patch
 
 # END OF PATCH DEFINITIONS
 
@@ -1192,189 +1262,203 @@ ApplyPatch kbuild-AFTER_LINK.patch
 
 %if !%{nopatches}
 
-# Architecture patches
-# x86(-64)
 ApplyPatch lib-cpumask-Make-CPUMASK_OFFSTACK-usable-without-deb.patch
 
-# PPC
-
-# ARM64
 ApplyPatch amd-xgbe-a0-Add-support-for-XGBE-on-A0.patch
+
 ApplyPatch amd-xgbe-phy-a0-Add-support-for-XGBE-PHY-on-A0.patch
+
 ApplyPatch arm64-avoid-needing-console-to-enable-serial-console.patch
+
 ApplyPatch usb-make-xhci-platform-driver-use-64-bit-or-32-bit-D.patch
 
-ApplyPatch showmem-cma-correct-reserved-memory-calculation.patch
+ApplyPatch arm64-acpi-drop-expert-patch.patch
 
-#
-# ARM
-#
 ApplyPatch ARM-tegra-usb-no-reset.patch
 
-ApplyPatch arm-dts-am335x-boneblack-lcdc-add-panel-info.patch
-ApplyPatch arm-dts-am335x-boneblack-add-cpu0-opp-points.patch
-ApplyPatch arm-dts-am335x-bone-common-add-uart2_pins-uart4_pins.patch
-ApplyPatch pinctrl-pinctrl-single-must-be-initialized-early.patch
+ApplyPatch ARM-dts-Add-am335x-bonegreen.patch
+
+ApplyPatch 0001-watchdog-omap_wdt-fix-null-pointer-dereference.patch
+
+ApplyPatch mfd-wm8994-Ensure-that-the-whole-MFD-is-built-into-a.patch
 
 ApplyPatch arm-i.MX6-Utilite-device-dtb.patch
 
-#
-# bugfixes to drivers and filesystems
-#
-
-# ext4
-
-# xfs
-
-# btrfs
-
-# eCryptfs
-
-# NFSv4
-
-# USB
-
-# WMI
-
-# ACPI
-
-#
-# PCI
-#
-
-#
-# SCSI Bits.
-#
-
-# ACPI
-
-# ALSA
-
-# Networking
-
-# Misc fixes
-# The input layer spews crap no-one cares about.
 ApplyPatch input-kill-stupid-messages.patch
 
-# stop floppy.ko from autoloading during udev...
 ApplyPatch die-floppy-die.patch
 
 ApplyPatch no-pcspkr-modalias.patch
 
-# Silence some useless messages that still get printed with 'quiet'
-ApplyPatch input-silence-i8042-noise.patch
-
-# Make fbcon not show the penguins with 'quiet'
 ApplyPatch silence-fbcon-logo.patch
 
-# Changes to upstream defaults.
-#rhbz 1126580
 ApplyPatch Kbuild-Add-an-option-to-enable-GCC-VTA.patch
 
-# /dev/crash driver.
 ApplyPatch crash-driver.patch
 
-# crypto/
-
-# secure boot
 ApplyPatch Add-secure_modules-call.patch
+
 ApplyPatch PCI-Lock-down-BAR-access-when-module-security-is-ena.patch
+
 ApplyPatch x86-Lock-down-IO-port-access-when-module-security-is.patch
+
 ApplyPatch ACPI-Limit-access-to-custom_method.patch
+
 ApplyPatch asus-wmi-Restrict-debugfs-interface-when-module-load.patch
+
 ApplyPatch Restrict-dev-mem-and-dev-kmem-when-module-loading-is.patch
+
 ApplyPatch acpi-Ignore-acpi_rsdp-kernel-parameter-when-module-l.patch
+
 ApplyPatch kexec-Disable-at-runtime-if-the-kernel-enforces-modu.patch
+
 ApplyPatch x86-Restrict-MSR-access-when-module-loading-is-restr.patch
+
 ApplyPatch Add-option-to-automatically-enforce-module-signature.patch
+
 ApplyPatch efi-Disable-secure-boot-if-shim-is-in-insecure-mode.patch
+
 ApplyPatch efi-Make-EFI_SECURE_BOOT_SIG_ENFORCE-depend-on-EFI.patch
+
 ApplyPatch efi-Add-EFI_SECURE_BOOT-bit.patch
+
 ApplyPatch hibernate-Disable-in-a-signed-modules-environment.patch
 
 ApplyPatch Add-EFI-signature-data-types.patch
+
 ApplyPatch Add-an-EFI-signature-blob-parser-and-key-loader.patch
+
 ApplyPatch KEYS-Add-a-system-blacklist-keyring.patch
+
 ApplyPatch MODSIGN-Import-certificates-from-UEFI-Secure-Boot.patch
+
 ApplyPatch MODSIGN-Support-not-importing-certs-from-db.patch
 
 ApplyPatch Add-sysrq-option-to-disable-secure-boot-mode.patch
 
-# Assorted Virt Fixes
-
-# DRM core
-
-# Nouveau DRM
-
-# Intel DRM
 ApplyPatch drm-i915-hush-check-crtc-state.patch
 
-# Radeon DRM
-
-# Patches headed upstream
 ApplyPatch disable-i8042-check-on-apple-mac.patch
 
 ApplyPatch lis3-improve-handling-of-null-rate.patch
 
-# Disable watchdog on virtual machines.
 ApplyPatch watchdog-Disable-watchdog-on-virtual-machines.patch
 
-#rhbz 754518
 ApplyPatch scsi-sd_revalidate_disk-prevent-NULL-ptr-deref.patch
 
-# https://fedoraproject.org/wiki/Features/Checkpoint_Restore
 ApplyPatch criu-no-expert.patch
 
-#rhbz 892811
 ApplyPatch ath9k-rx-dma-stop-check.patch
 
-#CVE-2015-2150 rhbz 1196266 1200397
 ApplyPatch xen-pciback-Don-t-disable-PCI_COMMAND-on-PCI-device-.patch
 
-#rhbz 1212230
 ApplyPatch Input-synaptics-pin-3-touches-when-the-firmware-repo.patch
 
-#rhbz 1133378
 ApplyPatch firmware-Drop-WARN-from-usermodehelper_read_trylock-.patch
 
-#rhbz 1226743
 ApplyPatch drm-i915-turn-off-wc-mmaps.patch
-
-#rhbz 1212230
-# pplyPatch Input-Revert-Revert-synaptics-use-dmax-in-input_mt_a.patch
-# pplyPatch Input-synaptics-allocate-3-slots-to-keep-stability-i.patch
-# pplyPatch Input-synaptics-pin-3-touches-when-the-firmware-repo.patch
-
-#rhbz 1244511
-ApplyPatch HID-chicony-Add-support-for-Acer-Aspire-Switch-12.patch
 
 ApplyPatch kexec-uefi-copy-secure_boot-flag-in-boot-params.patch
 
-#rhbz 1239050
-ApplyPatch ideapad-laptop-Add-Lenovo-Yoga-3-14-to-no_hw_rfkill-.patch
+#CVE-2015-7799 rhbz 1271134 1271135
+ApplyPatch isdn_ppp-Add-checks-for-allocation-failure-in-isdn_p.patch
+ApplyPatch ppp-slip-Validate-VJ-compression-slot-parameters-com.patch
 
-#rhbz 1253789
-ApplyPatch iSCSI-let-session-recovery_tmo-sysfs-writes-persist.patch
+#CVE-2015-8104 rhbz 1278496 1279691
+ApplyPatch KVM-svm-unconditionally-intercept-DB.patch
 
-#rhbz 1257534
-ApplyPatch nv46-Change-mc-subdev-oclass-from-nv44-to-nv4c.patch
+#rhbz 1269300
+ApplyPatch megaraid_sas-Do-not-use-PAGE_SIZE-for-max_sectors.patch
 
-#rhbz 1257500
-ApplyPatch vmwgfx-Rework-device-initialization.patch
-ApplyPatch drm-vmwgfx-Allow-dropped-masters-render-node-like-ac.patch
+#rhbz 1275490
+ApplyPatch ideapad-laptop-Add-Lenovo-Yoga-900-to-no_hw_rfkill-d.patch
 
-#CVE-2015-6937 rhbz 1263139 1263140
-ApplyPatch RDS-verify-the-underlying-transport-exists-before-cr.patch
+#rhbz 1279189
+ApplyPatch netfilter-ipset-Fix-extension-alignment.patch
+ApplyPatch netfilter-ipset-Fix-hash-type-expiration.patch
+ApplyPatch netfilter-ipset-Fix-hash-type-expire-release-empty-h.patch
 
-ApplyPatch regulator-axp20x-module-alias.patch
+#rhbz 1284059
+ApplyPatch KEYS-Fix-handling-of-stored-error-in-a-negatively-in.patch
 
-#rhbz 1265978
-ApplyPatch si2168-Bounds-check-firmware.patch
-ApplyPatch si2157-Bounds-check-firmware.patch
+#CVE-2015-7833 rhbz 1270158 1270160
+ApplyPatch usbvision-fix-crash-on-detecting-device-with-invalid.patch
 
-#rhbz 1272172
-ApplyPatch 0001-KEYS-Fix-crash-when-attempt-to-garbage-collect-an-un.patch
-ApplyPatch 0002-KEYS-Don-t-permit-request_key-to-construct-a-new-key.patch
+#CVE-2015-7515 rhbz 1285326 1285331
+ApplyPatch Input-aiptek-fix-crash-on-detecting-device-without-e.patch
+
+#rhbz 1287819
+ApplyPatch HID-multitouch-enable-palm-rejection-if-device-imple.patch
+
+#rhbz 1286293
+ApplyPatch ideapad-laptop-Add-Lenovo-ideapad-Y700-17ISK-to-no_h.patch
+
+#rhbz 1288687
+ApplyPatch alua_fix.patch
+
+#CVE-XXXX-XXXX rhbz 1291329 1291332
+ApplyPatch ovl-fix-permission-checking-for-setattr.patch
+
+#CVE-2015-8709 rhbz 1295287 1295288
+ApplyPatch ptrace-being-capable-wrt-a-process-requires-mapped-u.patch
+
+#atch604: drm-i915-shut-up-gen8-SDE-irq-dmesg-noise-again.patch
+
+#CVE-2015-7513 rhbz 1284847 1296142
+ApplyPatch KVM-x86-Reload-pit-counters-for-all-channels-when-re.patch
+
+#rhbz 1296677
+ApplyPatch HID-multitouch-Fetch-feature-reports-on-demand-for-W.patch
+ApplyPatch HID-multitouch-fix-input-mode-switching-on-some-Elan.patch
+
+#rhbz 1281368
+ApplyPatch drm-nouveau-Fix-pre-nv50-pageflip-events-v4.patch
+
+#rhbz 1296820
+ApplyPatch drm-nouveau-pmu-do-not-assume-a-PMU-is-present.patch
+
+#rhbz 1083853
+ApplyPatch PNP-Add-Broadwell-to-Intel-MCH-size-workaround.patch
+
+#CVE-2015-7566 rhbz 1296466 1297517
+ApplyPatch usb-serial-visor-fix-crash-on-detecting-device-witho.patch
+
+#rhbz 1298309
+#atch624: drm-i915-Do-a-better-job-at-disabling-primary-plane-.patch
+
+#rhbz 1298996
+ApplyPatch block-ensure-to-split-after-potentially-bouncing-a-b.patch
+
+#rhbz 1298192
+ApplyPatch selinux-fix-bug-in-conditional-rules-handling.patch
+
+#rhbz 1295272
+ApplyPatch ideapad-laptop-Add-Lenovo-Yoga-700-to-no_hw_rfkill-d.patch
+
+ApplyPatch i915-stable-backports.patch
+ApplyPatch nouveau-stable-backports.patch
+
+#rhbz 1299810
+ApplyPatch SCSI-refactor-device-matching-code-in-scsi_devinfo.c.patch
+ApplyPatch SCSI-fix-bug-in-scsi_dev_info_list-matching.patch
+
+ApplyPatch btrfs-handle-invalid-num_stripes-in-sys_array.patch
+ApplyPatch Btrfs-fix-fitrim-discarding-device-area-reserved-for.patch
+
+#CVE-2013-4312 rhbz 1297813 1300216
+ApplyPatch unix-properly-account-for-FDs-passed-over-unix-socke.patch
+
+#CVE-2016-0723 rhbz 1296253 1300224
+ApplyPatch tty-Fix-unsafe-ldisc-reference-via-ioctl-TIOCGETD.patch
+
+#rhbz 1279653
+ApplyPatch rtlwifi-rtl8821ae-Fix-5G-failure-when-EEPROM-is-inco.patch
+
+#CVE-XXXX-XXXX rhbz 1300731 1300732
+ApplyPatch netfilter-nf_nat_redirect-add-missing-NULL-pointer-c.patch
+
+#rhbz 1300955
+ApplyPatch PNP-Add-Haswell-ULT-to-Intel-MCH-size-workaround.patch
 
 # END OF PATCH APPLICATIONS
 
@@ -1495,10 +1579,8 @@ BuildKernel() {
     cp configs/$Config .config
 
     %if %{signmodules}
-    cp %{SOURCE11} .
+    cp %{SOURCE11} certs/.
     %endif
-
-    chmod +x scripts/sign-file
 
     Arch=`head -1 .config | cut -b 3-`
     echo USING ARCH=$Arch
@@ -1735,8 +1817,8 @@ BuildKernel() {
 
 %if %{signmodules}
     # Save the signing keys so we can sign the modules in __modsign_install_post
-    cp signing_key.priv signing_key.priv.sign${Flav}
-    cp signing_key.x509 signing_key.x509.sign${Flav}
+    cp certs/signing_key.pem certs/signing_key.pem.sign${Flav}
+    cp certs/signing_key.x509 certs/signing_key.x509.sign${Flav}
 %endif
 
     # Move the devel headers out of the root file system
@@ -1831,16 +1913,16 @@ popd
 %define __modsign_install_post \
   if [ "%{signmodules}" -eq "1" ]; then \
     if [ "%{with_pae}" -ne "0" ]; then \
-      %{modsign_cmd} signing_key.priv.sign+%{pae} signing_key.x509.sign+%{pae} $RPM_BUILD_ROOT/lib/modules/%{KVERREL}+%{pae}/ \
+      %{modsign_cmd} certs/signing_key.pem.sign+%{pae} certs/signing_key.x509.sign+%{pae} $RPM_BUILD_ROOT/lib/modules/%{KVERREL}+%{pae}/ \
     fi \
     if [ "%{with_debug}" -ne "0" ]; then \
-      %{modsign_cmd} signing_key.priv.sign+debug signing_key.x509.sign+debug $RPM_BUILD_ROOT/lib/modules/%{KVERREL}+debug/ \
+      %{modsign_cmd} certs/signing_key.pem.sign+debug certs/signing_key.x509.sign+debug $RPM_BUILD_ROOT/lib/modules/%{KVERREL}+debug/ \
     fi \
     if [ "%{with_pae_debug}" -ne "0" ]; then \
-      %{modsign_cmd} signing_key.priv.sign+%{pae}debug signing_key.x509.sign+%{pae}debug $RPM_BUILD_ROOT/lib/modules/%{KVERREL}+%{pae}debug/ \
+      %{modsign_cmd} certs/signing_key.pem.sign+%{pae}debug certs/signing_key.x509.sign+%{pae}debug $RPM_BUILD_ROOT/lib/modules/%{KVERREL}+%{pae}debug/ \
     fi \
     if [ "%{with_up}" -ne "0" ]; then \
-      %{modsign_cmd} signing_key.priv.sign signing_key.x509.sign $RPM_BUILD_ROOT/lib/modules/%{KVERREL}/ \
+      %{modsign_cmd} certs/signing_key.pem.sign certs/signing_key.x509.sign $RPM_BUILD_ROOT/lib/modules/%{KVERREL}/ \
     fi \
   fi \
   if [ "%{zipmodules}" -eq "1" ]; then \
@@ -2101,6 +2183,7 @@ fi
 %dir %{_libdir}/traceevent/plugins
 %{_libdir}/traceevent/plugins/*
 %dir %{_libexecdir}/perf-core
+%{_datadir}/perf-core/*
 %{_libexecdir}/perf-core/*
 %{_mandir}/man[1-8]/perf*
 %{_sysconfdir}/bash_completion.d/perf
@@ -2226,6 +2309,120 @@ fi
 #
 # 
 %changelog
+* Mon Jan 25 2016 Josh Boyer <jwboyer@fedoraproject.org> - 4.3.4-200
+- Add patch to fix some Elan touchpads (rhbz 1296677)
+
+* Sat Jan 23 2016 Josh Boyer <jwboyer@fedoraproject.org>
+- Linux v4.3.4
+
+* Fri Jan 22 2016 Josh Boyer <jwboyer@fedoraproject.org>
+- Fix backtrace from PNP conflict on Haswell-ULT (rhbz 1300955)
+
+* Thu Jan 21 2016 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-XXXX-XXXX missing null ptr check in nf_nat_redirect_ipv4 (rhbz 1300731 1300732)
+- Fix incorrect country code issue on RTL8812AE devices (rhbz 1279653)
+
+* Wed Jan 20 2016 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2016-0723 memory disclosure and crash in tty layer (rhbz 1296253 1300224)
+- CVE-2013-4312 file descr passed over unix sockects not properly accounted (rhbz 1297813 1300216)
+
+* Tue Jan 19 2016 Josh Boyer <jwboyer@fedoraproject.org> - 4.3.3-200
+- Rebase to 4.3.y
+- Backport nouveau stable fixes (rhbz 1299349)
+- CVE-2016-0728 Keys: reference leak in join_session_keyring (rhbz 1296623 1297475)
+- Add currently queued networking stable patches
+- Add a couple btrfs patches cc'd to stable upstream
+- Add SCSI patches to avoid blacklist false positives (rhbz 1299810)
+
+* Fri Jan 15 2016 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2015-8767 sctp: DoS during timeout (rhbz 1297389 1298437)
+
+* Tue Jan 12 2016 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2015-7566 usb: visor: Crash on invalid USB dev descriptors (rhbz 1296466 1297517)
+- Fix backtrace from PNP conflict on Broadwell (rhbz 1083853)
+
+* Thu Jan 07 2016 Josh Boyer <jwboyer@fedorparoject.org>
+- CVE-2015-7513 kvm: divide by zero DoS (rhbz 1284847 1296142)
+
+* Tue Jan 05 2016 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2015-8709 ptrace: potential priv escalation with userns (rhbz 1295287 1295288)
+
+* Fri Dec 18 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2015-8575 information leak in sco_sock_bind (rhbz 1292840 1292841)
+
+* Thu Dec 17 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2015-8569 info leak from getsockname (rhbz 1292045 1292047)
+
+* Tue Dec 15 2015 Justin Forbes <jforbes@fedoraproject.org> - 4.2.8-200
+- Linux v4.2.8
+
+* Tue Dec 15 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2015-8543 ipv6: DoS via NULL pointer dereference (rhbz 1290475 1290477)
+
+* Mon Dec 14 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2015-7550 Race between read and revoke keys (rhbz 1291197 1291198)
+- CVE-XXXX-XXXX permission bypass on overlayfs (rhbz 1291329 1291332)
+
+* Fri Dec 11 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2013-7446 unix sockects use after free (rhbz 1282688 1282712)
+
+* Thu Dec 10 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- Fix rfkill issues on ideapad Y700-17ISK (rhbz 1286293)
+
+* Wed Dec 09 2015 Justin Forbes <jforbes@fedoraproject.org> - 4.2.7-200
+- Linux v4.2.7
+
+* Thu Dec 03 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- Add patch to fix palm rejection on certain touchpads (rhbz 1287819)
+- Add new PCI ids for wireless, including Lenovo Yoga (rhbz 1275490)
+
+* Tue Dec 01 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2015-7515 aiptek: crash on invalid device descriptors (rhbz 1285326 1285331)
+- CVE-2015-7833 usbvision: crash on invalid device descriptors (rhbz 1270158 1270160)
+
+* Mon Nov 30 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- Fix crash in add_key (rhbz 1284059)
+- CVE-2015-8374 btrfs: info leak when truncating compressed/inlined extents (rhbz 1286261 1286262)
+
+* Fri Nov 20 2015 Justin M. Forbes <jmforbes@fedoraproject.org>
+- Fix for GRE tunnel running in IPSec (rhbz 1272571)
+- Fix KVM on specific hardware (rhbz 1278688)
+
+* Mon Nov 16 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- Fix ipset netfilter issues (rhbz 1279189)
+
+* Tue Nov 10 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- Fix Yoga 900 rfkill switch issues (rhbz 1275490)
+
+* Tue Nov 10 2015 Justin M. Forbes <jforbes@fedoraproject.org> - 4.2.6-200
+- Linux v4.2.6
+
+* Tue Nov 10 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- Fix incorrect size calculations in megaraid with 64K pages (rhbz 1269300)
+- CVE-2015-8104 kvm: DoS infinite loop in microcode DB exception (rhbz 1278496 1279691)
+- CVE-2015-5307 kvm: DoS infinite loop in microcode AC exception (rhbz 1277172 1279688)
+
+* Thu Nov  5 2015 Peter Robinson <pbrobinson@fedoraproject.org>
+- Disable Exynos IOMMU as it crashes
+
+* Thu Nov 05 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- Fix backlight regression on older radeon devices (rhbz 1278407)
+
+* Wed Nov  4 2015 Peter Robinson <pbrobinson@fedoraproject.org>
+- Enable some IIO sensors (temp/humidity) on ARMv7
+
+* Tue Nov 03 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2015-7799 slip:crash when using PPP char dev driver (rhbz 1271134 1271135)
+
+* Tue Nov 03 2015 Justin M. Forbes <jforbes@fedoraproject.org>
+- Add xz-devel builreq for perf (rhbz 1167457)
+
+* Mon Nov 02 2015 Laura Abbott <labbott@fedoraproject.org>
+- Add spurious wakeup quirk for LynxPoint-LP controllers (rhbz 1257131)
+
+* Thu Oct 29 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2015-7099 RDS: race condition on unbound socket null deref (rhbz 1276437 1276438)
+
 * Tue Oct 27 2015 Justin M. Forbes <jforbes@fedoraproject.org> - 4.2.5-201
 - Bump for build
 
