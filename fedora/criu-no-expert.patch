@@ -1,0 +1,32 @@
+From: "kernel-team@fedoraproject.org" <kernel-team@fedoraproject.org>
+Date: Wed, 30 Jan 2013 10:55:31 -0500
+Subject: [PATCH] criu: no expert
+
+Bugzilla: N/A
+Upstream-status: Fedora mustard
+---
+ init/Kconfig | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/init/Kconfig b/init/Kconfig
+index 9a782b02e4d5..d97b5032d4b0 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1135,7 +1135,7 @@ config DEBUG_BLK_CGROUP
+ endif # CGROUPS
+ 
+ config CHECKPOINT_RESTORE
+-	bool "Checkpoint/restore support" if EXPERT
++	bool "Checkpoint/restore support"
+ 	default n
+ 	help
+ 	  Enables additional kernel features in a sake of checkpoint/restore.
+@@ -1146,7 +1146,7 @@ config CHECKPOINT_RESTORE
+ 	  If unsure, say N here.
+ 
+ menuconfig NAMESPACES
+-	bool "Namespaces support" if EXPERT
++	bool "Namespaces support"
+ 	default !EXPERT
+ 	help
+ 	  Provides the way to make tasks work with different objects using

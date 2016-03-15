@@ -1,8 +1,8 @@
-linux_TAGVER	 = 3.10.1
-linux_TAR_BASE	 = v$(linux_TAGVER)
-linux_PATCH_BASE = v$(linux_TAGVER)
-linux_BRANCH	 = linux-3.10.y
+linux_TAGVER     = 4.0
+linux_TAR_BASE   = v$(linux_TAGVER)
+linux_PATCH_BASE = $(linux_TAR_BASE)
+linux_BRANCH     = fedora22/4.0.4-303.fc22
 linux_PATCH_HEAD = $(linux_BRANCH)
 
 # generate changelog entries only for commits to these items
-builder_LOGS    = linux.vers srpm/ template/
+builder_LOGS     = linux.vers srpm/ template/

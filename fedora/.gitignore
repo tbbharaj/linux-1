@@ -1,0 +1,8 @@
+*.bin
+*.orig
+*.rej
+*.tar
+*bz2
+*gz
+*xz
+*~
