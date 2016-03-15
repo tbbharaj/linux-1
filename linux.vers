@@ -1,7 +1,7 @@
 linux_TAGVER     = 4.1
 linux_TAR_BASE   = v$(linux_TAGVER)
 linux_PATCH_BASE = $(linux_TAR_BASE)
-linux_BRANCH     = fedora22/4.1.6-201.fc22
+linux_BRANCH     = fedora22/4.1.7-200.fc22
 linux_PATCH_HEAD = $(linux_BRANCH)
 
 # generate changelog entries only for commits to these items
