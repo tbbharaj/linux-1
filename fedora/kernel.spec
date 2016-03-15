@@ -52,7 +52,7 @@ Summary: The Linux kernel
 %if 0%{?released_kernel}
 
 # Do we have a -stable update to apply?
-%define stable_update 4
+%define stable_update 5
 # Set rpm version accordingly
 %if 0%{?stable_update}
 %define stablerev %{stable_update}
@@ -638,6 +638,13 @@ Patch26262: x86-nmi-64-Use-DF-to-avoid-userspace-RSP-confusing-n.patch
 
 # CVE-2015-5697 (rhbz 1249011 1249013)
 Patch26263: md-use-kzalloc-when-bitmap-is-disabled.patch
+
+#rhbz 1244511
+Patch507: HID-chicony-Add-support-for-Acer-Aspire-Switch-12.patch
+
+#rhbz 1251877 1251880 1250279 1248741
+# and probably more since ugh use after free bugs
+Patch26264: HID-hid-input-Fix-accessing-freed-memory-during-devi.patch
 
 # END OF PATCH DEFINITIONS
 
@@ -1395,6 +1402,12 @@ ApplyPatch x86-nmi-64-Use-DF-to-avoid-userspace-RSP-confusing-n.patch
 
 # CVE-2015-5697 (rhbz 1249011 1249013)
 ApplyPatch md-use-kzalloc-when-bitmap-is-disabled.patch
+
+#rhbz 1244511
+ApplyPatch HID-chicony-Add-support-for-Acer-Aspire-Switch-12.patch
+
+#rhbz 1251877 1251880 1250279 1248741
+ApplyPatch HID-hid-input-Fix-accessing-freed-memory-during-devi.patch
 
 # END OF PATCH APPLICATIONS
 
@@ -2246,6 +2259,18 @@ fi
 #
 # 
 %changelog
+* Mon Aug 10 2015 Laura Abbott <labbott@fedoraproject.org> - 4.1.5-200
+- Linux v4.1.5
+
+* Mon Aug 10 2015 Laura Abbott <labbott@fedoraproject.org>
+- Fix use after free in HID input (rhbz 1251877 1251880 1250279 1248741)
+
+* Tue Aug 04 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- Patch from Nicholas Kudriavtsev for Acer Switch 12 Fn keys (rhbz 1244511)
+
+* Tue Aug  4 2015 Peter Robinson <pbrobinson@fedoraproject.org>
+- Back port AMD Seattle a0 4.1 NIC driver update
+
 * Mon Aug 03 2015 Josh Boyer <jwboyer@fedoraproject.org> - 4.1.4-200
 - Linux v4.1.4
 - CVE-2015-5697 info leak in md driver (rhbz 1249011 1249013)
