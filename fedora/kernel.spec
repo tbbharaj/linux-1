@@ -40,7 +40,7 @@ Summary: The Linux kernel
 # For non-released -rc kernels, this will be appended after the rcX and
 # gitX tags, so a 3 here would become part of release "0.rcX.gitX.3"
 #
-%global baserelease 200
+%global baserelease 201
 %global fedora_build %{baserelease}
 
 # base_sublevel is the kernel version we're starting with and patching
@@ -634,6 +634,28 @@ Patch509: ideapad-laptop-Add-Lenovo-Yoga-3-14-to-no_hw_rfkill-.patch
 
 #rhbz 1253789
 Patch511: iSCSI-let-session-recovery_tmo-sysfs-writes-persist.patch
+
+#rhbz 1250717
+Patch512: ext4-dont-manipulate-recovery-flag-when-freezing.patch
+
+#CVE-2015-6666 rhbz 1256746 1256753
+Patch513: Revert-sched-x86_64-Don-t-save-flags-on-context-swit.patch
+
+#rhbz 1256281
+Patch26265: mmc-sdhci-fix-dma-memory-leak-in-sdhci_pre_req.patch
+
+#rhbz 1224764
+Patch26266: x86-apic-Fix-fallout-from-x2apic-cleanup.patch
+
+#rhbz 1257534
+Patch515: nv46-Change-mc-subdev-oclass-from-nv44-to-nv4c.patch
+
+#rhbz 1212201
+Patch514: drm-qxl-validate-monitors-config-modes.patch
+
+#rhbz 1257500
+Patch517: vmwgfx-Rework-device-initialization.patch
+Patch518: drm-vmwgfx-Allow-dropped-masters-render-node-like-ac.patch
 
 # END OF PATCH DEFINITIONS
 
@@ -1386,6 +1408,28 @@ ApplyPatch ideapad-laptop-Add-Lenovo-Yoga-3-14-to-no_hw_rfkill-.patch
 
 #rhbz 1253789
 ApplyPatch iSCSI-let-session-recovery_tmo-sysfs-writes-persist.patch
+
+#rhbz 1250717
+ApplyPatch ext4-dont-manipulate-recovery-flag-when-freezing.patch
+
+#CVE-2015-6666 rhbz 1256746 1256753
+ApplyPatch Revert-sched-x86_64-Don-t-save-flags-on-context-swit.patch
+
+#rhbz 1256281
+ApplyPatch mmc-sdhci-fix-dma-memory-leak-in-sdhci_pre_req.patch
+
+#rhbz 1224764
+ApplyPatch x86-apic-Fix-fallout-from-x2apic-cleanup.patch
+
+#rhbz 1257534
+ApplyPatch nv46-Change-mc-subdev-oclass-from-nv44-to-nv4c.patch
+
+#rhbz 1212201
+ApplyPatch drm-qxl-validate-monitors-config-modes.patch
+
+#rhbz 1257500
+ApplyPatch vmwgfx-Rework-device-initialization.patch
+ApplyPatch drm-vmwgfx-Allow-dropped-masters-render-node-like-ac.patch
 
 # END OF PATCH APPLICATIONS
 
@@ -2237,6 +2281,35 @@ fi
 #
 # 
 %changelog
+* Fri Sep 04 2015 Laura Abbott <labbott@redhat.com> - 4.1.6-201
+- Tag and build
+
+* Thu Aug 27 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- Fix vmware driver issues from Thomas Hellström (rhbz 1227193)
+- Add patch from Hans de Goede to fix nv46 based cards (rhbz 1257534)
+- Add patch from Jonathon Jongsma to fix modes in qxl (rhbz 1212201)
+
+* Wed Aug 26 2015 Peter Robinson <pbrobinson@fedoraproject.org>
+- Disable CRYPTO_DEV_VMX_ENCRYPT on PPC for now to fix Power 8 boot (rhbz 1237089)
+
+* Tue Aug 25 2015 Laura Abbott <labbott@fedoraproject.org>
+- Fix x2apic refactoring breakage (rhbz 1224764)
+
+* Tue Aug 25 2015 Laura Abbott <labbott@fedoraproject.org>
+- Correct the sdhci DMA leak patch to actually compile (oops)
+
+* Tue Aug 25 2015 Laura Abbott <labbott@fedoraproject.org>
+- Fix DMA leak from sdhci (rhbz 1256281)
+
+* Tue Aug 25 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2015-6666 x86_64 NT flag handling DoS (rhbz 1256746 1256753)
+
+* Fri Aug 21 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- Disable EFI_VARS (rhbz 1252137)
+
+* Thu Aug 20 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- Fix incorrect ext4 freezing behavior on non-journaled fs (rhbz 1250717)
+
 * Mon Aug 17 2015 Laura Abbott <labbott@fedoraproject.org> - 4.1.6-200
 - Linux v4.1.6
 - Actually apply the fix for rhbz 1253789
