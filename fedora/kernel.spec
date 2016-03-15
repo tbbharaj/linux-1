@@ -40,19 +40,19 @@ Summary: The Linux kernel
 # For non-released -rc kernels, this will be appended after the rcX and
 # gitX tags, so a 3 here would become part of release "0.rcX.gitX.3"
 #
-%global baserelease 300
+%global baserelease 200
 %global fedora_build %{baserelease}
 
 # base_sublevel is the kernel version we're starting with and patching
 # on top of -- for example, 3.1-rc7-git1 starts with a 3.0 base,
 # which yields a base_sublevel of 0.
-%define base_sublevel 0
+%define base_sublevel 1
 
 ## If this is a released kernel ##
 %if 0%{?released_kernel}
 
 # Do we have a -stable update to apply?
-%define stable_update 5
+%define stable_update 4
 # Set rpm version accordingly
 %if 0%{?stable_update}
 %define stablerev %{stable_update}
@@ -486,17 +486,12 @@ Patch00: patch-4.%{base_sublevel}-git%{gitrev}.xz
 %endif
 %endif
 
-# we also need compile fixes for -vanilla
-Patch04: compile-fixes.patch
-
 # build tweak for build ID magic, even for -vanilla
 Patch05: kbuild-AFTER_LINK.patch
 
 %if !%{nopatches}
 
 
-# revert upstream patches we get via other methods
-Patch09: upstream-reverts.patch
 # Git trees.
 
 # Standalone patches
@@ -554,7 +549,6 @@ Patch1020: efi-Add-esrt-support.patch
 # nouveau + drm fixes
 # intel drm is all merged upstream
 Patch1826: drm-i915-hush-check-crtc-state.patch
-Patch1827: drm-i915-Disable-verbose-state-checks.patch
 
 # Quiet boot fixes
 
@@ -565,8 +559,6 @@ Patch1827: drm-i915-Disable-verbose-state-checks.patch
 # patches headed upstream
 Patch12016: disable-i8042-check-on-apple-mac.patch
 
-Patch14000: hibernate-freeze-filesystems.patch
-
 Patch14010: lis3-improve-handling-of-null-rate.patch
 
 Patch15000: watchdog-Disable-watchdog-on-virtual-machines.patch
@@ -574,23 +566,23 @@ Patch15000: watchdog-Disable-watchdog-on-virtual-machines.patch
 # PPC
 
 # ARM64
-Patch21000: net-amd-Add-xgbe-a0-driver.patch
-Patch21001: amd-xgbe-phy-a0-Add-support-for-XGBE-PHY-on-A0.patch
-Patch21002: arm64-avoid-needing-console-to-enable-serial-console.patch
-Patch21003: usb-make-xhci-platform-driver-use-64-bit-or-32-bit-D.patch
+Patch16000: amd-xgbe-a0-Add-support-for-XGBE-on-A0.patch
+Patch16001: amd-xgbe-phy-a0-Add-support-for-XGBE-PHY-on-A0.patch
+Patch16002: arm64-avoid-needing-console-to-enable-serial-console.patch
+Patch16003: usb-make-xhci-platform-driver-use-64-bit-or-32-bit-D.patch
 
 # ARMv7
-Patch21020: ARM-tegra-usb-no-reset.patch
-Patch21021: arm-dts-am335x-boneblack-lcdc-add-panel-info.patch
-Patch21022: arm-dts-am335x-boneblack-add-cpu0-opp-points.patch
-Patch21023: arm-dts-am335x-bone-common-enable-and-use-i2c2.patch
-Patch21024: arm-dts-am335x-bone-common-setup-default-pinmux-http.patch
-Patch21025: arm-dts-am335x-bone-common-add-uart2_pins-uart4_pins.patch
-Patch21026: pinctrl-pinctrl-single-must-be-initialized-early.patch
-Patch21027: 0001-drivers-rtc-rtc-em3027.c-add-device-tree-support.patch
-Patch21028: arm-i.MX6-Utilite-device-dtb.patch
+Patch16020: ARM-tegra-usb-no-reset.patch
+Patch16021: arm-dts-am335x-boneblack-lcdc-add-panel-info.patch
+Patch16022: arm-dts-am335x-boneblack-add-cpu0-opp-points.patch
+Patch16023: arm-dts-am335x-bone-common-enable-and-use-i2c2.patch
+Patch16024: arm-dts-am335x-bone-common-setup-default-pinmux-http.patch
+Patch16025: arm-dts-am335x-bone-common-add-uart2_pins-uart4_pins.patch
+Patch16026: pinctrl-pinctrl-single-must-be-initialized-early.patch
 
-Patch21100: arm-highbank-l2-reverts.patch
+Patch16028: arm-i.MX6-Utilite-device-dtb.patch
+
+Patch16030: arm-highbank-l2-reverts.patch
 
 #rhbz 754518
 Patch21235: scsi-sd_revalidate_disk-prevent-NULL-ptr-deref.patch
@@ -601,59 +593,13 @@ Patch21242: criu-no-expert.patch
 #rhbz 892811
 Patch21247: ath9k-rx-dma-stop-check.patch
 
-Patch22000: weird-root-dentry-name-debug.patch
-
-#CVE-2015-0275 rhbz 1193907 1195178
-Patch26138: ext4-Allocate-entire-range-in-zero-range.patch
-
-#rhbz 1196825
-Patch26140: security-yama-Remove-unnecessary-selects-from-Kconfi.patch
-
-#rhbz 1201532
-Patch26168: HID-multitouch-add-support-of-clickpads.patch
-
-#rhbz 1187004
-Patch26170: acpi-video-Allow-forcing-native-backlight-on-non-win.patch
-Patch26171: acpi-video-Add-force-native-backlight-quirk-for-Leno.patch
-
 #CVE-2015-2150 rhbz 1196266 1200397
 Patch26175: xen-pciback-Don-t-disable-PCI_COMMAND-on-PCI-device-.patch
 
-#rhbz 1210801
-Patch26179: HID-logitech-hidpp-add-a-module-parameter-to-keep-fi.patch
-
-#rhbz 1209088
-Patch26180: Input-atmel_mxt_ts-implement-support-for-T100-touch-.patch
-Patch26181: Input-atmel_mxt_ts-split-out-touchpad-initialisation.patch
-Patch26182: Input-atmel_mxt_ts-add-support-for-Google-Pixel-2.patch
-
-#rhbz 1188741
-Patch26183: 0001-ALSA-hda-realtek-Support-Dell-headset-mode-for-ALC28.patch
-Patch26184: 0001-ALSA-hda-realtek-Support-headset-mode-for-ALC286-288.patch
-
-#rhbz 1210857
-Patch26192: blk-loop-avoid-too-many-pending-per-work-IO.patch
-
-#rhbz 1206036 1215989
-Patch26193: toshiba_acpi-Do-not-register-vendor-backlight-when-a.patch
-
-#rhbz 1219343
-Patch26200: 0001-HID-usbhid-Add-HID_QUIRK_NOGET-for-Aten-DVI-KVM-swit.patch
-
-#rhbz 1220118
-Patch26202: 0001-media-media-Fix-regression-in-some-more-dib0700-base.patch
+#rhbz 1212230
+Patch26176: Input-synaptics-pin-3-touches-when-the-firmware-repo.patch
 
 Patch26203: v4l-uvcvideo-Fix-incorrect-bandwidth-with-Chicony-de.patch
-
-#rhbz 1204390
-Patch26204: 0001-cx18-add-missing-caps-for-the-PCM-video-device.patch
-
-#rhbz 1218688
-Patch26205: drm-i915-Fix-ilk-watermarks-calculation-when-primary.patch
-
-#rhbz 1214474
-Patch26210: Input-add-vmmouse-driver.patch
-Patch26213: Input-joydev-don-t-classify-the-vmmouse-as-a-joystic.patch
 
 #rhbz 1217249
 Patch26214: acpi_video-Add-enable_native_backlight-quirk-for-Mac.patch
@@ -661,26 +607,37 @@ Patch26214: acpi_video-Add-enable_native_backlight-quirk-for-Mac.patch
 #rhbz 1225563
 Patch26215: HID-lenovo-set-INPUT_PROP_POINTING_STICK.patch
 
-#rhbz 1218882
-Patch26216: 0001-target-use-vfs_iter_read-write-in-fd_do_rw.patch
-
-#rhbz 1188695
-Patch26218: 0001-n_tty-Fix-auditing-support-for-cannonical-mode.patch
-
 #rhbz 1133378
-Patch26219: 0001-firmware-Drop-WARN-from-usermodehelper_read_trylock-.patch
-
-# FAF Problem 885578
-Patch26220: 0001-mwifiex-use-del_timer-variant-in-interrupt-context.patch
+Patch26219: firmware-Drop-WARN-from-usermodehelper_read_trylock-.patch
 
 #rhbz 1226743
 Patch26221: drm-i915-turn-off-wc-mmaps.patch
 
-#rhbz 1227877
-Patch26222: powerpc-powernv-Restore-non-volatile-CRs-after-nap.patch
+# CVE-2015-XXXX rhbz 1230770 1230774
+Patch26231: kvm-x86-fix-kvm_apic_has_events-to-check-for-NULL-po.patch
 
-#rhbz 1226621
-Patch26223: block-discard-bdi_unregister-in-favour-of-bdi_destro.patch
+# rhbz 1227891
+Patch26250: HID-rmi-Disable-populating-F30-when-the-touchpad-has.patch
+
+# rhbz 1192270
+Patch26251: ideapad_laptop-Lenovo-G50-30-fix-rfkill-reports-wire.patch
+
+# rhbz 1180920 1206724
+Patch26252: pcmcia-fix-a-boot-time-warning-in-pcmcia-cs-code.patch
+
+# CVE-2015-3290 CVE-2015-3291 rhbz 1243465 1245927
+Patch26254: x86-asm-entry-64-Remove-pointless-jump-to-irq_return.patch
+Patch26255: x86-entry-Stop-using-PER_CPU_VAR-kernel_stack.patch
+Patch26256: x86-entry-Define-cpu_current_top_of_stack-for-64-bit.patch
+Patch26257: x86-nmi-Enable-nested-do_nmi-handling-for-64-bit-ker.patch
+Patch26258: x86-nmi-64-Remove-asm-code-that-saves-cr2.patch
+Patch26259: x86-nmi-64-Switch-stacks-on-userspace-NMI-entry.patch
+Patch26260: x86-nmi-64-Improve-nested-NMI-comments.patch
+Patch26261: x86-nmi-64-Reorder-nested-NMI-checks.patch
+Patch26262: x86-nmi-64-Use-DF-to-avoid-userspace-RSP-confusing-n.patch
+
+# CVE-2015-5697 (rhbz 1249011 1249013)
+Patch26263: md-use-kzalloc-when-bitmap-is-disabled.patch
 
 # END OF PATCH DEFINITIONS
 
@@ -1182,7 +1139,7 @@ if [ ! -d kernel-%{kversion}%{?dist}/vanilla-%{vanillaversion} ]; then
 # Update vanilla to the latest upstream.
 # (non-released_kernel case only)
 %if 0%{?rcrev}
-#    ApplyPatch patch-4.%{upstream_sublevel}-rc%{rcrev}.xz
+    ApplyPatch patch-4.%{upstream_sublevel}-rc%{rcrev}.xz
 %if 0%{?gitrev}
     ApplyPatch patch-4.%{upstream_sublevel}-rc%{rcrev}-git%{gitrev}.xz
 %endif
@@ -1243,15 +1200,8 @@ done
 
 ApplyPatch kbuild-AFTER_LINK.patch
 
-#
-# misc small stuff to make things compile
-#
-ApplyOptionalPatch compile-fixes.patch
 
 %if !%{nopatches}
-
-# revert patches from upstream that conflict or that we get via other means
-ApplyOptionalPatch upstream-reverts.patch -R
 
 # Architecture patches
 # x86(-64)
@@ -1260,7 +1210,7 @@ ApplyPatch lib-cpumask-Make-CPUMASK_OFFSTACK-usable-without-deb.patch
 # PPC
 
 # ARM64
-ApplyPatch net-amd-Add-xgbe-a0-driver.patch
+ApplyPatch amd-xgbe-a0-Add-support-for-XGBE-on-A0.patch
 ApplyPatch amd-xgbe-phy-a0-Add-support-for-XGBE-PHY-on-A0.patch
 ApplyPatch arm64-avoid-needing-console-to-enable-serial-console.patch
 ApplyPatch usb-make-xhci-platform-driver-use-64-bit-or-32-bit-D.patch
@@ -1269,13 +1219,14 @@ ApplyPatch usb-make-xhci-platform-driver-use-64-bit-or-32-bit-D.patch
 # ARM
 #
 ApplyPatch ARM-tegra-usb-no-reset.patch
+
 ApplyPatch arm-dts-am335x-boneblack-lcdc-add-panel-info.patch
 ApplyPatch arm-dts-am335x-boneblack-add-cpu0-opp-points.patch
 ApplyPatch arm-dts-am335x-bone-common-enable-and-use-i2c2.patch
 ApplyPatch arm-dts-am335x-bone-common-setup-default-pinmux-http.patch
 ApplyPatch arm-dts-am335x-bone-common-add-uart2_pins-uart4_pins.patch
 ApplyPatch pinctrl-pinctrl-single-must-be-initialized-early.patch
-ApplyPatch 0001-drivers-rtc-rtc-em3027.c-add-device-tree-support.patch
+
 ApplyPatch arm-i.MX6-Utilite-device-dtb.patch
 
 ApplyPatch arm-highbank-l2-reverts.patch
@@ -1374,15 +1325,11 @@ ApplyPatch efi-Add-esrt-support.patch
 
 # Intel DRM
 ApplyPatch drm-i915-hush-check-crtc-state.patch
-ApplyPatch drm-i915-Disable-verbose-state-checks.patch
 
 # Radeon DRM
 
 # Patches headed upstream
 ApplyPatch disable-i8042-check-on-apple-mac.patch
-
-# FIXME: REBASE
-#ApplyPatch hibernate-freeze-filesystems.patch
 
 ApplyPatch lis3-improve-handling-of-null-rate.patch
 
@@ -1392,65 +1339,19 @@ ApplyPatch watchdog-Disable-watchdog-on-virtual-machines.patch
 #rhbz 754518
 ApplyPatch scsi-sd_revalidate_disk-prevent-NULL-ptr-deref.patch
 
-#pplyPatch weird-root-dentry-name-debug.patch
-
 # https://fedoraproject.org/wiki/Features/Checkpoint_Restore
 ApplyPatch criu-no-expert.patch
 
 #rhbz 892811
 ApplyPatch ath9k-rx-dma-stop-check.patch
 
-#CVE-2015-0275 rhbz 1193907 1195178
-ApplyPatch ext4-Allocate-entire-range-in-zero-range.patch
-
-#rhbz 1196825
-ApplyPatch security-yama-Remove-unnecessary-selects-from-Kconfi.patch
-
-#rhbz 1201532
-ApplyPatch HID-multitouch-add-support-of-clickpads.patch
-
-#rhbz 1187004
-ApplyPatch acpi-video-Allow-forcing-native-backlight-on-non-win.patch
-ApplyPatch acpi-video-Add-force-native-backlight-quirk-for-Leno.patch
-
 #CVE-2015-2150 rhbz 1196266 1200397
 ApplyPatch xen-pciback-Don-t-disable-PCI_COMMAND-on-PCI-device-.patch
 
-#rhbz 1210801
-ApplyPatch HID-logitech-hidpp-add-a-module-parameter-to-keep-fi.patch
-
-#rhbz 1209088
-ApplyPatch Input-atmel_mxt_ts-implement-support-for-T100-touch-.patch
-ApplyPatch Input-atmel_mxt_ts-split-out-touchpad-initialisation.patch
-ApplyPatch Input-atmel_mxt_ts-add-support-for-Google-Pixel-2.patch
-
-#rhbz 1188741
-ApplyPatch 0001-ALSA-hda-realtek-Support-Dell-headset-mode-for-ALC28.patch
-ApplyPatch 0001-ALSA-hda-realtek-Support-headset-mode-for-ALC286-288.patch
-
-#rhbz 1210857
-ApplyPatch blk-loop-avoid-too-many-pending-per-work-IO.patch
-
-#rhbz 1206036 1215989
-ApplyPatch toshiba_acpi-Do-not-register-vendor-backlight-when-a.patch
-
-#rhbz 1219343
-ApplyPatch 0001-HID-usbhid-Add-HID_QUIRK_NOGET-for-Aten-DVI-KVM-swit.patch
-
-#rhbz 1220118
-ApplyPatch 0001-media-media-Fix-regression-in-some-more-dib0700-base.patch
+#rhbz 1212230
+ApplyPatch Input-synaptics-pin-3-touches-when-the-firmware-repo.patch
 
 ApplyPatch v4l-uvcvideo-Fix-incorrect-bandwidth-with-Chicony-de.patch
-
-#rhbz 1204390
-ApplyPatch 0001-cx18-add-missing-caps-for-the-PCM-video-device.patch
-
-#rhbz 1218688
-ApplyPatch drm-i915-Fix-ilk-watermarks-calculation-when-primary.patch
-
-#rhbz 1214474
-ApplyPatch Input-add-vmmouse-driver.patch
-ApplyPatch Input-joydev-don-t-classify-the-vmmouse-as-a-joystic.patch
 
 #rhbz 1217249
 ApplyPatch acpi_video-Add-enable_native_backlight-quirk-for-Mac.patch
@@ -1458,26 +1359,42 @@ ApplyPatch acpi_video-Add-enable_native_backlight-quirk-for-Mac.patch
 #rhbz 1225563
 ApplyPatch HID-lenovo-set-INPUT_PROP_POINTING_STICK.patch
 
-#rhbz 1218882
-ApplyPatch 0001-target-use-vfs_iter_read-write-in-fd_do_rw.patch
-
-#rhbz 1188695
-ApplyPatch 0001-n_tty-Fix-auditing-support-for-cannonical-mode.patch
-
 #rhbz 1133378
-ApplyPatch 0001-firmware-Drop-WARN-from-usermodehelper_read_trylock-.patch
-
-# FAF Problem 885578
-ApplyPatch 0001-mwifiex-use-del_timer-variant-in-interrupt-context.patch
+ApplyPatch firmware-Drop-WARN-from-usermodehelper_read_trylock-.patch
 
 #rhbz 1226743
 ApplyPatch drm-i915-turn-off-wc-mmaps.patch
 
-#rhbz 1227877
-ApplyPatch powerpc-powernv-Restore-non-volatile-CRs-after-nap.patch
+#rhbz 1212230
+# pplyPatch Input-Revert-Revert-synaptics-use-dmax-in-input_mt_a.patch
+# pplyPatch Input-synaptics-allocate-3-slots-to-keep-stability-i.patch
+# pplyPatch Input-synaptics-pin-3-touches-when-the-firmware-repo.patch
 
-#rhbz 1226621
-ApplyPatch block-discard-bdi_unregister-in-favour-of-bdi_destro.patch
+# CVE-2015-XXXX rhbz 1230770 1230774
+ApplyPatch kvm-x86-fix-kvm_apic_has_events-to-check-for-NULL-po.patch
+
+#rhbz 1227891
+ApplyPatch HID-rmi-Disable-populating-F30-when-the-touchpad-has.patch
+
+# rhbz 1192270
+ApplyPatch ideapad_laptop-Lenovo-G50-30-fix-rfkill-reports-wire.patch
+
+# rhbz 1180920 1206724
+ApplyPatch pcmcia-fix-a-boot-time-warning-in-pcmcia-cs-code.patch
+
+# CVE-2015-3290 CVE-2015-3291 rhbz 1243465 1245927
+ApplyPatch x86-asm-entry-64-Remove-pointless-jump-to-irq_return.patch
+ApplyPatch x86-entry-Stop-using-PER_CPU_VAR-kernel_stack.patch
+ApplyPatch x86-entry-Define-cpu_current_top_of_stack-for-64-bit.patch
+ApplyPatch x86-nmi-Enable-nested-do_nmi-handling-for-64-bit-ker.patch
+ApplyPatch x86-nmi-64-Remove-asm-code-that-saves-cr2.patch
+ApplyPatch x86-nmi-64-Switch-stacks-on-userspace-NMI-entry.patch
+ApplyPatch x86-nmi-64-Improve-nested-NMI-comments.patch
+ApplyPatch x86-nmi-64-Reorder-nested-NMI-checks.patch
+ApplyPatch x86-nmi-64-Use-DF-to-avoid-userspace-RSP-confusing-n.patch
+
+# CVE-2015-5697 (rhbz 1249011 1249013)
+ApplyPatch md-use-kzalloc-when-bitmap-is-disabled.patch
 
 # END OF PATCH APPLICATIONS
 
@@ -1884,7 +1801,7 @@ BuildKernel %make_target %kernel_image
 %endif
 
 %global perf_make \
-  make -s %{?cross_opts} %{?_smp_mflags} -C tools/perf V=1 WERROR=0 NO_LIBUNWIND=1 HAVE_CPLUS_DEMANGLE=1 NO_GTK2=1 NO_STRLCPY=1 NO_BIONIC=1 prefix=%{_prefix}
+  make -s EXTRA_CFLAGS="${RPM_OPT_FLAGS}" LDFLAGS="%{__global_ldflags}" %{?cross_opts} %{?_smp_mflags} -C tools/perf V=1 NO_PERF_READ_VDSO32=1 WERROR=0 NO_LIBUNWIND=1 HAVE_CPLUS_DEMANGLE=1 NO_GTK2=1 NO_STRLCPY=1 NO_BIONIC=1 prefix=%{_prefix}
 %if %{with_perf}
 # perf
 %{perf_make} DESTDIR=$RPM_BUILD_ROOT all
@@ -2329,6 +2246,56 @@ fi
 #
 # 
 %changelog
+* Mon Aug 03 2015 Josh Boyer <jwboyer@fedoraproject.org> - 4.1.4-200
+- Linux v4.1.4
+- CVE-2015-5697 info leak in md driver (rhbz 1249011 1249013)
+
+* Wed Jul 29 2015 Laura Abbott <labbott@redhat.com> - 4.1.3-201
+- tag and build for CVE fixes
+
+* Mon Jul 27 2015 Laura Abbott <labbott@fedoraproject.org>
+- CVE-2015-3290 CVE-2015-3291 NMI issues (rhbz 1243465 1245927)
+
+* Mon Jul 27 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2015-1333 add_key memory leak (rhbz 1244171)
+
+* Thu Jul 23 2015 Laura Abbott <labbott@fedoraproject.org>
+- Fix warning from pcmcia (rhbz 1180920 1206724)
+
+* Wed Jul 22 2015 Laura Abbott <labbott@fedoraproject.org> - 4.1.3-200
+- Add patches for Ideapad RF switches (rhbz 1192270)
+
+* Wed Jul 22 2015 Laura Abbott <labbott@fedoraproject.org>
+- Linux v4.1.3
+
+* Wed Jul 15 2015 Laura Abbott <labbott@fedoraproject.org> - 4.1.2-200
+- Linux v4.1.2 rebase
+
+* Fri Jul 10 2015 Laura Abbott <labbott@redhat.com> - 4.0.8-300
+- Linux v4.0.8
+
+* Tue Jul 07 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- Drop incorrect patches for now (rhbz 1212230)
+
+* Mon Jun 29 2015 Laura Abbott <labbott@fedoraproject.org> - 4.0.7-300
+- Linux v4.0.7
+
+* Tue Jun 23 2015 Justin M. Forbes <jforbes@fedoraproject.org> - 4.0.6-300
+- Linux v4.0.6
+
+* Thu Jun 18 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- Add patch to fix touchpad issues on Razer machines (rhbz 1227891)
+
+* Fri Jun 12 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- CVE-2015-XXXX kvm: NULL ptr deref in kvm_apic_has_events (rhbz 1230770 1230774)
+
+* Thu Jun 11 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- Backport fixes for synaptic 3 finger tap (rhbz 1212230)
+- Backport btrfs fixes queued for stable (rhbz 1217191)
+
+* Tue Jun 09 2015 Josh Boyer <jwboyer@fedoraproject.org>
+- Fix touchpad for Thinkpad S540 (rhbz 1223051)
+
 * Mon Jun 08 2015 Josh Boyer <jwboyer@fedoraproject.org>
 - Linux v4.0.5
 
