@@ -141,8 +141,8 @@ struct ena_com_rx_buf_info {
 };
 
 struct ena_com_io_desc_addr {
-	void  __iomem *pbuf_dev_addr; /* LLQ address */
-	void  *virt_addr;
+	u8  __iomem *pbuf_dev_addr; /* LLQ address */
+	u8  *virt_addr;
 	dma_addr_t phys_addr;
 };
 
@@ -209,7 +209,7 @@ struct ena_com_io_sq {
 	u16 idx;
 	u16 tail;
 	u16 next_to_comp;
-	u16 tx_max_header_size;
+	u32 tx_max_header_size;
 	u8 phase;
 	u8 desc_entry_size;
 	u8 dma_addr_bits;
@@ -328,11 +328,9 @@ struct ena_com_dev {
 	void *dmadev;
 
 	enum ena_admin_placement_policy_type tx_mem_queue_type;
-
+	u32 tx_max_header_size;
 	u16 stats_func; /* Selected function for extended statistic dump */
 	u16 stats_queue; /* Selected queue for extended statistic dump */
-
-	u16 tx_max_header_size;
 
 	struct ena_com_mmio_read mmio_read;
 
@@ -976,7 +974,7 @@ static inline void ena_com_calculate_interrupt_delay(struct ena_com_dev *ena_dev
 		 */
 		return;
 
-	curr_moder_idx = *moder_tbl_idx;
+	curr_moder_idx = (enum ena_intr_moder_level)(*moder_tbl_idx);
 	if (unlikely(curr_moder_idx >=  ENA_INTR_MAX_NUM_OF_LEVELS)) {
 		ena_trc_err("Wrong moderation index %u\n", curr_moder_idx);
 		return;
@@ -988,17 +986,20 @@ static inline void ena_com_calculate_interrupt_delay(struct ena_com_dev *ena_dev
 	if (curr_moder_idx == ENA_INTR_MODER_LOWEST) {
 		if ((pkts > curr_moder_entry->pkts_per_interval) ||
 		    (bytes > curr_moder_entry->bytes_per_interval))
-			new_moder_idx = curr_moder_idx + 1;
+			new_moder_idx =
+				(enum ena_intr_moder_level)(curr_moder_idx + 1);
 	} else {
 		pred_moder_entry = &intr_moder_tbl[curr_moder_idx - 1];
 
 		if ((pkts <= pred_moder_entry->pkts_per_interval) ||
 		    (bytes <= pred_moder_entry->bytes_per_interval))
-			new_moder_idx = curr_moder_idx - 1;
+			new_moder_idx =
+				(enum ena_intr_moder_level)(curr_moder_idx - 1);
 		else if ((pkts > curr_moder_entry->pkts_per_interval) ||
 			 (bytes > curr_moder_entry->bytes_per_interval)) {
 			if (curr_moder_idx != ENA_INTR_MODER_HIGHEST)
-				new_moder_idx = curr_moder_idx + 1;
+				new_moder_idx =
+				(enum ena_intr_moder_level)(curr_moder_idx + 1);
 		}
 	}
 	new_moder_entry = &intr_moder_tbl[new_moder_idx];

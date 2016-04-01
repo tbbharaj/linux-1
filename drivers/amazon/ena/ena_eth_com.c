@@ -72,7 +72,7 @@ static inline void *get_sq_desc(struct ena_com_io_sq *io_sq)
 
 	offset = tail_masked * io_sq->desc_entry_size;
 
-	return io_sq->desc_addr.virt_addr + offset;
+	return (void *)((uintptr_t)io_sq->desc_addr.virt_addr + offset);
 }
 
 static inline void ena_com_copy_curr_sq_desc_to_dev(struct ena_com_io_sq *io_sq)
@@ -119,8 +119,9 @@ static inline struct ena_eth_io_rx_cdesc_base *
 	ena_com_rx_cdesc_idx_to_ptr(struct ena_com_io_cq *io_cq, u16 idx)
 {
 	idx &= (io_cq->q_depth - 1);
-	return (struct ena_eth_io_rx_cdesc_base *)(io_cq->cdesc_addr.virt_addr +
-			idx * io_cq->cdesc_entry_size_in_bytes);
+	return (struct ena_eth_io_rx_cdesc_base *)
+		((uintptr_t)io_cq->cdesc_addr.virt_addr +
+		idx * io_cq->cdesc_entry_size_in_bytes);
 }
 
 static inline int ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
@@ -487,8 +488,9 @@ int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq, u16 *req_id)
 	masked_head = io_cq->head & (io_cq->q_depth - 1);
 	expected_phase = io_cq->phase;
 
-	cdesc = (struct ena_eth_io_tx_cdesc *)(io_cq->cdesc_addr.virt_addr
-		+ (masked_head * io_cq->cdesc_entry_size_in_bytes));
+	cdesc = (struct ena_eth_io_tx_cdesc *)
+		((uintptr_t)io_cq->cdesc_addr.virt_addr +
+		(masked_head * io_cq->cdesc_entry_size_in_bytes));
 
 	cdesc_phase = cdesc->flags & ENA_ETH_IO_TX_CDESC_PHASE_MASK;
 	if (cdesc_phase != expected_phase)
