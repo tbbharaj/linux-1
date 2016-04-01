@@ -32,7 +32,9 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#ifdef CONFIG_RFS_ACCEL
 #include <linux/cpu_rmap.h>
+#endif /* CONFIG_RFS_ACCEL */
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
 #include <linux/kernel.h>
@@ -135,6 +137,7 @@ static int ena_change_mtu(struct net_device *dev, int new_mtu)
 
 static int ena_init_rx_cpu_rmap(struct ena_adapter *adapter)
 {
+#ifdef CONFIG_RFS_ACCEL
 	u32 i;
 	int rc;
 
@@ -152,6 +155,7 @@ static int ena_init_rx_cpu_rmap(struct ena_adapter *adapter)
 			return rc;
 		}
 	}
+#endif /* CONFIG_RFS_ACCEL */
 	return 0;
 }
 
@@ -1018,7 +1022,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 
 		if (rx_ring->ena_bufs[0].len <= rx_ring->rx_small_copy_len) {
 			total_len += rx_ring->ena_bufs[0].len;
-			small_copy_pkt = 1;
+			small_copy_pkt++;
 			napi_gro_receive(napi, skb);
 		} else {
 			total_len += skb->len;
@@ -1326,10 +1330,12 @@ static void ena_free_io_irq(struct ena_adapter *adapter)
 	struct ena_irq *irq;
 	int i;
 
+#ifdef CONFIG_RFS_ACCEL
 	if (adapter->msix_vecs >= 1) {
 		free_irq_cpu_rmap(adapter->netdev->rx_cpu_rmap);
 		adapter->netdev->rx_cpu_rmap = NULL;
 	}
+#endif /* CONFIG_RFS_ACCEL */
 
 	for (i = ENA_IO_IRQ_FIRST_IDX; i < adapter->msix_vecs; i++) {
 		irq = &adapter->irq_tbl[i];
@@ -1780,8 +1786,7 @@ static void ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx, struct sk_buff *skb)
 }
 
 /* Called with netif_tx_lock. */
-static netdev_tx_t ena_start_xmit(struct sk_buff *skb,
-				  struct net_device *dev)
+static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ena_adapter *adapter = netdev_priv(dev);
 	struct ena_tx_buffer *tx_info;
@@ -2800,7 +2805,6 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	pci_set_master(pdev);
-	pci_save_state(pdev);
 
 	ena_dev = vzalloc(sizeof(*ena_dev));
 	if (!ena_dev) {
@@ -3024,7 +3028,7 @@ static void ena_remove(struct pci_dev *pdev)
 {
 	struct ena_adapter *adapter = pci_get_drvdata(pdev);
 	struct ena_com_dev *ena_dev;
-	struct net_device *dev;
+	struct net_device *netdev;
 
 	if (!adapter)
 		/* This device didn't load properly and it's resources
@@ -3033,9 +3037,16 @@ static void ena_remove(struct pci_dev *pdev)
 		return;
 
 	ena_dev = adapter->ena_dev;
-	dev = adapter->netdev;
+	netdev = adapter->netdev;
 
-	unregister_netdev(dev);
+#ifdef CONFIG_RFS_ACCEL
+	if ((adapter->msix_vecs >= 1) && (netdev->rx_cpu_rmap)) {
+		free_irq_cpu_rmap(netdev->rx_cpu_rmap);
+		netdev->rx_cpu_rmap = NULL;
+	}
+#endif /* CONFIG_RFS_ACCEL */
+
+	unregister_netdev(netdev);
 
 	ena_sysfs_terminate(&pdev->dev);
 
@@ -3053,7 +3064,7 @@ static void ena_remove(struct pci_dev *pdev)
 
 	ena_disable_msix(adapter);
 
-	free_netdev(dev);
+	free_netdev(netdev);
 
 	ena_com_mmio_reg_read_request_destroy(ena_dev);
 
