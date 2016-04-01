@@ -693,8 +693,8 @@ static void ena_com_io_queue_free(struct ena_com_dev *ena_dev,
 	}
 }
 
-static int wait_for_reset_state(struct ena_com_dev *ena_dev,
-				u32 timeout, u16 exp_state)
+static int wait_for_reset_state(struct ena_com_dev *ena_dev, u32 timeout,
+				u16 exp_state)
 {
 	u32 val, i;
 
@@ -875,7 +875,7 @@ static int ena_com_indirect_table_allocate(struct ena_com_dev *ena_dev,
 		return -EINVAL;
 	}
 
-	tbl_size = (1 << log_size) *
+	tbl_size = (1ULL << log_size) *
 		sizeof(struct ena_admin_rss_ind_table_entry);
 
 	rss->rss_ind_tbl =
@@ -886,7 +886,7 @@ static int ena_com_indirect_table_allocate(struct ena_com_dev *ena_dev,
 	if (unlikely(!rss->rss_ind_tbl))
 		goto mem_err1;
 
-	tbl_size = (1 << log_size) * sizeof(u16);
+	tbl_size = (1ULL << log_size) * sizeof(u16);
 	rss->host_rss_ind_tbl =
 		devm_kzalloc(ena_dev->dmadev, tbl_size, GFP_KERNEL);
 	if (unlikely(!rss->host_rss_ind_tbl))
@@ -897,7 +897,7 @@ static int ena_com_indirect_table_allocate(struct ena_com_dev *ena_dev,
 	return 0;
 
 mem_err2:
-	tbl_size = (1 << log_size) *
+	tbl_size = (1ULL << log_size) *
 		sizeof(struct ena_admin_rss_ind_table_entry);
 
 	dma_free_coherent(ena_dev->dmadev,
@@ -913,7 +913,7 @@ mem_err1:
 static int ena_com_indirect_table_destroy(struct ena_com_dev *ena_dev)
 {
 	struct ena_rss *rss = &ena_dev->rss;
-	size_t tbl_size = (1 << rss->tbl_log_size) *
+	size_t tbl_size = (1ULL << rss->tbl_log_size) *
 		sizeof(struct ena_admin_rss_ind_table_entry);
 
 	if (rss->rss_ind_tbl)
@@ -1029,17 +1029,18 @@ static int ena_com_ind_tbl_convert_to_device(struct ena_com_dev *ena_dev)
 
 static int ena_com_ind_tbl_convert_from_device(struct ena_com_dev *ena_dev)
 {
-	u16 dev_idx_to_host_tbl[ENA_TOTAL_NUM_QUEUES] = { -1 };
+	u16 dev_idx_to_host_tbl[ENA_TOTAL_NUM_QUEUES] = { (u16)-1 };
 	struct ena_rss *rss = &ena_dev->rss;
-	u16 idx, i;
+	u8 idx;
+	u16 i;
 
 	for (i = 0; i < ENA_TOTAL_NUM_QUEUES; i++)
 		dev_idx_to_host_tbl[ena_dev->io_sq_queues[i].idx] = i;
 
 	for (i = 0; i < 1 << rss->tbl_log_size; i++) {
-		idx = rss->rss_ind_tbl[i].cq_idx;
-		if (idx > ENA_TOTAL_NUM_QUEUES)
+		if (rss->rss_ind_tbl[i].cq_idx > ENA_TOTAL_NUM_QUEUES)
 			return -EINVAL;
+		idx = (u8)rss->rss_ind_tbl[i].cq_idx;
 
 		if (dev_idx_to_host_tbl[idx] > ENA_TOTAL_NUM_QUEUES)
 			return -EINVAL;
@@ -1066,7 +1067,7 @@ static int ena_com_init_interrupt_moderation_table(struct ena_com_dev *ena_dev)
 }
 
 static void ena_com_update_intr_delay_resolution(struct ena_com_dev *ena_dev,
-						 unsigned int intr_delay_resolution)
+						 u16 intr_delay_resolution)
 {
 	struct ena_intr_moder_entry *intr_moder_tbl = ena_dev->intr_moder_tbl;
 	unsigned int i;
@@ -1620,7 +1621,7 @@ int ena_com_create_io_queue(struct ena_com_dev *ena_dev,
 	if (direction == ENA_COM_IO_QUEUE_DIRECTION_TX)
 		/* header length is limited to 8 bits */
 		io_sq->tx_max_header_size =
-			min_t(u16, ena_dev->tx_max_header_size, SZ_256);
+			min_t(u32, ena_dev->tx_max_header_size, SZ_256);
 
 	ret = ena_com_init_io_sq(ena_dev, io_sq);
 	if (ret)
@@ -2126,7 +2127,7 @@ int ena_com_get_hash_function(struct ena_com_dev *ena_dev,
 		*func = rss->hash_func;
 
 	if (key)
-		memcpy(key, hash_key->key, hash_key->keys_num << 2);
+		memcpy(key, hash_key->key, (size_t)(hash_key->keys_num) << 2);
 
 	return 0;
 }
@@ -2268,7 +2269,7 @@ int ena_com_fill_hash_ctrl(struct ena_com_dev *ena_dev,
 	u16 supported_fields;
 	int rc;
 
-	if (proto > ENA_ADMIN_RSS_PROTO_NUM) {
+	if (proto >= ENA_ADMIN_RSS_PROTO_NUM) {
 		ena_trc_err("Invalid proto num (%u)\n", proto);
 		return -EINVAL;
 	}
@@ -2350,7 +2351,7 @@ int ena_com_indirect_table_set(struct ena_com_dev *ena_dev)
 		return ret;
 	}
 
-	cmd.control_buffer.length = (1 << rss->tbl_log_size) *
+	cmd.control_buffer.length = (1ULL << rss->tbl_log_size) *
 		sizeof(struct ena_admin_rss_ind_table_entry);
 
 	ret = ena_com_execute_admin_command(admin_queue,
@@ -2374,7 +2375,7 @@ int ena_com_indirect_table_get(struct ena_com_dev *ena_dev, u32 *ind_tbl)
 	u32 tbl_size;
 	int i, rc;
 
-	tbl_size = (1 << rss->tbl_log_size) *
+	tbl_size = (1ULL << rss->tbl_log_size) *
 		sizeof(struct ena_admin_rss_ind_table_entry);
 
 	rc = ena_com_get_feature_ex(ena_dev, &get_resp,
@@ -2601,7 +2602,7 @@ void ena_com_destroy_interrupt_moderation(struct ena_com_dev *ena_dev)
 int ena_com_init_interrupt_moderation(struct ena_com_dev *ena_dev)
 {
 	struct ena_admin_get_feat_resp get_resp;
-	u32 delay_resolution;
+	u16 delay_resolution;
 	int rc;
 
 	rc = ena_com_get_feature(ena_dev, &get_resp,
