@@ -455,6 +455,17 @@ static bool find_jump_target(const struct xt_table_info *t,
 	return false;
 }
 
+static bool next_offset_ok(const struct xt_table_info *t, unsigned int newpos)
+{
+	if (newpos > t->size - sizeof(struct ipt_entry))
+		return false;
+
+	if (newpos % __alignof__(struct ipt_entry) != 0)
+		return false;
+
+	return true;
+}
+
 /* Figures out from what hook each rule can be called: returns 0 if
    there are loops.  Puts hook bitmask in comefrom. */
 static int
@@ -530,6 +541,8 @@ mark_source_chains(const struct xt_table_info *newinfo,
 
 				/* Move along one */
 				size = e->next_offset;
+				if (!next_offset_ok(newinfo, pos + size))
+					return 0;
 				e = (struct ipt_entry *)
 					(entry0 + pos + size);
 				if (pos + size >= newinfo->size)
@@ -542,13 +555,6 @@ mark_source_chains(const struct xt_table_info *newinfo,
 				if (strcmp(t->target.u.user.name,
 					   XT_STANDARD_TARGET) == 0 &&
 				    newpos >= 0) {
-					if (newpos > newinfo->size -
-						sizeof(struct ipt_entry)) {
-						duprintf("mark_source_chains: "
-							"bad verdict (%i)\n",
-								newpos);
-						return 0;
-					}
 					/* This a jump; chase it. */
 					duprintf("Jump rule %u -> %u\n",
 						 pos, newpos);
@@ -562,6 +568,10 @@ mark_source_chains(const struct xt_table_info *newinfo,
 					if (newpos >= newinfo->size)
 						return 0;
 				}
+
+				if (!next_offset_ok(newinfo, newpos))
+					return 0;
+
 				e = (struct ipt_entry *)
 					(entry0 + newpos);
 				e->counters.pcnt = pos;
