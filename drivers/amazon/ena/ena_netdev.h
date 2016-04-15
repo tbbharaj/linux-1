@@ -45,7 +45,7 @@
 
 #define DRV_MODULE_VER_MAJOR	0
 #define DRV_MODULE_VER_MINOR	6
-#define DRV_MODULE_VER_SUBMINOR	0
+#define DRV_MODULE_VER_SUBMINOR	1
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_VERSION
@@ -54,7 +54,7 @@
 	__stringify(DRV_MODULE_VER_MINOR) "."	\
 	__stringify(DRV_MODULE_VER_SUBMINOR)
 #endif
-#define DRV_MODULE_RELDATE      "06-APRIL-2016"
+#define DRV_MODULE_RELDATE      "14-APRIL-2016"
 
 #define DEVICE_NAME	"Elastic Network Adapter (ENA)"
 
