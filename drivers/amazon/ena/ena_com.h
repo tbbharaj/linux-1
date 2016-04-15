@@ -634,10 +634,8 @@ int ena_com_rss_init(struct ena_com_dev *ena_dev, u16 log_size);
  * @ena_dev: ENA communication layer struct
  *
  * Free all the RSS/RFS resources.
- *
- * @return: 0 on Success and negative value otherwise.
  */
-int ena_com_rss_destroy(struct ena_com_dev *ena_dev);
+void ena_com_rss_destroy(struct ena_com_dev *ena_dev);
 
 /* ena_com_fill_hash_function - Fill RSS hash function
  * @ena_dev: ENA communication layer struct

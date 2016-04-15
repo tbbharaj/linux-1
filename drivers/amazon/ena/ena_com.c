@@ -844,7 +844,7 @@ static int ena_com_hash_key_allocate(struct ena_com_dev *ena_dev)
 	return 0;
 }
 
-static int ena_com_hash_key_destroy(struct ena_com_dev *ena_dev)
+static void ena_com_hash_key_destroy(struct ena_com_dev *ena_dev)
 {
 	struct ena_rss *rss = &ena_dev->rss;
 
@@ -854,7 +854,6 @@ static int ena_com_hash_key_destroy(struct ena_com_dev *ena_dev)
 				  rss->hash_key,
 				  rss->hash_key_dma_addr);
 	rss->hash_key = NULL;
-	return 0;
 }
 
 static int ena_com_hash_ctrl_init(struct ena_com_dev *ena_dev)
@@ -866,10 +865,13 @@ static int ena_com_hash_ctrl_init(struct ena_com_dev *ena_dev)
 					    &rss->hash_ctrl_dma_addr,
 					    GFP_KERNEL | __GFP_ZERO);
 
+	if (unlikely(!rss->hash_ctrl))
+		return -ENOMEM;
+
 	return 0;
 }
 
-static int ena_com_hash_ctrl_destroy(struct ena_com_dev *ena_dev)
+static void ena_com_hash_ctrl_destroy(struct ena_com_dev *ena_dev)
 {
 	struct ena_rss *rss = &ena_dev->rss;
 
@@ -879,8 +881,6 @@ static int ena_com_hash_ctrl_destroy(struct ena_com_dev *ena_dev)
 				  rss->hash_ctrl,
 				  rss->hash_ctrl_dma_addr);
 	rss->hash_ctrl = NULL;
-
-	return 0;
 }
 
 static int ena_com_indirect_table_allocate(struct ena_com_dev *ena_dev,
@@ -940,7 +940,7 @@ mem_err1:
 	return -ENOMEM;
 }
 
-static int ena_com_indirect_table_destroy(struct ena_com_dev *ena_dev)
+static void ena_com_indirect_table_destroy(struct ena_com_dev *ena_dev)
 {
 	struct ena_rss *rss = &ena_dev->rss;
 	size_t tbl_size = (1ULL << rss->tbl_log_size) *
@@ -956,8 +956,6 @@ static int ena_com_indirect_table_destroy(struct ena_com_dev *ena_dev)
 	if (rss->host_rss_ind_tbl)
 		devm_kfree(ena_dev->dmadev, rss->host_rss_ind_tbl);
 	rss->host_rss_ind_tbl = NULL;
-
-	return 0;
 }
 
 static int ena_com_create_io_sq(struct ena_com_dev *ena_dev,
@@ -2449,15 +2447,13 @@ err_indr_tbl:
 	return rc;
 }
 
-int ena_com_rss_destroy(struct ena_com_dev *ena_dev)
+void ena_com_rss_destroy(struct ena_com_dev *ena_dev)
 {
 	ena_com_indirect_table_destroy(ena_dev);
 	ena_com_hash_key_destroy(ena_dev);
 	ena_com_hash_ctrl_destroy(ena_dev);
 
 	memset(&ena_dev->rss, 0x0, sizeof(ena_dev->rss));
-
-	return 0;
 }
 
 int ena_com_allocate_host_attribute(struct ena_com_dev *ena_dev,

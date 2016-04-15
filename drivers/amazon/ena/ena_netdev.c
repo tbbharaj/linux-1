@@ -87,6 +87,8 @@ MODULE_PARM_DESC(enable_missing_tx_detection, "Enable missing Tx completions. (d
 
 static struct ena_aenq_handlers aenq_handlers;
 
+static struct workqueue_struct *ena_wq;
+
 MODULE_DEVICE_TABLE(pci, ena_pci_tbl);
 
 static void ena_tx_timeout(struct net_device *dev)
@@ -417,14 +419,14 @@ static void ena_free_all_io_rx_resources(struct ena_adapter *adapter)
 }
 
 static inline int ena_alloc_rx_page(struct ena_ring *rx_ring,
-		struct ena_rx_buffer *rx_info, gfp_t gfp)
+				    struct ena_rx_buffer *rx_info, gfp_t gfp)
 {
 	struct ena_com_buf *ena_buf;
 	struct page *page;
 	dma_addr_t dma;
 
 	/* if previous allocated page is not used */
-	if (unlikely(rx_info->page != NULL))
+	if (unlikely(rx_info->page))
 		return 0;
 
 	page = alloc_page(gfp);
@@ -458,7 +460,7 @@ static inline int ena_alloc_rx_page(struct ena_ring *rx_ring,
 }
 
 static void ena_free_rx_page(struct ena_ring *rx_ring,
-	struct ena_rx_buffer *rx_info)
+			     struct ena_rx_buffer *rx_info)
 {
 	struct page *page = rx_info->page;
 	struct ena_com_buf *ena_buf = &rx_info->ena_buf;
@@ -488,8 +490,9 @@ static int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
 		struct ena_rx_buffer *rx_info =
 			&rx_ring->rx_buffer_info[next_to_use];
 
-		if (unlikely(ena_alloc_rx_page(rx_ring, rx_info,
-			__GFP_COLD | GFP_ATOMIC | __GFP_COMP) < 0)) {
+		rc = ena_alloc_rx_page(rx_ring, rx_info,
+				       __GFP_COLD | GFP_ATOMIC | __GFP_COMP);
+		if (unlikely(rc < 0)) {
 			netif_warn(rx_ring->adapter, rx_err, rx_ring->netdev,
 				   "failed to alloc buffer for rx queue %d\n",
 				   rx_ring->qid);
@@ -1582,7 +1585,7 @@ static int ena_create_io_rx_queue(struct ena_adapter *adapter, int qid)
 	ctx.mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
 	ctx.msix_vector = msix_vector;
 	ctx.queue_size = adapter->rx_ring_size;
-	ctx.numa_node =cpu_to_node(rx_ring->cpu);
+	ctx.numa_node = cpu_to_node(rx_ring->cpu);
 
 	rc = ena_com_create_io_queue(ena_dev, &ctx);
 	if (rc) {
@@ -2594,7 +2597,7 @@ static void ena_timer_service(unsigned long data)
 			  "Trigger reset is on\n");
 		adapter->trigger_reset = false;
 		ena_dump_stats_to_dmesg(adapter);
-		schedule_work(&adapter->reset_task);
+		queue_work(ena_wq, &adapter->reset_task);
 		return;
 	}
 
@@ -3138,12 +3141,26 @@ static struct pci_driver ena_pci_driver = {
 
 static int __init ena_init(void)
 {
+	pr_info("%s", version);
+
+	ena_wq = create_singlethread_workqueue(DRV_MODULE_NAME);
+	if (!ena_wq) {
+		pr_err("Failed to create workqueue\n");
+		return -ENOMEM;
+	}
+
 	return pci_register_driver(&ena_pci_driver);
 }
 
 static void __exit ena_cleanup(void)
 {
 	pci_unregister_driver(&ena_pci_driver);
+
+	if (ena_wq) {
+		destroy_workqueue(ena_wq);
+		ena_wq = NULL;
+	}
+
 }
 
 /******************************************************************************
@@ -3194,10 +3211,10 @@ static void ena_notification(void *adapter_data,
 		 * We deliberately don't suspend admin so the timer and
 		 * the keep_alive events should remain.
 		 */
-		schedule_work(&adapter->suspend_io_task);
+		queue_work(ena_wq, &adapter->suspend_io_task);
 		break;
 	case ENA_ADMIN_RESUME:
-		schedule_work(&adapter->resume_io_task);
+		queue_work(ena_wq, &adapter->resume_io_task);
 		break;
 	default:
 		netif_err(adapter, drv, adapter->netdev,

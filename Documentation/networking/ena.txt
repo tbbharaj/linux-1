@@ -191,7 +191,7 @@ parameter.
 The driver chooses interrupt delay value according to the number of bytes and
 packets received between interrupt unmasking and interrupt posting. The driver
 uses interrupt delay table that subdivides the range of received bytes/packets
-into 5 levels and assignes interrupt delay value to each level.
+into 5 levels and assigns interrupt delay value to each level.
 The user can enable/disable adaptive moderation, modify the interrupt delay
 table and restore its default values through sysfs.
 
@@ -207,7 +207,7 @@ DMA Coherent buffers are allocated for the following DMA rings:
 - Admin completion ring
 - AENQ ring
 
-The ENA device AQ and AENQ are allocated on probe and freed ontermination.
+The ENA device AQ and AENQ are allocated on probe and freed on termination.
 
 Regular allocations:
 - Tx buffers info ring
