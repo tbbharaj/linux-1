@@ -128,11 +128,6 @@ enum ena_admin_aq_feature_id {
 	/* VLAN membership, frame format, etc.  */
 	ENA_ADMIN_VLAN_CONFIG = 6,
 
-	/* Available size for various on-chip memory resources, accessible
-	 * by the driver
-	 */
-	ENA_ADMIN_ON_DEVICE_MEMORY_CONFIG = 7,
-
 	/* Receive Side Scaling (RSS) function */
 	ENA_ADMIN_RSS_HASH_FUNCTION = 10,
 
@@ -438,9 +433,7 @@ struct ena_admin_acq_create_sq_resp_desc {
 
 	u16 reserved;
 
-	/* word 3 : queue doorbell address as and offset to PCIe MMIO REG
-	 * BAR
-	 */
+	/* word 3 : queue doorbell address as an offset to PCIe MMIO REG BAR */
 	u32 sq_doorbell_offset;
 
 	/* word 4 : low latency queue ring base address as an offset to
@@ -515,21 +508,20 @@ struct ena_admin_acq_create_cq_resp_desc {
 	/* cq identifier */
 	u16 cq_idx;
 
-	/* actual cq depth in # of entries */
-	u16 cq_actual_depth;
+	u16 reserved;
 
-	/* word 3 : doorbell address as an offset to PCIe MMIO REG BAR */
-	u32 cq_doorbell_offset;
+	/* word 3 : cpu numa node address as an offset to PCIe MMIO REG BAR */
+	u32 numa_node_register_offset;
 
 	/* word 4 : completion head doorbell address as an offset to PCIe
 	 * MMIO REG BAR
 	 */
-	u32 cq_head_db_offset;
+	u32 cq_head_db_register_offset;
 
 	/* word 5 : interrupt unmask register address as an offset into
 	 * PCIe MMIO REG BAR
 	 */
-	u32 cq_interrupt_unmask_register;
+	u32 cq_interrupt_unmask_register_offset;
 };
 
 /* ENA AQ Destroy Completion Queue command. Placed in control buffer

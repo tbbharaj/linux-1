@@ -379,6 +379,16 @@ struct ena_eth_io_intr_reg {
 	u32 intr_control;
 };
 
+/* ENA NUMA Node configuration register */
+struct ena_eth_io_numa_node_cfg_reg {
+	/* word 0 : */
+	/* 7:0 : numa
+	 * 30:8 : resrved
+	 * 31 : enabled
+	 */
+	u32 numa_cfg;
+};
+
 /* tx_desc */
 #define ENA_ETH_IO_TX_DESC_LENGTH_MASK GENMASK(15, 0)
 #define ENA_ETH_IO_TX_DESC_REQ_ID_HI_SHIFT 16
@@ -505,5 +515,12 @@ struct ena_eth_io_intr_reg {
 #define ENA_ETH_IO_INTR_REG_TX_INTR_DELAY_MASK GENMASK(29, 15)
 #define ENA_ETH_IO_INTR_REG_INTR_UNMASK_SHIFT 30
 #define ENA_ETH_IO_INTR_REG_INTR_UNMASK_MASK BIT(30)
+
+/* numa_node_cfg_reg */
+#define ENA_ETH_IO_NUMA_NODE_CFG_REG_NUMA_MASK GENMASK(7, 0)
+#define ENA_ETH_IO_NUMA_NODE_CFG_REG_RESRVED_SHIFT 8
+#define ENA_ETH_IO_NUMA_NODE_CFG_REG_RESRVED_MASK GENMASK(30, 8)
+#define ENA_ETH_IO_NUMA_NODE_CFG_REG_ENABLED_SHIFT 31
+#define ENA_ETH_IO_NUMA_NODE_CFG_REG_ENABLED_MASK BIT(31)
 
 #endif /*_ENA_ETH_IO_H_ */

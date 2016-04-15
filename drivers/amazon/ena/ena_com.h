@@ -158,13 +158,14 @@ struct ena_com_tx_meta {
 struct ena_com_io_cq {
 	struct ena_com_io_desc_addr cdesc_addr;
 
-	u32 __iomem *db_addr;
-
 	/* Interrupt unmask register */
 	u32 __iomem *unmask_reg;
 
 	/* The completion queue head doorbell register */
 	u32 __iomem *cq_head_db_reg;
+
+	/* numa configuration register (for TPH) */
+	u32 __iomem *numa_node_cfg_reg;
 
 	/* The value to write to the above register to unmask
 	 * the interrupt of this queue
@@ -352,6 +353,15 @@ struct ena_com_dev_get_features_ctx {
 	struct ena_admin_feature_offload_desc offload;
 };
 
+struct ena_com_create_io_ctx {
+	enum ena_admin_placement_policy_type mem_queue_type;
+	enum queue_direction direction;
+	int numa_node;
+	u32 msix_vector;
+	u16 queue_size;
+	u16 qid;
+};
+
 typedef void (*ena_aenq_handler)(void *data,
 	struct ena_admin_aenq_entry *aenq_e);
 
@@ -426,22 +436,14 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev);
 
 /* ena_com_create_io_queue - Create io queue.
  * @ena_dev: ENA communication layer struct
- * @qid - the caller virtual queue id.
- * @direction - the queue direction (Rx/Tx)
- * @mem_queue_type - Indicate if this queue is LLQ or regular queue
- * (relevant only for Tx queue)
- * @msix_vector - MSI-X vector
- * @queue_size - queue size
+ * ena_com_create_io_ctx - create context structure
  *
- * Create the submission and the completion queues for queue id - qid.
+ * Create the submission and the completion queues.
  *
  * @return - 0 on success, negative value on failure.
  */
-int ena_com_create_io_queue(struct ena_com_dev *ena_dev, u16 qid,
-			    enum queue_direction direction,
-			    enum ena_admin_placement_policy_type mem_queue_type,
-			    u32 msix_vector,
-			    u16 queue_size);
+int ena_com_create_io_queue(struct ena_com_dev *ena_dev,
+			    struct ena_com_create_io_ctx *ctx);
 
 /* ena_com_admin_destroy - Destroy IO queue with the queue id - qid.
  * @ena_dev: ENA communication layer struct
