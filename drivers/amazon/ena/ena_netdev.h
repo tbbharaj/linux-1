@@ -44,8 +44,8 @@
 #include "ena_eth_com.h"
 
 #define DRV_MODULE_VER_MAJOR	0
-#define DRV_MODULE_VER_MINOR	5
-#define DRV_MODULE_VER_SUBMINOR	3
+#define DRV_MODULE_VER_MINOR	6
+#define DRV_MODULE_VER_SUBMINOR	0
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_VERSION
@@ -54,7 +54,7 @@
 	__stringify(DRV_MODULE_VER_MINOR) "."	\
 	__stringify(DRV_MODULE_VER_SUBMINOR)
 #endif
-#define DRV_MODULE_RELDATE      "10-MARCH-2016"
+#define DRV_MODULE_RELDATE      "06-APRIL-2016"
 
 #define DEVICE_NAME	"Elastic Network Adapter (ENA)"
 
@@ -126,6 +126,7 @@
 struct ena_irq {
 	irq_handler_t handler;
 	void *data;
+	int cpu;
 	u32 vector;
 	cpumask_t affinity_hint_mask;
 	char name[ENA_IRQNAME_SIZE];
@@ -157,9 +158,6 @@ struct ena_tx_buffer {
 struct ena_rx_buffer {
 	struct sk_buff *skb;
 	struct page *page;
-	u8 *data;
-	u32 data_size;
-	u32 frag_size; /* used in rx skb allocation */
 	u32 page_offset;
 	struct ena_com_buf ena_buf;
 } ____cacheline_aligned;
@@ -217,6 +215,8 @@ struct ena_ring {
 	/* The maximum length the driver can push to the device (For LLQ) */
 	u8 tx_max_header_size;
 
+	/* cpu for TPH */
+	int cpu;
 	int ring_size; /* number of tx/rx_buffer_info's entries */
 
 	enum ena_admin_placement_policy_type tx_mem_queue_type;

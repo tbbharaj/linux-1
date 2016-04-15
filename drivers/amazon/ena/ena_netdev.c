@@ -40,6 +40,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/numa.h>
 #include <linux/pci.h>
 #include <linux/utsname.h>
 #include <linux/version.h>
@@ -171,6 +172,7 @@ static void ena_init_io_rings_common(struct ena_adapter *adapter,
 	ring->ena_dev = adapter->ena_dev;
 	ring->per_napi_packets = 0;
 	ring->per_napi_bytes = 0;
+	ring->cpu = 0;
 	u64_stats_init(&ring->syncp);
 }
 
@@ -214,7 +216,8 @@ static void ena_init_io_rings(struct ena_adapter *adapter)
 static int ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 {
 	struct ena_ring *tx_ring = &adapter->tx_ring[qid];
-	int size, i;
+	struct ena_irq *ena_irq = &adapter->irq_tbl[ENA_IO_IRQ_IDX(qid)];
+	int size, i, node;
 
 	if (tx_ring->tx_buffer_info) {
 		netif_err(adapter, ifup,
@@ -223,16 +226,23 @@ static int ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	}
 
 	size = sizeof(struct ena_tx_buffer) * tx_ring->ring_size;
+	node = cpu_to_node(ena_irq->cpu);
 
-	tx_ring->tx_buffer_info = vzalloc(size);
-	if (!tx_ring->tx_buffer_info)
-		return -ENOMEM;
+	tx_ring->tx_buffer_info = vzalloc_node(size, node);
+	if (!tx_ring->tx_buffer_info) {
+		tx_ring->tx_buffer_info = vzalloc(size);
+		if (!tx_ring->tx_buffer_info)
+			return -ENOMEM;
+	}
 
 	size = sizeof(u16) * tx_ring->ring_size;
-	tx_ring->free_tx_ids = vzalloc(size);
+	tx_ring->free_tx_ids = vzalloc_node(size, node);
 	if (!tx_ring->free_tx_ids) {
-		vfree(tx_ring->tx_buffer_info);
-		return -ENOMEM;
+		tx_ring->free_tx_ids = vzalloc(size);
+		if (!tx_ring->free_tx_ids) {
+			vfree(tx_ring->tx_buffer_info);
+			return -ENOMEM;
+		}
 	}
 
 	/* Req id ring for TX out of order completions */
@@ -244,6 +254,7 @@ static int ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
+	tx_ring->cpu = ena_irq->cpu;
 	return 0;
 }
 
@@ -315,7 +326,8 @@ static int ena_setup_rx_resources(struct ena_adapter *adapter,
 				  u32 qid)
 {
 	struct ena_ring *rx_ring = &adapter->rx_ring[qid];
-	int size;
+	struct ena_irq *ena_irq = &adapter->irq_tbl[ENA_IO_IRQ_IDX(qid)];
+	int size, node;
 
 	if (rx_ring->rx_buffer_info) {
 		netif_err(adapter, ifup, adapter->netdev,
@@ -324,21 +336,26 @@ static int ena_setup_rx_resources(struct ena_adapter *adapter,
 	}
 
 	size = sizeof(struct ena_rx_buffer) * rx_ring->ring_size;
+	node = cpu_to_node(ena_irq->cpu);
 
 	/* alloc extra element so in rx path
 	 * we can always prefetch rx_info + 1
 	 */
 	size += sizeof(struct ena_rx_buffer);
 
-	rx_ring->rx_buffer_info = vzalloc(size);
-	if (!rx_ring->rx_buffer_info)
-		return -ENOMEM;
+	rx_ring->rx_buffer_info = vzalloc_node(size, node);
+	if (!rx_ring->rx_buffer_info) {
+		rx_ring->rx_buffer_info = vzalloc(size);
+		if (!rx_ring->rx_buffer_info)
+			return -ENOMEM;
+	}
 
 	/* Reset rx statistics */
 	memset(&rx_ring->rx_stats, 0x0, sizeof(rx_ring->rx_stats));
 
 	rx_ring->next_to_clean = 0;
 	rx_ring->next_to_use = 0;
+	rx_ring->cpu = ena_irq->cpu;
 
 	return 0;
 }
@@ -399,77 +416,64 @@ static void ena_free_all_io_rx_resources(struct ena_adapter *adapter)
 		ena_free_rx_resources(adapter, i);
 }
 
-static inline int ena_alloc_rx_frag(struct ena_ring *rx_ring,
-				    struct ena_rx_buffer *rx_info)
+static inline int ena_alloc_rx_page(struct ena_ring *rx_ring,
+		struct ena_rx_buffer *rx_info, gfp_t gfp)
 {
 	struct ena_com_buf *ena_buf;
+	struct page *page;
 	dma_addr_t dma;
-	u8 *data;
-	u32 frame_size;
 
-	/* if previous allocated frag is not used */
-	if (rx_info->data)
+	/* if previous allocated page is not used */
+	if (unlikely(rx_info->page != NULL))
 		return 0;
 
-	/* Limit the buffer to 1 page */
-	frame_size = (rx_ring->mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
-	rx_info->data_size = min_t(u32, frame_size, PAGE_SIZE);
-
-	rx_info->data_size = max_t(u32,
-				   rx_info->data_size,
-				   ENA_DEFAULT_MIN_RX_BUFF_ALLOC_SIZE);
-
-	rx_info->frag_size =
-		SKB_DATA_ALIGN(rx_info->data_size + NET_IP_ALIGN) +
-		SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-	data = netdev_alloc_frag(rx_info->frag_size);
-
-	if (unlikely(!data)) {
+	page = alloc_page(gfp);
+	if (unlikely(!page)) {
 		u64_stats_update_begin(&rx_ring->syncp);
-		rx_ring->rx_stats.skb_alloc_fail++;
+		rx_ring->rx_stats.page_alloc_fail++;
 		u64_stats_update_end(&rx_ring->syncp);
 		return -ENOMEM;
 	}
 
-	dma = dma_map_single(rx_ring->dev, data + NET_IP_ALIGN,
-			     rx_info->data_size, DMA_FROM_DEVICE);
+	dma = dma_map_page(rx_ring->dev, page, 0, PAGE_SIZE,
+			   DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(rx_ring->dev, dma))) {
 		u64_stats_update_begin(&rx_ring->syncp);
 		rx_ring->rx_stats.dma_mapping_err++;
 		u64_stats_update_end(&rx_ring->syncp);
-		put_page(virt_to_head_page(data));
+
+		__free_page(page);
 		return -EIO;
 	}
-
 	netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
-		  "alloc frag %p, rx_info %p len %x skb size %x\n", data,
-		  rx_info, rx_info->data_size, rx_info->frag_size);
+		  "alloc page %p, rx_info %p\n", page, rx_info);
 
-	rx_info->data = data;
-
-	rx_info->page = virt_to_head_page(rx_info->data);
-	rx_info->page_offset = (uintptr_t)rx_info->data
-		- (uintptr_t)page_address(rx_info->page);
+	rx_info->page = page;
+	rx_info->page_offset = 0;
 	ena_buf = &rx_info->ena_buf;
 	ena_buf->paddr = dma;
-	ena_buf->len = rx_info->data_size;
+	ena_buf->len = PAGE_SIZE;
+
 	return 0;
 }
 
-static void ena_free_rx_frag(struct ena_ring *rx_ring,
-			     struct ena_rx_buffer *rx_info)
+static void ena_free_rx_page(struct ena_ring *rx_ring,
+	struct ena_rx_buffer *rx_info)
 {
-	u8 *data = rx_info->data;
+	struct page *page = rx_info->page;
 	struct ena_com_buf *ena_buf = &rx_info->ena_buf;
 
-	if (!data)
+	if (unlikely(!page)) {
+		netif_warn(rx_ring->adapter, rx_err, rx_ring->netdev,
+			   "Trying to free unallocated buffer\n");
 		return;
+	}
 
-	dma_unmap_single(rx_ring->dev, ena_buf->paddr,
-			 rx_info->data_size, DMA_FROM_DEVICE);
+	dma_unmap_page(rx_ring->dev, ena_buf->paddr, PAGE_SIZE,
+		       DMA_FROM_DEVICE);
 
-	put_page(virt_to_head_page(data));
-	rx_info->data = NULL;
+	__free_page(page);
+	rx_info->page = NULL;
 }
 
 static int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
@@ -484,8 +488,8 @@ static int ena_refill_rx_bufs(struct ena_ring *rx_ring, u32 num)
 		struct ena_rx_buffer *rx_info =
 			&rx_ring->rx_buffer_info[next_to_use];
 
-		if (unlikely(
-			ena_alloc_rx_frag(rx_ring, rx_info) < 0)) {
+		if (unlikely(ena_alloc_rx_page(rx_ring, rx_info,
+			__GFP_COLD | GFP_ATOMIC | __GFP_COMP) < 0)) {
 			netif_warn(rx_ring->adapter, rx_err, rx_ring->netdev,
 				   "failed to alloc buffer for rx queue %d\n",
 				   rx_ring->qid);
@@ -535,8 +539,8 @@ static void ena_free_rx_bufs(struct ena_adapter *adapter,
 	for (i = 0; i < rx_ring->ring_size; i++) {
 		struct ena_rx_buffer *rx_info = &rx_ring->rx_buffer_info[i];
 
-		if (rx_info->data)
-			ena_free_rx_frag(rx_ring, rx_info);
+		if (rx_info->page)
+			ena_free_rx_page(rx_ring, rx_info);
 	}
 }
 
@@ -793,93 +797,84 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 		&rx_ring->rx_buffer_info[*next_to_clean];
 	u32 len;
 	u32 buf = 0;
-
-	ENA_ASSERT(rx_info->data, "Invalid alloc frag buffer\n");
+	void *va;
 
 	len = ena_bufs[0].len;
+	ENA_ASSERT(rx_info->page, "page is NULL\n");
+
 	netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
-		  "rx_info %p data %p\n", rx_info, rx_info->data);
+		  "rx_info %p page %p\n",
+		  rx_info, rx_info->page);
 
-	ENA_ASSERT(len > 0, "pkt length is 0\n");
-
-	prefetch(rx_info->data + NET_IP_ALIGN);
+	/* save virt address of first buffer */
+	va = page_address(rx_info->page) + rx_info->page_offset;
+	prefetch(va + NET_IP_ALIGN);
 
 	if (len <= rx_ring->rx_small_copy_len) {
-		netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
-			  "rx small packet. len %d\n", len);
-
 		skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
 						rx_ring->rx_small_copy_len);
 		if (unlikely(!skb)) {
 			u64_stats_update_begin(&rx_ring->syncp);
 			rx_ring->rx_stats.skb_alloc_fail++;
 			u64_stats_update_end(&rx_ring->syncp);
+			netif_err(rx_ring->adapter, rx_err, rx_ring->netdev,
+				  "Failed to allocate skb\n");
 			return NULL;
 		}
 
-		pci_dma_sync_single_for_cpu(rx_ring->pdev,
-					    dma_unmap_addr(&rx_info->ena_buf, paddr),
-					    len,
-					    DMA_FROM_DEVICE);
-		skb_copy_to_linear_data(skb, rx_info->data + NET_IP_ALIGN, len);
-		pci_dma_sync_single_for_device(rx_ring->pdev,
-					       dma_unmap_addr(&rx_info->ena_buf, paddr),
-					       len,
-					       DMA_FROM_DEVICE);
+		netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
+			  "rx allocaed small packet. len %d. data_len %d\n",
+			  skb->len, skb->data_len);
+
+		/* sync this buffer for CPU use */
+		dma_sync_single_for_cpu(rx_ring->dev,
+					dma_unmap_addr(&rx_info->ena_buf, paddr),
+					len,
+					DMA_FROM_DEVICE);
+		skb_copy_to_linear_data(skb, va, len);
+		dma_sync_single_for_device(rx_ring->dev,
+					   dma_unmap_addr(&rx_info->ena_buf, paddr),
+					   len,
+					   DMA_FROM_DEVICE);
+
 		skb_put(skb, len);
 		skb->protocol = eth_type_trans(skb, rx_ring->netdev);
-		*next_to_clean = ENA_RX_RING_IDX_NEXT(*next_to_clean,
-						      rx_ring->ring_size);
+		*next_to_clean = ENA_RX_RING_IDX_ADD(*next_to_clean, descs,
+						     rx_ring->ring_size);
 		return skb;
 	}
 
-	dma_unmap_single(rx_ring->dev, dma_unmap_addr(&rx_info->ena_buf, paddr),
-			 rx_info->data_size, DMA_FROM_DEVICE);
-
 	skb = napi_get_frags(rx_ring->napi);
 	if (unlikely(!skb)) {
+		netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
+			  "Failed allocating skb\n");
 		u64_stats_update_begin(&rx_ring->syncp);
 		rx_ring->rx_stats.skb_alloc_fail++;
 		u64_stats_update_end(&rx_ring->syncp);
 		return NULL;
 	}
 
-	skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags, rx_info->page,
-			   rx_info->page_offset + NET_IP_ALIGN, len);
-
-	skb->len += len;
-	skb->data_len += len;
-	skb->truesize += len;
-
-	netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
-		  "rx skb updated. len %d. data_len %d\n",
-		  skb->len, skb->data_len);
-
-	rx_info->data = NULL;
-	*next_to_clean = ENA_RX_RING_IDX_NEXT(*next_to_clean,
-					      rx_ring->ring_size);
-
-	while (--descs) {
-		rx_info = &rx_ring->rx_buffer_info[*next_to_clean];
-		len = ena_bufs[++buf].len;
-
-		dma_unmap_single(rx_ring->dev,
-				 dma_unmap_addr(&rx_info->ena_buf, paddr),
-				 rx_info->data_size, DMA_FROM_DEVICE);
+	do {
+		dma_unmap_page(rx_ring->dev,
+			       dma_unmap_addr(&rx_info->ena_buf, paddr),
+			       PAGE_SIZE, DMA_FROM_DEVICE);
 
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, rx_info->page,
-				rx_info->page_offset + NET_IP_ALIGN, len,
-				rx_info->data_size);
+				rx_info->page_offset, len, PAGE_SIZE);
 
 		netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
 			  "rx skb updated. len %d. data_len %d\n",
 			  skb->len, skb->data_len);
 
-		rx_info->data = NULL;
-
-		*next_to_clean = ENA_RX_RING_IDX_NEXT(*next_to_clean,
-						      rx_ring->ring_size);
-	}
+		rx_info->page = NULL;
+		*next_to_clean =
+			ENA_RX_RING_IDX_NEXT(*next_to_clean,
+					     rx_ring->ring_size);
+		if (likely(--descs == 0))
+			break;
+		rx_info = &rx_ring->rx_buffer_info[*next_to_clean];
+		len = ena_bufs[++buf].len;
+	} while (1);
 
 	return skb;
 }
@@ -1087,6 +1082,32 @@ inline void ena_adjust_intr_moderation(struct ena_ring *rx_ring,
 	rx_ring->per_napi_bytes = 0;
 }
 
+static inline void ena_update_ring_numa_node(struct ena_ring *tx_ring,
+					     struct ena_ring *rx_ring)
+{
+	int cpu = get_cpu();
+	int numa_node;
+
+	/* Check only one ring since the 2 rings are running on the same cpu */
+	if (likely(tx_ring->cpu == cpu))
+		goto out;
+
+	numa_node = cpu_to_node(cpu);
+	put_cpu();
+
+	if (numa_node != NUMA_NO_NODE) {
+		ena_com_update_numa_node(tx_ring->ena_com_io_cq, numa_node);
+		ena_com_update_numa_node(rx_ring->ena_com_io_cq, numa_node);
+	}
+
+	tx_ring->cpu = cpu;
+	rx_ring->cpu = cpu;
+
+	return;
+out:
+	put_cpu();
+}
+
 static int ena_io_poll(struct napi_struct *napi, int budget)
 {
 	struct ena_napi *ena_napi = container_of(napi, struct ena_napi, napi);
@@ -1127,6 +1148,8 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 		 * So we use one of them to reach the intr reg
 		 */
 		ena_com_unmask_intr(rx_ring->ena_com_io_cq, &intr_reg);
+
+		ena_update_ring_numa_node(tx_ring, rx_ring);
 
 		ret = rx_work_done;
 	} else {
@@ -1224,6 +1247,7 @@ static void ena_setup_mgmnt_intr(struct ena_adapter *adapter)
 	adapter->irq_tbl[ENA_MGMNT_IRQ_IDX].vector =
 		adapter->msix_entries[ENA_MGMNT_IRQ_IDX].vector;
 	cpu = cpumask_first(cpu_online_mask);
+	adapter->irq_tbl[ENA_MGMNT_IRQ_IDX].cpu = cpu;
 	cpumask_set_cpu(cpu,
 			&adapter->irq_tbl[ENA_MGMNT_IRQ_IDX].affinity_hint_mask);
 }
@@ -1231,12 +1255,13 @@ static void ena_setup_mgmnt_intr(struct ena_adapter *adapter)
 static void ena_setup_io_intr(struct ena_adapter *adapter)
 {
 	struct net_device *netdev;
-	int irq_idx, i;
+	int irq_idx, i, cpu;
 
 	netdev = adapter->netdev;
 
 	for (i = 0; i < adapter->num_queues; i++) {
 		irq_idx = ENA_IO_IRQ_IDX(i);
+		cpu = i % num_online_cpus();
 
 		snprintf(adapter->irq_tbl[irq_idx].name, ENA_IRQNAME_SIZE,
 			 "%s-Tx-Rx-%d", netdev->name, i);
@@ -1244,8 +1269,9 @@ static void ena_setup_io_intr(struct ena_adapter *adapter)
 		adapter->irq_tbl[irq_idx].data = &adapter->ena_napi[i];
 		adapter->irq_tbl[irq_idx].vector =
 			adapter->msix_entries[irq_idx].vector;
+		adapter->irq_tbl[irq_idx].cpu = cpu;
 
-		cpumask_set_cpu(i % num_online_cpus(),
+		cpumask_set_cpu(cpu,
 				&adapter->irq_tbl[irq_idx].affinity_hint_mask);
 	}
 }
@@ -1473,6 +1499,7 @@ static int ena_up_complete(struct ena_adapter *adapter)
 
 static int ena_create_io_tx_queue(struct ena_adapter *adapter, int qid)
 {
+	struct ena_com_create_io_ctx ctx = { 0 };
 	struct ena_com_dev *ena_dev;
 	struct ena_ring *tx_ring;
 	u32 msix_vector;
@@ -1485,11 +1512,14 @@ static int ena_create_io_tx_queue(struct ena_adapter *adapter, int qid)
 	msix_vector = ENA_IO_IRQ_IDX(qid);
 	ena_qid = ENA_IO_TXQ_IDX(qid);
 
-	rc = ena_com_create_io_queue(ena_dev, ena_qid,
-				     ENA_COM_IO_QUEUE_DIRECTION_TX,
-				     ena_dev->tx_mem_queue_type,
-				     msix_vector,
-				     adapter->tx_ring_size);
+	ctx.direction = ENA_COM_IO_QUEUE_DIRECTION_TX;
+	ctx.qid = ena_qid;
+	ctx.mem_queue_type = ena_dev->tx_mem_queue_type;
+	ctx.msix_vector = msix_vector;
+	ctx.queue_size = adapter->tx_ring_size;
+	ctx.numa_node = cpu_to_node(tx_ring->cpu);
+
+	rc = ena_com_create_io_queue(ena_dev, &ctx);
 	if (rc) {
 		netif_err(adapter, ifup, adapter->netdev,
 			  "Failed to create I/O TX queue num %d rc: %d\n",
@@ -1506,6 +1536,8 @@ static int ena_create_io_tx_queue(struct ena_adapter *adapter, int qid)
 			  qid, rc);
 		ena_com_destroy_io_queue(ena_dev, ena_qid);
 	}
+
+	ena_com_update_numa_node(tx_ring->ena_com_io_cq, ctx.numa_node);
 
 	return rc;
 }
@@ -1533,6 +1565,7 @@ create_err:
 static int ena_create_io_rx_queue(struct ena_adapter *adapter, int qid)
 {
 	struct ena_com_dev *ena_dev;
+	struct ena_com_create_io_ctx ctx = { 0 };
 	struct ena_ring *rx_ring;
 	u32 msix_vector;
 	u16 ena_qid;
@@ -1544,11 +1577,14 @@ static int ena_create_io_rx_queue(struct ena_adapter *adapter, int qid)
 	msix_vector = ENA_IO_IRQ_IDX(qid);
 	ena_qid = ENA_IO_RXQ_IDX(qid);
 
-	rc = ena_com_create_io_queue(ena_dev, ena_qid,
-				     ENA_COM_IO_QUEUE_DIRECTION_RX,
-				     ENA_ADMIN_PLACEMENT_POLICY_HOST,
-				     msix_vector,
-				     adapter->rx_ring_size);
+	ctx.qid = ena_qid;
+	ctx.direction = ENA_COM_IO_QUEUE_DIRECTION_RX;
+	ctx.mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
+	ctx.msix_vector = msix_vector;
+	ctx.queue_size = adapter->rx_ring_size;
+	ctx.numa_node =cpu_to_node(rx_ring->cpu);
+
+	rc = ena_com_create_io_queue(ena_dev, &ctx);
 	if (rc) {
 		netif_err(adapter, ifup, adapter->netdev,
 			  "Failed to create I/O RX queue num %d rc: %d\n",
@@ -1565,6 +1601,8 @@ static int ena_create_io_rx_queue(struct ena_adapter *adapter, int qid)
 			  qid, rc);
 		ena_com_destroy_io_queue(ena_dev, ena_qid);
 	}
+
+	ena_com_update_numa_node(rx_ring->ena_com_io_cq, ctx.numa_node);
 
 	return rc;
 }
@@ -2557,6 +2595,7 @@ static void ena_timer_service(unsigned long data)
 		adapter->trigger_reset = false;
 		ena_dump_stats_to_dmesg(adapter);
 		schedule_work(&adapter->reset_task);
+		return;
 	}
 
 	/* Reset the timer */
@@ -2912,6 +2951,10 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 
+	INIT_WORK(&adapter->suspend_io_task, ena_device_io_suspend);
+	INIT_WORK(&adapter->resume_io_task, ena_device_io_resume);
+	INIT_WORK(&adapter->reset_task, ena_fw_reset_device);
+
 	init_timer(&adapter->timer_service);
 	adapter->timer_service.expires = round_jiffies(jiffies + HZ);
 	adapter->timer_service.function = ena_timer_service;
@@ -2920,10 +2963,6 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	add_timer(&adapter->timer_service);
 
 	u64_stats_init(&adapter->syncp);
-
-	INIT_WORK(&adapter->suspend_io_task, ena_device_io_suspend);
-	INIT_WORK(&adapter->resume_io_task, ena_device_io_resume);
-	INIT_WORK(&adapter->reset_task, ena_fw_reset_device);
 
 	rc = ena_enable_msix_and_set_admin_interrupts(adapter, io_queue_num);
 	if (rc) {
