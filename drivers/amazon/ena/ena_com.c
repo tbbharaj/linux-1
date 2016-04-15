@@ -311,9 +311,11 @@ static struct ena_comp_ctx *ena_com_submit_admin_cmd(struct ena_com_admin_queue 
 }
 
 static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
+			      struct ena_com_create_io_ctx *ctx,
 			      struct ena_com_io_sq *io_sq)
 {
 	size_t size;
+	int dev_node;
 
 	memset(&io_sq->desc_addr, 0x0, sizeof(struct ena_com_io_desc_addr));
 
@@ -324,15 +326,31 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 
 	size = io_sq->desc_entry_size * io_sq->q_depth;
 
-	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_HOST)
+	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_HOST) {
+		dev_node = dev_to_node(ena_dev->dmadev);
+		set_dev_node(ena_dev->dmadev, ctx->numa_node);
 		io_sq->desc_addr.virt_addr =
 			dma_alloc_coherent(ena_dev->dmadev,
 					   size,
 					   &io_sq->desc_addr.phys_addr,
 					   GFP_KERNEL | __GFP_ZERO);
-	else
+		set_dev_node(ena_dev->dmadev, dev_node);
+		if (!io_sq->desc_addr.virt_addr)
+			io_sq->desc_addr.virt_addr =
+				dma_alloc_coherent(ena_dev->dmadev,
+						   size,
+						   &io_sq->desc_addr.phys_addr,
+						   GFP_KERNEL | __GFP_ZERO);
+	} else {
+		dev_node = dev_to_node(ena_dev->dmadev);
+		set_dev_node(ena_dev->dmadev, dev_node);
 		io_sq->desc_addr.virt_addr =
 			devm_kzalloc(ena_dev->dmadev, size, GFP_KERNEL);
+		set_dev_node(ena_dev->dmadev, dev_node);
+		if (!io_sq->desc_addr.virt_addr)
+			io_sq->desc_addr.virt_addr =
+				devm_kzalloc(ena_dev->dmadev, size, GFP_KERNEL);
+	}
 
 	if (!io_sq->desc_addr.virt_addr) {
 		ena_trc_err("memory allocation failed");
@@ -347,9 +365,11 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 }
 
 static int ena_com_init_io_cq(struct ena_com_dev *ena_dev,
+			      struct ena_com_create_io_ctx *ctx,
 			      struct ena_com_io_cq *io_cq)
 {
 	size_t size;
+	int prev_node;
 
 	memset(&io_cq->cdesc_addr, 0x0, sizeof(struct ena_com_io_desc_addr));
 
@@ -361,11 +381,21 @@ static int ena_com_init_io_cq(struct ena_com_dev *ena_dev,
 
 	size = io_cq->cdesc_entry_size_in_bytes * io_cq->q_depth;
 
+	prev_node = dev_to_node(ena_dev->dmadev);
+	set_dev_node(ena_dev->dmadev, ctx->numa_node);
 	io_cq->cdesc_addr.virt_addr =
 		dma_alloc_coherent(ena_dev->dmadev,
 				   size,
 				   &io_cq->cdesc_addr.phys_addr,
 				   GFP_KERNEL | __GFP_ZERO);
+	set_dev_node(ena_dev->dmadev, prev_node);
+	if (!io_cq->cdesc_addr.virt_addr) {
+		io_cq->cdesc_addr.virt_addr =
+			dma_alloc_coherent(ena_dev->dmadev,
+					   size,
+					   &io_cq->cdesc_addr.phys_addr,
+					   GFP_KERNEL | __GFP_ZERO);
+	}
 
 	if (!io_cq->cdesc_addr.virt_addr) {
 		ena_trc_err("memory allocation failed");
@@ -1158,23 +1188,19 @@ int ena_com_create_io_cq(struct ena_com_dev *ena_dev,
 	}
 
 	io_cq->idx = cmd_completion.cq_idx;
-	io_cq->db_addr = (u32 __iomem *)((uintptr_t)ena_dev->reg_bar +
-		cmd_completion.cq_doorbell_offset);
-
-	if (io_cq->q_depth != cmd_completion.cq_actual_depth) {
-		ena_trc_err("completion actual queue size (%d) is differ from requested size (%d)\n",
-			    cmd_completion.cq_actual_depth, io_cq->q_depth);
-		ena_com_destroy_io_cq(ena_dev, io_cq);
-		return -ENOSPC;
-	}
 
 	io_cq->unmask_reg = (u32 __iomem *)((uintptr_t)ena_dev->reg_bar +
-		cmd_completion.cq_interrupt_unmask_register);
+		cmd_completion.cq_interrupt_unmask_register_offset);
 
-	if (cmd_completion.cq_head_db_offset)
+	if (cmd_completion.cq_head_db_register_offset)
 		io_cq->cq_head_db_reg =
 			(u32 __iomem *)((uintptr_t)ena_dev->reg_bar +
-			cmd_completion.cq_head_db_offset);
+			cmd_completion.cq_head_db_register_offset);
+
+	if (cmd_completion.numa_node_register_offset)
+		io_cq->numa_node_cfg_reg =
+			(u32 __iomem *)((uintptr_t)ena_dev->reg_bar +
+			cmd_completion.numa_node_register_offset);
 
 	ena_trc_dbg("created cq[%u], depth[%u]\n", io_cq->idx, io_cq->q_depth);
 
@@ -1583,50 +1609,46 @@ error:
 }
 
 int ena_com_create_io_queue(struct ena_com_dev *ena_dev,
-			    u16 qid,
-			    enum queue_direction direction,
-			    enum ena_admin_placement_policy_type mem_queue_type,
-			    u32 msix_vector,
-			    u16 queue_size)
+			    struct ena_com_create_io_ctx *ctx)
 {
 	struct ena_com_io_sq *io_sq;
 	struct ena_com_io_cq *io_cq;
 	int ret = 0;
 
-	if (qid >= ENA_TOTAL_NUM_QUEUES) {
+	if (ctx->qid >= ENA_TOTAL_NUM_QUEUES) {
 		ena_trc_err("Qid (%d) is bigger than max num of queues (%d)\n",
-			    qid, ENA_TOTAL_NUM_QUEUES);
+			    ctx->qid, ENA_TOTAL_NUM_QUEUES);
 		return -EINVAL;
 	}
 
-	io_sq = &ena_dev->io_sq_queues[qid];
-	io_cq = &ena_dev->io_cq_queues[qid];
+	io_sq = &ena_dev->io_sq_queues[ctx->qid];
+	io_cq = &ena_dev->io_cq_queues[ctx->qid];
 
 	memset(io_sq, 0x0, sizeof(struct ena_com_io_sq));
 	memset(io_cq, 0x0, sizeof(struct ena_com_io_cq));
 
 	/* Init CQ */
-	io_cq->q_depth = queue_size;
-	io_cq->direction = direction;
-	io_cq->qid = qid;
+	io_cq->q_depth = ctx->queue_size;
+	io_cq->direction = ctx->direction;
+	io_cq->qid = ctx->qid;
 
-	io_cq->msix_vector = msix_vector;
+	io_cq->msix_vector = ctx->msix_vector;
 
-	io_sq->q_depth = queue_size;
-	io_sq->direction = direction;
-	io_sq->qid = qid;
+	io_sq->q_depth = ctx->queue_size;
+	io_sq->direction = ctx->direction;
+	io_sq->qid = ctx->qid;
 
-	io_sq->mem_queue_type = mem_queue_type;
+	io_sq->mem_queue_type = ctx->mem_queue_type;
 
-	if (direction == ENA_COM_IO_QUEUE_DIRECTION_TX)
+	if (ctx->direction == ENA_COM_IO_QUEUE_DIRECTION_TX)
 		/* header length is limited to 8 bits */
 		io_sq->tx_max_header_size =
 			min_t(u32, ena_dev->tx_max_header_size, SZ_256);
 
-	ret = ena_com_init_io_sq(ena_dev, io_sq);
+	ret = ena_com_init_io_sq(ena_dev, ctx, io_sq);
 	if (ret)
 		goto error;
-	ret = ena_com_init_io_cq(ena_dev, io_cq);
+	ret = ena_com_init_io_cq(ena_dev, ctx, io_cq);
 	if (ret)
 		goto error;
 
