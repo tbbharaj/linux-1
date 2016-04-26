@@ -99,10 +99,6 @@ static unsigned int xen_blkif_max_segments = 32;
 module_param_named(max, xen_blkif_max_segments, int, S_IRUGO);
 MODULE_PARM_DESC(max, "Maximum amount of segments in indirect requests (default is 32)");
 
-static unsigned int xen_blkif_feature_persistent = 1;
-module_param_named(persistent_grants, xen_blkif_feature_persistent, int, S_IRUGO);
-MODULE_PARM_DESC(persistent_grants, "Enable persistent grant table references (default is 1)");
-
 /*
  * Maximum order of pages to be used for the shared ring between front and
  * backend, 4KB page granularity is used.
@@ -1530,14 +1526,11 @@ again:
 		message = "writing protocol";
 		goto abort_transaction;
 	}
-
-	if (xen_blkif_feature_persistent) {
-		err = xenbus_printf(xbt, dev->nodename,
-				    "feature-persistent", "%u", 1);
-		if (err)
-			dev_warn(&dev->dev,
-				 "writing persistent grants feature to xenbus");
-	}
+	err = xenbus_printf(xbt, dev->nodename,
+			    "feature-persistent", "%u", 1);
+	if (err)
+		dev_warn(&dev->dev,
+			 "writing persistent grants feature to xenbus");
 
 	err = xenbus_transaction_end(xbt, 0);
 	if (err) {
@@ -1973,16 +1966,13 @@ static int blkfront_gather_backend_features(struct blkfront_info *info)
 	if (!err && discard)
 		blkfront_setup_discard(info);
 
-	if (xen_blkif_feature_persistent) {
-		err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
-				    "feature-persistent", "%u", &persistent,
-				    NULL);
-		if (err)
-			info->feature_persistent = 0;
-		else
-			info->feature_persistent = persistent;
-	} else
+	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
+			"feature-persistent", "%u", &persistent,
+			NULL);
+	if (err)
 		info->feature_persistent = 0;
+	else
+		info->feature_persistent = persistent;
 
 	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
 			    "feature-max-indirect-segments", "%u", &indirect_segments,
