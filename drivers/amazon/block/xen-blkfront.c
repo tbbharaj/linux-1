@@ -103,6 +103,14 @@ static unsigned int xen_blkif_feature_persistent = 1;
 module_param_named(persistent_grants, xen_blkif_feature_persistent, int, S_IRUGO);
 MODULE_PARM_DESC(persistent_grants, "Enable persistent grant table references (default is 1)");
 
+#ifdef CONFIG_AMAZON_XEN_BLKDEV_FRONTEND_MQ_DEFAULT
+bool blkfront_use_blk_mq = true;
+#else
+bool blkfront_use_blk_mq = false;
+#endif
+module_param_named(use_blk_mq, blkfront_use_blk_mq, bool, S_IRUGO);
+MODULE_PARM_DESC(use_blk_mq, "Override default block layer to use (0=request-base,1=blk-mq)");
+
 /*
  * Maximum order of pages to be used for the shared ring between front and
  * backend, 4KB page granularity is used.
@@ -748,6 +756,62 @@ static inline bool blkif_request_flush_invalid(struct request *req,
 		 !(info->feature_flush & REQ_FUA)));
 }
 
+static inline void blkif_complete_request(struct request *req, int error)
+{
+	if (blkfront_use_blk_mq)
+		blk_mq_complete_request(req, error);
+	else
+		__blk_end_request_all(req, error);
+}
+
+/*
+ * do_blkif_request
+ *  read a block; request is in a request queue
+ */
+static void do_blkif_request(struct request_queue *rq)
+{
+	struct blkfront_info *info = NULL;
+	struct request *req;
+	int queued;
+
+	pr_debug("Entered do_blkif_request\n");
+
+	queued = 0;
+
+	while ((req = blk_peek_request(rq)) != NULL) {
+		info = req->rq_disk->private_data;
+
+		if (RING_FULL(&info->ring))
+			goto wait;
+
+		blk_start_request(req);
+
+		if (blkif_request_flush_invalid(req, info)) {
+			__blk_end_request_all(req, -EOPNOTSUPP);
+			continue;
+		}
+
+		pr_debug("do_blk req %p: cmd %p, sec %lx, "
+			 "(%u/%u) [%s]\n",
+			 req, req->cmd, (unsigned long)blk_rq_pos(req),
+			 blk_rq_cur_sectors(req), blk_rq_sectors(req),
+			 rq_data_dir(req) ? "write" : "read");
+
+		if (blkif_queue_request(req)) {
+			blk_requeue_request(rq, req);
+wait:
+			/* Avoid pointless unplugs. */
+			blk_stop_queue(rq);
+			break;
+		}
+
+		queued++;
+	}
+
+	if(queued != 0)
+		flush_requests(info);
+}
+
 static int blkif_queue_rq(struct blk_mq_hw_ctx *hctx,
 			   const struct blk_mq_queue_data *qd)
 {
@@ -790,21 +854,27 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
 	struct request_queue *rq;
 	struct blkfront_info *info = gd->private_data;
 
-	memset(&info->tag_set, 0, sizeof(info->tag_set));
-	info->tag_set.ops = &blkfront_mq_ops;
-	info->tag_set.nr_hw_queues = 1;
-	info->tag_set.queue_depth =  BLK_RING_SIZE(info);
-	info->tag_set.numa_node = NUMA_NO_NODE;
-	info->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
-	info->tag_set.cmd_size = 0;
-	info->tag_set.driver_data = info;
+	if (blkfront_use_blk_mq) {
+		memset(&info->tag_set, 0, sizeof(info->tag_set));
+		info->tag_set.ops = &blkfront_mq_ops;
+		info->tag_set.nr_hw_queues = 1;
+		info->tag_set.queue_depth =  BLK_RING_SIZE(info);
+		info->tag_set.numa_node = NUMA_NO_NODE;
+		info->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_SG_MERGE;
+		info->tag_set.cmd_size = 0;
+		info->tag_set.driver_data = info;
 
-	if (blk_mq_alloc_tag_set(&info->tag_set))
-		return -1;
-	rq = blk_mq_init_queue(&info->tag_set);
-	if (IS_ERR(rq)) {
-		blk_mq_free_tag_set(&info->tag_set);
-		return -1;
+		if (blk_mq_alloc_tag_set(&info->tag_set))
+			return -1;
+		rq = blk_mq_init_queue(&info->tag_set);
+		if (IS_ERR(rq)) {
+			blk_mq_free_tag_set(&info->tag_set);
+			return -1;
+		}
+	} else {
+		rq = blk_init_queue(do_blkif_request, &info->io_lock);
+		if (rq == NULL)
+			return -1;
 	}
 
 	queue_flag_set_unlocked(QUEUE_FLAG_VIRT, rq);
@@ -1033,15 +1103,21 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 static void xlvbd_release_gendisk(struct blkfront_info *info)
 {
 	unsigned int minor, nr_minors;
+	unsigned long flags;
 
 	if (info->rq == NULL)
 		return;
 
-	/* No more blkif_request(). */
-	blk_mq_stop_hw_queues(info->rq);
-
-	/* No more gnttab callback work. */
-	gnttab_cancel_free_callback(&info->callback);
+	/* No more blkif_request() and no more gnttab callback work. */
+	if (blkfront_use_blk_mq) {
+		blk_mq_stop_hw_queues(info->rq);
+		gnttab_cancel_free_callback(&info->callback);
+	} else {
+		spin_lock_irqsave(&info->io_lock, flags);
+		blk_stop_queue(info->rq);
+		gnttab_cancel_free_callback(&info->callback);
+		spin_unlock_irqrestore(&info->io_lock, flags);
+	}
 
 	/* Flush gnttab callback work. Must be done with no locks held. */
 	flush_work(&info->work);
@@ -1053,7 +1129,8 @@ static void xlvbd_release_gendisk(struct blkfront_info *info)
 	xlbd_release_minors(minor, nr_minors);
 
 	blk_cleanup_queue(info->rq);
-	blk_mq_free_tag_set(&info->tag_set);
+	if (blkfront_use_blk_mq)
+		blk_mq_free_tag_set(&info->tag_set);
 	info->rq = NULL;
 
 	put_disk(info->gd);
@@ -1063,8 +1140,17 @@ static void xlvbd_release_gendisk(struct blkfront_info *info)
 /* Must be called with io_lock holded */
 static void kick_pending_request_queues(struct blkfront_info *info)
 {
-	if (!RING_FULL(&info->ring))
+	if (RING_FULL(&info->ring))
+		return;
+
+	if (blkfront_use_blk_mq) {
 		blk_mq_start_stopped_hw_queues(info->rq, true);
+	} else {
+		/* Re-enable calldowns. */
+		blk_start_queue(info->rq);
+		/* Kick things off immediately. */
+		do_blkif_request(info->rq);
+	}
 }
 
 static void blkif_restart_queue(struct work_struct *work)
@@ -1088,8 +1174,12 @@ static void blkif_free(struct blkfront_info *info, int suspend)
 	info->connected = suspend ?
 		BLKIF_STATE_SUSPENDED : BLKIF_STATE_DISCONNECTED;
 	/* No more blkif_request(). */
-	if (info->rq)
-		blk_mq_stop_hw_queues(info->rq);
+	if (info->rq) {
+		if (blkfront_use_blk_mq)
+			blk_mq_stop_hw_queues(info->rq);
+		else
+			blk_stop_queue(info->rq);
+	}
 
 	/* Remove all persistent grants */
 	if (!list_empty(&info->grants)) {
@@ -1358,7 +1448,7 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 				queue_flag_clear(QUEUE_FLAG_DISCARD, rq);
 				queue_flag_clear(QUEUE_FLAG_SECDISCARD, rq);
 			}
-			blk_mq_complete_request(req, error);
+			blkif_complete_request(req, error);
 			break;
 		case BLKIF_OP_FLUSH_DISKCACHE:
 		case BLKIF_OP_WRITE_BARRIER:
@@ -1386,7 +1476,7 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 				dev_dbg(&info->xbdev->dev, "Bad return from blkdev data "
 					"request: %x\n", bret->status);
 
-			blk_mq_complete_request(req, error);
+			blkif_complete_request(req, error);
 			break;
 		default:
 			BUG();
@@ -1716,6 +1806,30 @@ static int blkif_recover(struct blkfront_info *info)
 
 	kfree(copy);
 
+	if (!blkfront_use_blk_mq) {
+		/*
+		 * Empty the queue, this is important because we might have
+		 * requests in the queue with more segments than what we
+		 * can handle now.
+		 */
+		spin_lock_irq(&info->io_lock);
+		while ((req = blk_fetch_request(info->rq)) != NULL) {
+			if (req->cmd_flags &
+			    (REQ_FLUSH | REQ_FUA | REQ_DISCARD | REQ_SECURE)) {
+				list_add(&req->queuelist, &requests);
+				continue;
+			}
+			merge_bio.head = req->bio;
+			merge_bio.tail = req->biotail;
+			bio_list_merge(&bio_list, &merge_bio);
+			req->bio = NULL;
+			if (req->cmd_flags & (REQ_FLUSH | REQ_FUA))
+				pr_alert("diskcache flush request found!\n");
+			__blk_end_request_all(req, 0);
+		}
+		spin_unlock_irq(&info->io_lock);
+	}
+
 	xenbus_switch_state(info->xbdev, XenbusStateConnected);
 
 	spin_lock_irq(&info->io_lock);
@@ -1730,10 +1844,14 @@ static int blkif_recover(struct blkfront_info *info)
 		/* Requeue pending requests (flush or discard) */
 		list_del_init(&req->queuelist);
 		BUG_ON(req->nr_phys_segments > segs);
-		blk_mq_requeue_request(req);
+		if (blkfront_use_blk_mq)
+			blk_mq_requeue_request(req);
+		else
+			blk_requeue_request(info->rq, req);
 	}
 	spin_unlock_irq(&info->io_lock);
-	blk_mq_kick_requeue_list(info->rq);
+	if (blkfront_use_blk_mq)
+		blk_mq_kick_requeue_list(info->rq);
 
 	while ((bio = bio_list_pop(&bio_list)) != NULL) {
 		/* Traverse the list of pending bios and re-queue them */
