@@ -65,7 +65,8 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 
 #define ENA_NAPI_BUDGET 64
 
-#define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
+#define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_IFUP | \
+		NETIF_MSG_TX_DONE | NETIF_MSG_TX_ERR)
 static int debug = -1;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
@@ -102,7 +103,7 @@ static void ena_tx_timeout(struct net_device *dev)
 	netif_err(adapter, tx_err, dev, "Transmit timed out\n");
 
 	/* Change the state of the device to trigger reset */
-	adapter->trigger_reset = true;
+	set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 }
 
 static void update_rx_ring_mtu(struct ena_adapter *adapter, int mtu)
@@ -198,12 +199,14 @@ static void ena_init_io_rings(struct ena_adapter *adapter)
 		txr->ring_size = adapter->tx_ring_size;
 		txr->tx_max_header_size = ena_dev->tx_max_header_size;
 		txr->tx_mem_queue_type = ena_dev->tx_mem_queue_type;
+		txr->sgl_size = adapter->max_tx_sgl_size;
 		txr->smoothed_interval =
 			ena_com_get_nonadaptive_moderation_interval_tx(ena_dev);
 
 		/* RX specific ring state */
 		rxr->ring_size = adapter->rx_ring_size;
 		rxr->rx_small_copy_len = adapter->small_copy_len;
+		rxr->sgl_size = adapter->max_rx_sgl_size;
 		rxr->smoothed_interval =
 			ena_com_get_nonadaptive_moderation_interval_rx(ena_dev);
 	}
@@ -679,7 +682,7 @@ static int validate_tx_req_id(struct ena_ring *tx_ring, u16 req_id)
 	u64_stats_update_end(&tx_ring->syncp);
 
 	/* Trigger device reset */
-	tx_ring->adapter->trigger_reset = true;
+	set_bit(ENA_FLAG_TRIGGER_RESET, &tx_ring->adapter->flags);
 	return -EFAULT;
 }
 
@@ -984,7 +987,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 
 	do {
 		ena_rx_ctx.ena_bufs = rx_ring->ena_bufs;
-		ena_rx_ctx.max_bufs = ENA_PKT_MAX_BUFS;
+		ena_rx_ctx.max_bufs = rx_ring->sgl_size;
 		ena_rx_ctx.descs = 0;
 		rc = ena_com_rx_pkt(rx_ring->ena_com_io_cq,
 				    rx_ring->ena_com_io_sq,
@@ -1059,9 +1062,8 @@ error:
 	rx_ring->rx_stats.bad_desc_num++;
 	u64_stats_update_end(&rx_ring->syncp);
 
-	/* Too many desc from the device. Trigger reset
-	 */
-	adapter->trigger_reset = true;
+	/* Too many desc from the device. Trigger reset */
+	set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 
 	return 0;
 }
@@ -1128,6 +1130,11 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 
 	tx_budget = tx_ring->ring_size / ENA_TX_POLL_BUDGET_DEVIDER;
 
+	if (!test_bit(ENA_FLAG_DEV_UP, &tx_ring->adapter->flags)) {
+		napi_complete(napi);
+		return 0;
+	}
+
 	tx_work_done = ena_clean_tx_irq(tx_ring, tx_budget);
 	rx_work_done = ena_clean_rx_irq(rx_ring, napi, budget);
 
@@ -1172,7 +1179,10 @@ static irqreturn_t ena_intr_msix_mgmnt(int irq, void *data)
 	struct ena_adapter *adapter = (struct ena_adapter *)data;
 
 	ena_com_admin_q_comp_intr_handler(adapter->ena_dev);
-	ena_com_aenq_intr_handler(adapter->ena_dev, data);
+
+	/* Don't call the aenq hanadler before probe is done */
+	if (likely(test_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags)))
+		ena_com_aenq_intr_handler(adapter->ena_dev, data);
 
 	return IRQ_HANDLED;
 }
@@ -1194,7 +1204,7 @@ static int ena_enable_msix(struct ena_adapter *adapter, int num_queues)
 {
 	int i, msix_vecs, rc;
 
-	if (adapter->msix_enabled) {
+	if (test_bit(ENA_FLAG_MSIX_ENABLED, &adapter->flags)) {
 		netif_err(adapter, probe, adapter->netdev,
 			  "Error, MSI-X is already enabled\n");
 		return -EPERM;
@@ -1232,7 +1242,7 @@ static int ena_enable_msix(struct ena_adapter *adapter, int num_queues)
 	}
 
 	adapter->msix_vecs = msix_vecs;
-	adapter->msix_enabled = true;
+	set_bit(ENA_FLAG_MSIX_ENABLED, &adapter->flags);
 
 	return 0;
 }
@@ -1309,7 +1319,7 @@ static int ena_request_io_irq(struct ena_adapter *adapter)
 	struct ena_irq *irq;
 	int rc = 0, i, k;
 
-	if (!adapter->msix_enabled) {
+	if (!test_bit(ENA_FLAG_MSIX_ENABLED, &adapter->flags)) {
 		netif_err(adapter, ifup, adapter->netdev,
 			  "Failed to request I/O IRQ: MSI-X is not enabled\n");
 		return -EINVAL;
@@ -1375,10 +1385,8 @@ static void ena_free_io_irq(struct ena_adapter *adapter)
 
 static void ena_disable_msix(struct ena_adapter *adapter)
 {
-	if (adapter->msix_enabled)
+	if (test_and_clear_bit(ENA_FLAG_MSIX_ENABLED, &adapter->flags))
 		pci_disable_msix(adapter->pdev);
-
-	adapter->msix_enabled = false;
 
 	if (adapter->msix_entries)
 		vfree(adapter->msix_entries);
@@ -1666,14 +1674,14 @@ static int ena_up(struct ena_adapter *adapter)
 	if (rc)
 		goto err_up;
 
-	if (adapter->link_status)
+	if (test_bit(ENA_FLAG_LINK_UP, &adapter->flags))
 		netif_carrier_on(adapter->netdev);
 
 	u64_stats_update_begin(&adapter->syncp);
 	adapter->dev_stats.interface_up++;
 	u64_stats_update_end(&adapter->syncp);
 
-	adapter->up = true;
+	set_bit(ENA_FLAG_DEV_UP, &adapter->flags);
 
 	return rc;
 
@@ -1696,21 +1704,23 @@ static void ena_down(struct ena_adapter *adapter)
 {
 	netif_info(adapter, ifdown, adapter->netdev, "%s\n", __func__);
 
-	adapter->up = false;
+	clear_bit(ENA_FLAG_DEV_UP, &adapter->flags);
 
 	u64_stats_update_begin(&adapter->syncp);
 	adapter->dev_stats.interface_down++;
 	u64_stats_update_end(&adapter->syncp);
 
+	/* After this point the napi handler won't enable the tx queue */
+	ena_napi_disable_all(adapter);
 	netif_carrier_off(adapter->netdev);
 	netif_tx_disable(adapter->netdev);
 
+	/* After destroy the queue there won't be any new interrupts */
+	ena_destroy_all_io_queues(adapter);
+
 	ena_disable_io_intr_sync(adapter);
-	ena_napi_disable_all(adapter);
 	ena_free_io_irq(adapter);
 	ena_del_napi(adapter);
-
-	ena_destroy_all_io_queues(adapter);
 
 	ena_free_all_tx_bufs(adapter);
 	ena_free_all_rx_bufs(adapter);
@@ -1770,7 +1780,7 @@ static int ena_close(struct net_device *netdev)
 
 	netif_dbg(adapter, ifdown, netdev, "%s\n", __func__);
 
-	if (adapter->up)
+	if (test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
 		ena_down(adapter);
 
 	return 0;
@@ -1826,6 +1836,35 @@ static void ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx, struct sk_buff *skb)
 	}
 }
 
+static int ena_check_and_linearize_skb(struct ena_ring *tx_ring,
+				       struct sk_buff *skb)
+{
+	int num_frags, header_len, rc;
+
+	num_frags = skb_shinfo(skb)->nr_frags;
+	header_len = skb_headlen(skb);
+
+	if (num_frags < tx_ring->sgl_size)
+		return 0;
+
+	if ((num_frags == tx_ring->sgl_size) &&
+	    (header_len < tx_ring->tx_max_header_size))
+		return 0;
+
+	u64_stats_update_begin(&tx_ring->syncp);
+	tx_ring->tx_stats.linearize++;
+	u64_stats_update_end(&tx_ring->syncp);
+
+	rc = skb_linearize(skb);
+	if (unlikely(rc)) {
+		u64_stats_update_begin(&tx_ring->syncp);
+		tx_ring->tx_stats.linearize_failed++;
+		u64_stats_update_end(&tx_ring->syncp);
+	}
+
+	return rc;
+}
+
 /* Called with netif_tx_lock. */
 static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -1851,8 +1890,11 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_ring = &adapter->tx_ring[qid];
 	txq = netdev_get_tx_queue(dev, qid);
 
-	skb_tx_timestamp(skb);
+	rc = ena_check_and_linearize_skb(tx_ring, skb);
+	if (unlikely(rc))
+		return NETDEV_TX_BUSY;
 
+	skb_tx_timestamp(skb);
 	len = skb_headlen(skb);
 
 	next_to_use = tx_ring->next_to_use;
@@ -1897,19 +1939,6 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	last_frag = skb_shinfo(skb)->nr_frags;
-	if (unlikely(last_frag > (ENA_PKT_MAX_BUFS - 2))) {
-		netif_err(adapter, tx_queued, dev,
-			  "too many descriptors. last_frag %d!\n", last_frag);
-		for (i = 0; i <= last_frag; i++)
-			netif_err(adapter, tx_queued, dev,
-				  "frag[%d]: addr:0x%llx, len 0x%x\n", i,
-				  (unsigned long long)tx_info->bufs[i].paddr,
-				  tx_info->bufs[i].len);
-		u64_stats_update_begin(&tx_ring->syncp);
-		tx_ring->tx_stats.unsupported_desc_num++;
-		u64_stats_update_end(&tx_ring->syncp);
-		goto dma_error;
-	}
 
 	for (i = 0; i < last_frag; i++) {
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
@@ -1975,10 +2004,11 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	wmb();
 
 	/* stop the queue when no more space available, the packet can have up
-	 * to MAX_SKB_FRAGS + 1 buffers and a meta descriptor
+	 * to sgl_size + 2. one for the meta descriptor and one for header
+	 * (if the header is larger than tx_max_header_size).
 	 */
-	if (unlikely(ena_com_sq_empty_space(tx_ring->ena_com_io_sq)
-		< (MAX_SKB_FRAGS + 2))) {
+	if (unlikely(ena_com_sq_empty_space(tx_ring->ena_com_io_sq) <
+		     (tx_ring->sgl_size + 2))) {
 		netif_dbg(adapter, tx_queued, dev, "%s stop queue %d\n",
 			  __func__, qid);
 
@@ -2135,7 +2165,7 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 	struct ena_admin_basic_stats ena_stats;
 	int rc;
 
-	if (!adapter->up)
+	if (!test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
 		return NULL;
 
 	rc = ena_com_get_dev_basic_stats(adapter->ena_dev, &ena_stats);
@@ -2219,8 +2249,7 @@ static void ena_device_io_resume(struct work_struct *work)
 }
 
 static int ena_device_validate_params(struct ena_adapter *adapter,
-				      struct ena_com_dev_get_features_ctx
-				      *get_feat_ctx)
+				      struct ena_com_dev_get_features_ctx *get_feat_ctx)
 {
 	struct net_device *netdev = adapter->netdev;
 	int rc;
@@ -2406,7 +2435,7 @@ static void ena_fw_reset_device(struct work_struct *work)
 
 	rtnl_lock();
 
-	dev_up = adapter->up;
+	dev_up = test_bit(ENA_FLAG_DEV_UP, &adapter->flags);
 
 	ena_sysfs_terminate(&pdev->dev);
 
@@ -2508,7 +2537,7 @@ static void check_for_missing_tx_completions(struct ena_adapter *adapter)
 	/* Make sure the driver doesn't turn the device in other process */
 	smp_rmb();
 
-	if (!adapter->up)
+	if (!test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
 		return;
 
 	budget = ENA_MONITORED_TX_QUEUES;
@@ -2520,9 +2549,9 @@ static void check_for_missing_tx_completions(struct ena_adapter *adapter)
 			tx_buf = &tx_ring->tx_buffer_info[j];
 			last_jiffies = tx_buf->last_jiffies;
 			if (unlikely(last_jiffies && time_is_before_jiffies(last_jiffies + TX_TIMEOUT))) {
-				netif_err(adapter, tx_err, adapter->netdev,
-					  "Found a Tx that wasn't completed on time, qid %d, index %d.\n",
-					  tx_ring->qid, j);
+				netif_notice(adapter, tx_err, adapter->netdev,
+					     "Found a Tx that wasn't completed on time, qid %d, index %d.\n",
+					     tx_ring->qid, j);
 
 				u64_stats_update_begin(&tx_ring->syncp);
 				missed_tx = tx_ring->tx_stats.missing_tx_comp++;
@@ -2533,8 +2562,12 @@ static void check_for_missing_tx_completions(struct ena_adapter *adapter)
 				 */
 				tx_buf->last_jiffies = 0;
 
-				if (unlikely(missed_tx > MAX_NUM_OF_TIMEOUTED_PACKETS))
-					adapter->trigger_reset = true;
+				if (unlikely(missed_tx > MAX_NUM_OF_TIMEOUTED_PACKETS)) {
+					netif_err(adapter, tx_err, adapter->netdev,
+						  "The number of lost tx completion is above the threshold (%d > %d). Reset the device\n",
+						  missed_tx, MAX_NUM_OF_TIMEOUTED_PACKETS);
+					set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
+				}
 			}
 		}
 
@@ -2562,7 +2595,7 @@ static void check_for_missing_keep_alive(struct ena_adapter *adapter)
 		u64_stats_update_begin(&adapter->syncp);
 		adapter->dev_stats.wd_expired++;
 		u64_stats_update_end(&adapter->syncp);
-		adapter->trigger_reset = true;
+		set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 	}
 }
 
@@ -2574,7 +2607,7 @@ static void check_for_admin_com_state(struct ena_adapter *adapter)
 		u64_stats_update_begin(&adapter->syncp);
 		adapter->dev_stats.admin_q_pause++;
 		u64_stats_update_end(&adapter->syncp);
-		adapter->trigger_reset = true;
+		set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 	}
 }
 
@@ -2592,10 +2625,9 @@ static void ena_timer_service(unsigned long data)
 	if (debug_area)
 		ena_dump_stats_to_buf(adapter, debug_area);
 
-	if (unlikely(adapter->trigger_reset)) {
+	if (unlikely(test_and_clear_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
 		netif_err(adapter, drv, adapter->netdev,
 			  "Trigger reset is on\n");
-		adapter->trigger_reset = false;
 		ena_dump_stats_to_dmesg(adapter);
 		queue_work(ena_wq, &adapter->reset_task);
 		return;
@@ -2789,6 +2821,8 @@ static void ena_release_bars(struct ena_com_dev *ena_dev, struct pci_dev *pdev)
 
 static int ena_calc_queue_size(struct pci_dev *pdev,
 			       struct ena_com_dev *ena_dev,
+			       u16 *max_tx_sgl_size,
+			       u16 *max_rx_sgl_size,
 			       struct ena_com_dev_get_features_ctx *get_feat_ctx)
 {
 	u32 queue_size = ENA_DEFAULT_RING_SIZE;
@@ -2808,6 +2842,11 @@ static int ena_calc_queue_size(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "Invalid queue size\n");
 		return -EFAULT;
 	}
+
+	*max_tx_sgl_size = min_t(u16, ENA_PKT_MAX_BUFS,
+				 get_feat_ctx->max_queues.max_packet_tx_descs);
+	*max_rx_sgl_size = min_t(u16, ENA_PKT_MAX_BUFS,
+				 get_feat_ctx->max_queues.max_packet_rx_descs);
 
 	return queue_size;
 }
@@ -2830,10 +2869,9 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ena_adapter *adapter;
 	struct ena_com_dev *ena_dev = NULL;
 	static int adapters_found;
-	int io_queue_num;
+	int io_queue_num, bars, rc;
 	int queue_size;
-	int bars;
-	int rc;
+	u16 tx_sgl_size, rx_sgl_size;
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
 
@@ -2900,7 +2938,8 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	*/
 	ena_dev->intr_moder_tx_interval = ENA_INTR_INITIAL_TX_INTERVAL_USECS;
 	io_queue_num = ena_calc_io_queue_num(pdev, ena_dev, &get_feat_ctx);
-	queue_size = ena_calc_queue_size(pdev, ena_dev, &get_feat_ctx);
+	queue_size = ena_calc_queue_size(pdev, ena_dev, &tx_sgl_size,
+					 &rx_sgl_size, &get_feat_ctx);
 	if ((queue_size <= 0) || (io_queue_num <= 0)) {
 		rc = -EFAULT;
 		goto err_device_destroy;
@@ -2932,6 +2971,9 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	adapter->tx_ring_size = queue_size;
 	adapter->rx_ring_size = queue_size;
+
+	adapter->max_tx_sgl_size = tx_sgl_size;
+	adapter->max_rx_sgl_size = rx_sgl_size;
 
 	adapter->num_queues = io_queue_num;
 	adapter->last_monitored_tx_qid = 0;
@@ -2990,6 +3032,8 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	memcpy(adapter->netdev->perm_addr, adapter->mac_addr, netdev->addr_len);
 
+	netif_carrier_off(netdev);
+
 	rc = register_netdev(netdev);
 	if (rc) {
 		dev_err(&pdev->dev, "Cannot register net device\n");
@@ -2999,6 +3043,8 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev_info(&pdev->dev, "%s found at mem %lx, mac addr %pM Queues %d\n",
 		 DEVICE_NAME, (long)pci_resource_start(pdev, 0),
 		 netdev->dev_addr, io_queue_num);
+
+	set_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags);
 
 	adapters_found++;
 
@@ -3180,11 +3226,12 @@ static void ena_update_on_link_change(void *adapter_data,
 
 	if (status) {
 		netdev_dbg(adapter->netdev, "%s\n", __func__);
+		set_bit(ENA_FLAG_LINK_UP, &adapter->flags);
 		netif_carrier_on(adapter->netdev);
 	} else {
+		clear_bit(ENA_FLAG_LINK_UP, &adapter->flags);
 		netif_carrier_off(adapter->netdev);
 	}
-	adapter->link_status = status;
 }
 
 static void ena_keep_alive_wd(void *adapter_data,
