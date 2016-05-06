@@ -45,7 +45,7 @@
 
 #define DRV_MODULE_VER_MAJOR	0
 #define DRV_MODULE_VER_MINOR	6
-#define DRV_MODULE_VER_SUBMINOR	1
+#define DRV_MODULE_VER_SUBMINOR 4
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_VERSION
@@ -54,7 +54,7 @@
 	__stringify(DRV_MODULE_VER_MINOR) "."	\
 	__stringify(DRV_MODULE_VER_SUBMINOR)
 #endif
-#define DRV_MODULE_RELDATE      "14-APRIL-2016"
+#define DRV_MODULE_RELDATE      "05-MAY-2016"
 
 #define DEVICE_NAME	"Elastic Network Adapter (ENA)"
 
@@ -169,7 +169,8 @@ struct ena_stats_tx {
 	u64 prepare_ctx_err;
 	u64 queue_wakeup;
 	u64 dma_mapping_err;
-	u64 unsupported_desc_num;
+	u64 linearize;
+	u64 linearize_failed;
 	u64 napi_comp;
 	u64 tx_poll;
 	u64 doorbells;
@@ -212,7 +213,9 @@ struct ena_ring {
 	u16 rx_small_copy_len;
 	u16 qid;
 	u16 mtu;
-	/* The maximum length the driver can push to the device (For LLQ) */
+	u16 sgl_size;
+
+	/* The maximum header length the device can handle */
 	u8 tx_max_header_size;
 
 	/* cpu for TPH */
@@ -243,14 +246,20 @@ struct ena_stats_dev {
 	u64 admin_q_pause;
 };
 
+enum ena_flags_t {
+	ENA_FLAG_DEVICE_RUNNING,
+	ENA_FLAG_DEV_UP,
+	ENA_FLAG_LINK_UP,
+	ENA_FLAG_MSIX_ENABLED,
+	ENA_FLAG_TRIGGER_RESET
+};
+
 /* adapter specific private data structure */
 struct ena_adapter {
 	struct ena_com_dev *ena_dev;
 	/* OS defined structs */
 	struct net_device *netdev;
 	struct pci_dev *pdev;
-
-	u32 msix_enabled;
 
 	/* rx packets that shorter that this len will be copied to the skb
 	 * header
@@ -271,14 +280,14 @@ struct ena_adapter {
 
 	u32 msg_enable;
 
+	u16 max_tx_sgl_size;
+	u16 max_rx_sgl_size;
+
 	u8 mac_addr[ETH_ALEN];
 
 	char name[ENA_NAME_MAX_LEN];
-	bool link_status;
 
-	bool up;
-	bool trigger_reset;
-
+	unsigned long flags;
 	/* TX */
 	struct ena_ring tx_ring[ENA_MAX_NUM_IO_QUEUES]
 		____cacheline_aligned_in_smp;

@@ -419,7 +419,7 @@ int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
 	ena_trc_dbg("fetch rx packet: queue %d completed desc: %d\n",
 		    io_cq->qid, nb_hw_desc);
 
-	if (unlikely(nb_hw_desc >= ena_rx_ctx->max_bufs)) {
+	if (unlikely(nb_hw_desc > ena_rx_ctx->max_bufs)) {
 		ena_trc_err("Too many RX cdescs (%d) > MAX(%d)\n",
 			    nb_hw_desc, ena_rx_ctx->max_bufs);
 		return -ENOSPC;

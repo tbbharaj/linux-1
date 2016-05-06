@@ -62,7 +62,7 @@
 			ena_trc_err(					\
 				"Assert failed on %s:%s:%d:" format,	\
 				__FILE__, __func__, __LINE__, ##arg);	\
-			WARN_ON(cond);					\
+			WARN_ON(!(cond));				\
 		}							\
 	} while (0)
 
