@@ -114,20 +114,6 @@ enum ena_admin_aq_feature_id {
 	/* max number of supported queues per for every queues type */
 	ENA_ADMIN_MAX_QUEUES_NUM = 2,
 
-	/* low latency queues capabilities (max entry size, depth) */
-	ENA_ADMIN_LLQ_CONFIG = 3,
-
-	/* power management capabilities */
-	ENA_ADMIN_POWER_MANAGEMENT_CONFIG = 4,
-
-	/* MAC address filters support, multicast, broadcast, and
-	 * promiscuous
-	 */
-	ENA_ADMIN_MAC_FILTERS_CONFIG = 5,
-
-	/* VLAN membership, frame format, etc.  */
-	ENA_ADMIN_VLAN_CONFIG = 6,
-
 	/* Receive Side Scaling (RSS) function */
 	ENA_ADMIN_RSS_HASH_FUNCTION = 10,
 
@@ -143,19 +129,8 @@ enum ena_admin_aq_feature_id {
 	/* Receive Side Scaling (RSS) hash input */
 	ENA_ADMIN_RSS_HASH_INPUT = 18,
 
-	/* overlay tunnels configuration */
-	ENA_ADMIN_TUNNEL_CONFIG = 19,
-
 	/* interrupt moderation parameters */
 	ENA_ADMIN_INTERRUPT_MODERATION = 20,
-
-	/* 1588v2 and Timing configuration */
-	ENA_ADMIN_1588_CONFIG = 21,
-
-	/* Packet Header format templates configuration for input and
-	 * output parsers
-	 */
-	ENA_ADMIN_PKT_HEADER_TEMPLATES_CONFIG = 23,
 
 	/* AENQ configuration */
 	ENA_ADMIN_AENQ_CONFIG = 26,
@@ -508,7 +483,8 @@ struct ena_admin_acq_create_cq_resp_desc {
 	/* cq identifier */
 	u16 cq_idx;
 
-	u16 reserved;
+	/* actual cq depth in # of entries */
+	u16 cq_actual_depth;
 
 	/* word 3 : cpu numa node address as an offset to PCIe MMIO REG BAR */
 	u32 numa_node_register_offset;
