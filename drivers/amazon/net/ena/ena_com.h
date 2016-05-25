@@ -527,7 +527,7 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data);
  * @ena_dev: ENA communication layer struct
  *
  * This method aborts all the outstanding admin commands.
- * The called should then call ena_com_wait_for_abort_completion to make sure
+ * The caller should then call ena_com_wait_for_abort_completion to make sure
  * all the commands were completed.
  */
 void ena_com_abort_admin_commands(struct ena_com_dev *ena_dev);
@@ -778,26 +778,38 @@ int ena_com_indirect_table_set(struct ena_com_dev *ena_dev);
  */
 int ena_com_indirect_table_get(struct ena_com_dev *ena_dev, u32 *ind_tbl);
 
-/* ena_com_allocate_host_attribute - Allocate host attributes resources.
+/* ena_com_allocate_host_info - Allocate host info resources.
  * @ena_dev: ENA communication layer struct
- * @debug_area_size: Debug aread size
- *
- * Allocate host info and debug area.
  *
  * @return: 0 on Success and negative value otherwise.
  */
-int ena_com_allocate_host_attribute(struct ena_com_dev *ena_dev,
-				    u32 debug_area_size);
+int ena_com_allocate_host_info(struct ena_com_dev *ena_dev);
 
-/* ena_com_allocate_host_attribute - Free the host attributes resources.
+/* ena_com_allocate_debug_area - Allocate debug area.
+ * @ena_dev: ENA communication layer struct
+ * @debug_area_size - debug area size.
+ *
+ * @return: 0 on Success and negative value otherwise.
+ */
+int ena_com_allocate_debug_area(struct ena_com_dev *ena_dev,
+				u32 debug_area_size);
+
+/* ena_com_delete_debug_area - Free the debug area resources.
  * @ena_dev: ENA communication layer struct
  *
- * Free the allocate host info and debug area.
+ * Free the allocate debug area.
  */
-void ena_com_delete_host_attribute(struct ena_com_dev *ena_dev);
+void ena_com_delete_debug_area(struct ena_com_dev *ena_dev);
+
+/* ena_com_delete_host_info - Free the host info resources.
+ * @ena_dev: ENA communication layer struct
+ *
+ * Free the allocate host info.
+ */
+void ena_com_delete_host_info(struct ena_com_dev *ena_dev);
 
 /* ena_com_set_host_attributes - Update the device with the host
- * attributes base address.
+ * attributes (debug area and host info) base address.
  * @ena_dev: ENA communication layer struct
  *
  * @return: 0 on Success and negative value otherwise.

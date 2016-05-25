@@ -53,14 +53,6 @@
 #define PCI_DEV_ID_ENA_LLQ_VF	0xec21
 #endif
 
-#ifndef PCI_DEV_ID_ENA_EFA_PF
-#define PCI_DEV_ID_ENA_EFA_PF	0x0efa
-#endif
-
-#ifndef PCI_DEV_ID_ENA_EFA_VF
-#define PCI_DEV_ID_ENA_EFA_VF	0xefa0
-#endif
-
 #define ENA_PCI_ID_TABLE_ENTRY(devid) \
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMAZON, devid)},
 
@@ -69,8 +61,6 @@ static const struct pci_device_id ena_pci_tbl[] = {
 	ENA_PCI_ID_TABLE_ENTRY(PCI_DEV_ID_ENA_LLQ_PF)
 	ENA_PCI_ID_TABLE_ENTRY(PCI_DEV_ID_ENA_VF)
 	ENA_PCI_ID_TABLE_ENTRY(PCI_DEV_ID_ENA_LLQ_VF)
-	ENA_PCI_ID_TABLE_ENTRY(PCI_DEV_ID_ENA_EFA_PF)
-	ENA_PCI_ID_TABLE_ENTRY(PCI_DEV_ID_ENA_EFA_VF)
 	{ }
 };
 

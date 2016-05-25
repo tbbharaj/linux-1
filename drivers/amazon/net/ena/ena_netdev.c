@@ -66,7 +66,7 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 #define ENA_NAPI_BUDGET 64
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_IFUP | \
-		NETIF_MSG_TX_DONE | NETIF_MSG_TX_ERR)
+		NETIF_MSG_TX_DONE | NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR)
 static int debug = -1;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
@@ -86,11 +86,22 @@ static int enable_missing_tx_detection = 1;
 module_param(enable_missing_tx_detection, int, 0);
 MODULE_PARM_DESC(enable_missing_tx_detection, "Enable missing Tx completions. (default=1)");
 
+
+static int numa_node_override_array[NR_CPUS] = {[0 ... (NR_CPUS -1)] = NUMA_NO_NODE };
+module_param_array(numa_node_override_array, int, NULL, 0);
+MODULE_PARM_DESC(numa_node_override_array, "Numa node override map\n");
+
+static int numa_node_override;
+module_param(numa_node_override, int, 0);
+MODULE_PARM_DESC(numa_node_override, "Enable/Disable numa node override (0=disable)\n");
+
 static struct ena_aenq_handlers aenq_handlers;
 
 static struct workqueue_struct *ena_wq;
 
 MODULE_DEVICE_TABLE(pci, ena_pci_tbl);
+
+static int ena_rss_init_default(struct ena_adapter *adapter);
 
 static void ena_tx_timeout(struct net_device *dev)
 {
@@ -163,6 +174,17 @@ static int ena_init_rx_cpu_rmap(struct ena_adapter *adapter)
 	return 0;
 }
 
+static inline int ena_cpu_to_node(int cpu)
+{
+	if (!numa_node_override)
+		return cpu_to_node(cpu);
+
+	if (cpu < NR_CPUS)
+		return numa_node_override_array[cpu];
+
+	return NUMA_NO_NODE;
+}
+
 static void ena_init_io_rings_common(struct ena_adapter *adapter,
 				     struct ena_ring *ring, u16 qid)
 {
@@ -231,7 +253,7 @@ static int ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	}
 
 	size = sizeof(struct ena_tx_buffer) * tx_ring->ring_size;
-	node = cpu_to_node(ena_irq->cpu);
+	node = ena_cpu_to_node(ena_irq->cpu);
 
 	tx_ring->tx_buffer_info = vzalloc_node(size, node);
 	if (!tx_ring->tx_buffer_info) {
@@ -340,13 +362,11 @@ static int ena_setup_rx_resources(struct ena_adapter *adapter,
 		return -EEXIST;
 	}
 
-	size = sizeof(struct ena_rx_buffer) * rx_ring->ring_size;
-	node = cpu_to_node(ena_irq->cpu);
-
 	/* alloc extra element so in rx path
 	 * we can always prefetch rx_info + 1
 	 */
-	size += sizeof(struct ena_rx_buffer);
+	size = sizeof(struct ena_rx_buffer) * (rx_ring->ring_size + 1);
+	node = ena_cpu_to_node(ena_irq->cpu);
 
 	rx_ring->rx_buffer_info = vzalloc_node(size, node);
 	if (!rx_ring->rx_buffer_info) {
@@ -806,7 +826,11 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 	void *va;
 
 	len = ena_bufs[0].len;
-	ENA_ASSERT(rx_info->page, "page is NULL\n");
+	if (unlikely(!rx_info->page)) {
+		netif_err(rx_ring->adapter, rx_err, rx_ring->netdev,
+			  "Page is NULL\n");
+		return NULL;
+	}
 
 	netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
 		  "rx_info %p page %p\n",
@@ -829,7 +853,7 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 		}
 
 		netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
-			  "rx allocaed small packet. len %d. data_len %d\n",
+			  "rx allocated small packet. len %d. data_len %d\n",
 			  skb->len, skb->data_len);
 
 		/* sync this buffer for CPU use */
@@ -1045,7 +1069,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 	rx_ring->next_to_clean = next_to_clean;
 
 	refill_required = ena_com_sq_empty_space(rx_ring->ena_com_io_sq);
-	refill_threshold = rx_ring->ring_size / ENA_RX_REFILL_THRESH_DEVIDER;
+	refill_threshold = rx_ring->ring_size / ENA_RX_REFILL_THRESH_DIVIDER;
 
 	/* Optimization, try to batch new rx buffers */
 	if (refill_required > refill_threshold) {
@@ -1097,7 +1121,7 @@ static inline void ena_update_ring_numa_node(struct ena_ring *tx_ring,
 	if (likely(tx_ring->cpu == cpu))
 		goto out;
 
-	numa_node = cpu_to_node(cpu);
+	numa_node = ena_cpu_to_node(cpu);
 	put_cpu();
 
 	if (numa_node != NUMA_NO_NODE) {
@@ -1128,10 +1152,10 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 	tx_ring = ena_napi->tx_ring;
 	rx_ring = ena_napi->rx_ring;
 
-	tx_budget = tx_ring->ring_size / ENA_TX_POLL_BUDGET_DEVIDER;
+	tx_budget = tx_ring->ring_size / ENA_TX_POLL_BUDGET_DIVIDER;
 
 	if (!test_bit(ENA_FLAG_DEV_UP, &tx_ring->adapter->flags)) {
-		napi_complete(napi);
+		napi_complete_done(napi, 0);
 		return 0;
 	}
 
@@ -1139,7 +1163,7 @@ static int ena_io_poll(struct napi_struct *napi, int budget)
 	rx_work_done = ena_clean_rx_irq(rx_ring, napi, budget);
 
 	if ((budget > rx_work_done) && (tx_budget > tx_work_done)) {
-		napi_complete(napi);
+		napi_complete_done(napi, rx_work_done);
 
 		napi_comp_call = 1;
 		/* Tx and Rx share the same interrupt vector */
@@ -1180,7 +1204,7 @@ static irqreturn_t ena_intr_msix_mgmnt(int irq, void *data)
 
 	ena_com_admin_q_comp_intr_handler(adapter->ena_dev);
 
-	/* Don't call the aenq hanadler before probe is done */
+	/* Don't call the aenq handler before probe is done */
 	if (likely(test_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags)))
 		ena_com_aenq_intr_handler(adapter->ena_dev, data);
 
@@ -1460,6 +1484,16 @@ static int ena_rss_configure(struct ena_adapter *adapter)
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	int rc;
 
+	/* In case the RSS table wasn't initialized by probe */
+	if (!ena_dev->rss.tbl_log_size) {
+		rc = ena_rss_init_default(adapter);
+		if (rc && (rc != -EPERM)) {
+			netif_err(adapter, ifup, adapter->netdev,
+				  "Failed to init RSS rc: %d\n", rc);
+			return rc;
+		}
+	}
+
 	/* Set indirect table */
 	rc = ena_com_indirect_table_set(ena_dev);
 	if (unlikely(rc && rc != -EPERM))
@@ -1528,7 +1562,7 @@ static int ena_create_io_tx_queue(struct ena_adapter *adapter, int qid)
 	ctx.mem_queue_type = ena_dev->tx_mem_queue_type;
 	ctx.msix_vector = msix_vector;
 	ctx.queue_size = adapter->tx_ring_size;
-	ctx.numa_node = cpu_to_node(tx_ring->cpu);
+	ctx.numa_node = ena_cpu_to_node(tx_ring->cpu);
 
 	rc = ena_com_create_io_queue(ena_dev, &ctx);
 	if (rc) {
@@ -1593,7 +1627,7 @@ static int ena_create_io_rx_queue(struct ena_adapter *adapter, int qid)
 	ctx.mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_HOST;
 	ctx.msix_vector = msix_vector;
 	ctx.queue_size = adapter->rx_ring_size;
-	ctx.numa_node = cpu_to_node(rx_ring->cpu);
+	ctx.numa_node = ena_cpu_to_node(rx_ring->cpu);
 
 	rc = ena_com_create_io_queue(ena_dev, &ctx);
 	if (rc) {
@@ -1790,6 +1824,7 @@ static void ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx, struct sk_buff *skb)
 {
 	u32 mss = skb_shinfo(skb)->gso_size;
 	struct ena_com_tx_meta *ena_meta = &ena_tx_ctx->ena_meta;
+	u8 l4_protocol = 0;
 
 	if ((skb->ip_summed == CHECKSUM_PARTIAL) || mss) {
 		ena_tx_ctx->l4_csum_enable = 1;
@@ -1803,28 +1838,27 @@ static void ena_tx_csum(struct ena_com_tx_ctx *ena_tx_ctx, struct sk_buff *skb)
 			ena_tx_ctx->l4_csum_partial = 1;
 		}
 
-		switch (skb->protocol) {
-		case htons(ETH_P_IP):
+		switch(ip_hdr(skb)->version) {
+		case IPVERSION:
 			ena_tx_ctx->l3_proto = ENA_ETH_IO_L3_PROTO_IPV4;
 			if (ip_hdr(skb)->frag_off & htons(IP_DF))
 				ena_tx_ctx->df = 1;
 			if (mss)
 				ena_tx_ctx->l3_csum_enable = 1;
-			if (ip_hdr(skb)->protocol == IPPROTO_TCP)
-				ena_tx_ctx->l4_proto = ENA_ETH_IO_L4_PROTO_TCP;
-			else
-				ena_tx_ctx->l4_proto = ENA_ETH_IO_L4_PROTO_UDP;
+			l4_protocol = ip_hdr(skb)->protocol;
 			break;
-		case htons(ETH_P_IPV6):
+		case 6:
 			ena_tx_ctx->l3_proto = ENA_ETH_IO_L3_PROTO_IPV6;
-			if (ip_hdr(skb)->protocol == IPPROTO_TCP)
-				ena_tx_ctx->l4_proto = ENA_ETH_IO_L4_PROTO_TCP;
-			else
-				ena_tx_ctx->l4_proto = ENA_ETH_IO_L4_PROTO_UDP;
+			l4_protocol = ipv6_hdr(skb)->nexthdr;
 			break;
 		default:
 			break;
 		}
+
+		if (l4_protocol == IPPROTO_TCP)
+			ena_tx_ctx->l4_proto = ENA_ETH_IO_L4_PROTO_TCP;
+		else
+			ena_tx_ctx->l4_proto = ENA_ETH_IO_L4_PROTO_UDP;
 
 		ena_meta->mss = mss;
 		ena_meta->l3_hdr_len = skb_network_header_len(skb);
@@ -2093,31 +2127,49 @@ static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb,
 	return qid;
 }
 
-static void ena_fill_host_info(struct ena_adapter *adapter)
+static void ena_config_host_info(struct ena_com_dev *ena_dev)
 {
-	struct ena_admin_host_info *host_info =
-		adapter->ena_dev->host_attr.host_info;
-	struct net_device *netdev = adapter->netdev;
+	struct ena_admin_host_info *host_info;
+	int rc;
 
-	if (!host_info)
+	/* Allocate only the host info */
+	rc = ena_com_allocate_host_info(ena_dev);
+	if (rc) {
+		pr_err("Cannot allocate host info\n");
 		return;
+	}
+
+	host_info = ena_dev->host_attr.host_info;
 
 	host_info->os_type = ENA_ADMIN_OS_LINUX;
 	host_info->kernel_ver = LINUX_VERSION_CODE;
-	strncpy(host_info->kernel_ver_str, utsname()->version, 32);
+	strncpy(host_info->kernel_ver_str, utsname()->version,
+		sizeof(host_info->kernel_ver_str) - 1);
 	host_info->os_dist = 0;
-	strncpy(host_info->os_dist_str, utsname()->release, 128);
+	strncpy(host_info->os_dist_str, utsname()->release,
+		sizeof(host_info->os_dist_str) - 1);
 	host_info->driver_version =
 		(DRV_MODULE_VER_MAJOR) |
 		(DRV_MODULE_VER_MINOR << ENA_ADMIN_HOST_INFO_MINOR_SHIFT) |
 		(DRV_MODULE_VER_SUBMINOR << ENA_ADMIN_HOST_INFO_SUB_MINOR_SHIFT);
-	host_info->supported_network_features[0] =
-		netdev->features & GENMASK_ULL(31, 0);
-	host_info->supported_network_features[1] =
-		(netdev->features & GENMASK_ULL(63, 32)) >> 32;
+
+	rc = ena_com_set_host_attributes(ena_dev);
+	if (rc) {
+		if (rc == -EPERM)
+			pr_warn("Cannot set host attributes\n");
+		else
+			pr_err("Cannot set host attributes\n");
+
+		goto err;
+	}
+
+	return;
+
+err:
+	ena_com_delete_host_info(ena_dev);
 }
 
-static void ena_config_host_attribute(struct ena_adapter *adapter)
+static void ena_config_debug_area(struct ena_adapter *adapter)
 {
 	u32 debug_area_size;
 	int rc, ss_count;
@@ -2132,15 +2184,11 @@ static void ena_config_host_attribute(struct ena_adapter *adapter)
 	/* allocate 32 bytes for each string and 64bit for the value */
 	debug_area_size = ss_count * ETH_GSTRING_LEN + sizeof(u64) * ss_count;
 
-	rc = ena_com_allocate_host_attribute(adapter->ena_dev,
-					     debug_area_size);
+	rc = ena_com_allocate_debug_area(adapter->ena_dev, debug_area_size);
 	if (rc) {
-		netif_err(adapter, drv, adapter->netdev,
-			  "Cannot allocate host attributes\n");
+		pr_err("Cannot allocate debug area\n");
 		return;
 	}
-
-	ena_fill_host_info(adapter);
 
 	rc = ena_com_set_host_attributes(adapter->ena_dev);
 	if (rc) {
@@ -2155,7 +2203,7 @@ static void ena_config_host_attribute(struct ena_adapter *adapter)
 
 	return;
 err:
-	ena_com_delete_host_attribute(adapter->ena_dev);
+	ena_com_delete_debug_area(adapter->ena_dev);
 }
 
 static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
@@ -2259,20 +2307,20 @@ static int ena_device_validate_params(struct ena_adapter *adapter,
 	if (!rc) {
 		netif_err(adapter, drv, netdev,
 			  "Error, mac address are different\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	if ((get_feat_ctx->max_queues.max_cq_num < adapter->num_queues) ||
 	    (get_feat_ctx->max_queues.max_sq_num < adapter->num_queues)) {
 		netif_err(adapter, drv, netdev,
 			  "Error, device doesn't support enough queues\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	if (get_feat_ctx->dev_attr.max_mtu < netdev->mtu) {
 		netif_err(adapter, drv, netdev,
 			  "Error, device max mtu is smaller than netdev MTU\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -2376,6 +2424,8 @@ static int ena_device_init(struct ena_com_dev *ena_dev, struct pci_dev *pdev,
 		dev_err(dev, "Cannot configure aenq groups rc= %d\n", rc);
 		goto err_admin_init;
 	}
+
+	ena_config_host_info(ena_dev);
 
 	return 0;
 
@@ -2611,10 +2661,21 @@ static void check_for_admin_com_state(struct ena_adapter *adapter)
 	}
 }
 
+static void ena_update_host_info(struct ena_admin_host_info *host_info,
+				 struct net_device *netdev)
+{
+	host_info->supported_network_features[0] =
+		netdev->features & GENMASK_ULL(31, 0);
+	host_info->supported_network_features[1] =
+		(netdev->features & GENMASK_ULL(63, 32)) >> 32;
+}
+
 static void ena_timer_service(unsigned long data)
 {
 	struct ena_adapter *adapter = (struct ena_adapter *)data;
 	u8 *debug_area = adapter->ena_dev->host_attr.debug_area_virt_addr;
+	struct ena_admin_host_info *host_info =
+		adapter->ena_dev->host_attr.host_info;
 
 	check_for_missing_keep_alive(adapter);
 
@@ -2624,6 +2685,9 @@ static void ena_timer_service(unsigned long data)
 
 	if (debug_area)
 		ena_dump_stats_to_buf(adapter, debug_area);
+
+	if (host_info)
+		ena_update_host_info(host_info, adapter->netdev);
 
 	if (unlikely(test_and_clear_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
 		netif_err(adapter, drv, adapter->netdev,
@@ -2695,11 +2759,11 @@ static int ena_set_push_mode(struct pci_dev *pdev, struct ena_com_dev *ena_dev,
 		break;
 	case ENA_ADMIN_PLACEMENT_POLICY_DEV:
 		if (!has_mem_bar || (get_feat_ctx->max_queues.max_llq_num == 0))
-			return -1;
+			return -EINVAL;
 		ena_dev->tx_mem_queue_type = ENA_ADMIN_PLACEMENT_POLICY_DEV;
 		break;
 	default:
-		return -1;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -2744,6 +2808,7 @@ static void ena_set_dev_offloads(struct ena_com_dev_get_features_ctx *feat,
 		NETIF_F_HIGHDMA;
 
 	netdev->hw_features |= netdev->features;
+	netdev->vlan_features |= netdev->features;
 }
 
 static void ena_set_conf_feat_params(struct ena_adapter *adapter,
@@ -2871,7 +2936,8 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	static int adapters_found;
 	int io_queue_num, bars, rc;
 	int queue_size;
-	u16 tx_sgl_size, rx_sgl_size;
+	u16 tx_sgl_size = 0;
+	u16 rx_sgl_size = 0;
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
 
@@ -3028,7 +3094,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_terminate_sysfs;
 	}
 
-	ena_config_host_attribute(adapter);
+	ena_config_debug_area(adapter);
 
 	memcpy(adapter->netdev->perm_addr, adapter->mac_addr, netdev->addr_len);
 
@@ -3051,7 +3117,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 err_rss:
-	ena_com_delete_host_attribute(ena_dev);
+	ena_com_delete_debug_area(ena_dev);
 	ena_com_rss_destroy(ena_dev);
 err_terminate_sysfs:
 	ena_sysfs_terminate(&pdev->dev);
@@ -3067,6 +3133,7 @@ err_worker_destroy:
 err_netdev_destroy:
 	free_netdev(netdev);
 err_device_destroy:
+	ena_com_delete_host_info(ena_dev);
 	ena_com_admin_destroy(ena_dev);
 err_free_region:
 	ena_release_bars(ena_dev, pdev);
@@ -3100,7 +3167,7 @@ static int ena_sriov_configure(struct pci_dev *dev, int numvfs)
 		return 0;
 	}
 
-	return -1;
+	return -EINVAL;
 }
 
 /*****************************************************************************/
@@ -3164,7 +3231,9 @@ static void ena_remove(struct pci_dev *pdev)
 
 	ena_com_rss_destroy(ena_dev);
 
-	ena_com_delete_host_attribute(ena_dev);
+	ena_com_delete_debug_area(ena_dev);
+
+	ena_com_delete_host_info(ena_dev);
 
 	ena_release_bars(ena_dev, pdev);
 
@@ -3206,7 +3275,6 @@ static void __exit ena_cleanup(void)
 		destroy_workqueue(ena_wq);
 		ena_wq = NULL;
 	}
-
 }
 
 /******************************************************************************
