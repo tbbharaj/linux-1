@@ -193,12 +193,16 @@ static inline void comp_ctxt_release(struct ena_com_admin_queue *queue,
 static struct ena_comp_ctx *get_comp_ctxt(struct ena_com_admin_queue *queue,
 					  u16 command_id, bool capture)
 {
-	ENA_ASSERT(command_id < queue->q_depth,
-		   "command id is larger than the queue size. cmd_id: %u queue size %d\n",
-		   command_id, queue->q_depth);
+	if (unlikely(command_id >= queue->q_depth)) {
+		ena_trc_err("command id is larger than the queue size. cmd_id: %u queue size %d\n",
+			    command_id, queue->q_depth);
+		return NULL;
+	}
 
-	ENA_ASSERT(!(queue->comp_ctx[command_id].occupied && capture),
-		   "Completion context is occupied");
+	if (unlikely(queue->comp_ctx[command_id].occupied && capture)) {
+		ena_trc_err("Completion context is occupied\n");
+		return NULL;
+	}
 
 	if (capture) {
 		atomic_inc(&queue->outstanding_cmds);
@@ -243,6 +247,8 @@ static struct ena_comp_ctx *__ena_com_submit_admin_cmd(struct ena_com_admin_queu
 		ENA_ADMIN_AQ_COMMON_DESC_COMMAND_ID_MASK;
 
 	comp_ctx = get_comp_ctxt(admin_queue, cmd_id, true);
+	if (unlikely(!comp_ctx))
+		return ERR_PTR(-EINVAL);
 
 	comp_ctx->status = ENA_CMD_SUBMITTED;
 	comp_ctx->comp_size = (u32)comp_size_in_bytes;
@@ -281,7 +287,8 @@ static inline int ena_com_init_comp_ctxt(struct ena_com_admin_queue *queue)
 
 	for (i = 0; i < queue->q_depth; i++) {
 		comp_ctx = get_comp_ctxt(queue, i, false);
-		init_completion(&comp_ctx->wait_event);
+		if (comp_ctx)
+			init_completion(&comp_ctx->wait_event);
 	}
 
 	return 0;
@@ -305,6 +312,8 @@ static struct ena_comp_ctx *ena_com_submit_admin_cmd(struct ena_com_admin_queue 
 					      cmd_size_in_bytes,
 					      comp,
 					      comp_size_in_bytes);
+	if (unlikely(IS_ERR(comp_ctx)))
+		admin_queue->running_state = false;
 	spin_unlock_irqrestore(&admin_queue->q_lock, flags);
 
 	return comp_ctx;
@@ -389,13 +398,12 @@ static int ena_com_init_io_cq(struct ena_com_dev *ena_dev,
 				   &io_cq->cdesc_addr.phys_addr,
 				   GFP_KERNEL | __GFP_ZERO);
 	set_dev_node(ena_dev->dmadev, prev_node);
-	if (!io_cq->cdesc_addr.virt_addr) {
+	if (!io_cq->cdesc_addr.virt_addr)
 		io_cq->cdesc_addr.virt_addr =
 			dma_alloc_coherent(ena_dev->dmadev,
 					   size,
 					   &io_cq->cdesc_addr.phys_addr,
 					   GFP_KERNEL | __GFP_ZERO);
-	}
 
 	if (!io_cq->cdesc_addr.virt_addr) {
 		ena_trc_err("memory allocation failed");
@@ -418,6 +426,11 @@ static void ena_com_handle_single_admin_completion(struct ena_com_admin_queue *a
 		ENA_ADMIN_ACQ_COMMON_DESC_COMMAND_ID_MASK;
 
 	comp_ctx = get_comp_ctxt(admin_queue, cmd_id, false);
+	if (unlikely(!comp_ctx)) {
+		ena_trc_err("comp_ctx is NULL. Changing the admin queue running state\n");
+		admin_queue->running_state = false;
+		return;
+	}
 
 	comp_ctx->status = ENA_CMD_COMPLETED;
 	comp_ctx->comp_status = cqe->acq_common_descriptor.status;
@@ -628,10 +641,12 @@ static u32 ena_com_reg_bar_read32(struct ena_com_dev *ena_dev, u16 offset)
 		goto err;
 	}
 
-	ENA_ASSERT(read_resp->reg_off == offset,
-		   "Invalid MMIO read return value");
-
-	ret = read_resp->reg_val;
+	if (read_resp->reg_off != offset) {
+		ena_trc_err("reading failed for wrong offset value");
+		ret = ENA_MMIO_READ_TIMEOUT;
+	} else {
+		ret = read_resp->reg_val;
+	}
 err:
 	spin_unlock_irqrestore(&mmio_read->lock, flags);
 
@@ -1232,6 +1247,9 @@ void ena_com_abort_admin_commands(struct ena_com_dev *ena_dev)
 
 	for (i = 0; i < admin_queue->q_depth; i++) {
 		comp_ctx = get_comp_ctxt(admin_queue, i, false);
+		if (unlikely(!comp_ctx))
+			break;
+
 		comp_ctx->status = ENA_CMD_ABORTED;
 
 		complete(&comp_ctx->wait_event);
@@ -1296,7 +1314,7 @@ void ena_com_admin_aenq_enable(struct ena_com_dev *ena_dev)
 {
 	u16 depth = ena_dev->aenq.q_depth;
 
-	ENA_ASSERT(ena_dev->aenq.head == depth, "Invliad AENQ state\n");
+	ENA_ASSERT(ena_dev->aenq.head == depth, "Invalid AENQ state\n");
 
 	/* Init head_db to mark that all entries in the queue
 	 * are initially available
@@ -1538,7 +1556,7 @@ int ena_com_admin_init(struct ena_com_dev *ena_dev,
 
 	if (!(dev_sts & ENA_REGS_DEV_STS_READY_MASK)) {
 		ena_trc_err("Device isn't ready, abort com init\n");
-		return -1;
+		return -ENODEV;
 	}
 
 	admin_queue->q_depth = ENA_ADMIN_QUEUE_DEPTH;
@@ -2456,11 +2474,9 @@ void ena_com_rss_destroy(struct ena_com_dev *ena_dev)
 	memset(&ena_dev->rss, 0x0, sizeof(ena_dev->rss));
 }
 
-int ena_com_allocate_host_attribute(struct ena_com_dev *ena_dev,
-				    u32 debug_area_size)
+int ena_com_allocate_host_info(struct ena_com_dev *ena_dev)
 {
 	struct ena_host_attribute *host_attr = &ena_dev->host_attr;
-	int rc;
 
 	host_attr->host_info =
 		dma_alloc_coherent(ena_dev->dmadev,
@@ -2470,32 +2486,30 @@ int ena_com_allocate_host_attribute(struct ena_com_dev *ena_dev,
 	if (unlikely(!host_attr->host_info))
 		return -ENOMEM;
 
-	if (debug_area_size) {
-		host_attr->debug_area_virt_addr =
-			dma_alloc_coherent(ena_dev->dmadev,
-					   debug_area_size,
-					   &host_attr->debug_area_dma_addr,
-					   GFP_KERNEL | __GFP_ZERO);
-		if (unlikely(!host_attr->debug_area_virt_addr)) {
-			rc = -ENOMEM;
-			goto err;
-		}
+	return 0;
+}
+
+int ena_com_allocate_debug_area(struct ena_com_dev *ena_dev,
+				u32 debug_area_size)
+{
+	struct ena_host_attribute *host_attr = &ena_dev->host_attr;
+
+	host_attr->debug_area_virt_addr =
+		dma_alloc_coherent(ena_dev->dmadev,
+				   debug_area_size,
+				   &host_attr->debug_area_dma_addr,
+				   GFP_KERNEL | __GFP_ZERO);
+	if (unlikely(!host_attr->debug_area_virt_addr)) {
+		host_attr->debug_area_size = 0;
+		return -ENOMEM;
 	}
 
 	host_attr->debug_area_size = debug_area_size;
 
 	return 0;
-err:
-
-	dma_free_coherent(ena_dev->dmadev,
-			  SZ_4K,
-			  host_attr->host_info,
-			  host_attr->host_info_dma_addr);
-	host_attr->host_info = NULL;
-	return rc;
 }
 
-void ena_com_delete_host_attribute(struct ena_com_dev *ena_dev)
+void ena_com_delete_host_info(struct ena_com_dev *ena_dev)
 {
 	struct ena_host_attribute *host_attr = &ena_dev->host_attr;
 
@@ -2506,6 +2520,11 @@ void ena_com_delete_host_attribute(struct ena_com_dev *ena_dev)
 				  host_attr->host_info_dma_addr);
 		host_attr->host_info = NULL;
 	}
+}
+
+void ena_com_delete_debug_area(struct ena_com_dev *ena_dev)
+{
+	struct ena_host_attribute *host_attr = &ena_dev->host_attr;
 
 	if (host_attr->debug_area_virt_addr) {
 		dma_free_coherent(ena_dev->dmadev,

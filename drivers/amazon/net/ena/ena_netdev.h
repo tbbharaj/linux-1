@@ -45,7 +45,7 @@
 
 #define DRV_MODULE_VER_MAJOR	0
 #define DRV_MODULE_VER_MINOR	6
-#define DRV_MODULE_VER_SUBMINOR 4
+#define DRV_MODULE_VER_SUBMINOR 6
 
 #define DRV_MODULE_NAME		"ena"
 #ifndef DRV_MODULE_VERSION
@@ -54,7 +54,7 @@
 	__stringify(DRV_MODULE_VER_MINOR) "."	\
 	__stringify(DRV_MODULE_VER_SUBMINOR)
 #endif
-#define DRV_MODULE_RELDATE      "05-MAY-2016"
+#define DRV_MODULE_RELDATE      "31-MAY-2016"
 
 #define DEVICE_NAME	"Elastic Network Adapter (ENA)"
 
@@ -70,9 +70,9 @@
 #define ENA_TX_WAKEUP_THRESH		(MAX_SKB_FRAGS + 2)
 #define ENA_DEFAULT_SMALL_PACKET_LEN		(128 - NET_IP_ALIGN)
 
-/* minimum the buffer size to 600 to avoid situation the mtu will be changed
- * from too little buffer to very big one and then the number of buffer per
- * packet could reach the maximum ENA_PKT_MAX_BUFS
+/* limit the buffer size to 600 bytes to handle MTU changes from very
+ * small to very large, in which case the number of buffers per packet
+ * could exceed ENA_PKT_MAX_BUFS
  */
 #define ENA_DEFAULT_MIN_RX_BUFF_ALLOC_SIZE 600
 
@@ -88,15 +88,15 @@
 
 #define ENA_HASH_KEY_SIZE	40
 
-/* The number of tx packet completions that will be handled each napi poll
- * cycle is ring_size / ENA_TX_POLL_BUDGET_DEVIDER.
+/* The number of tx packet completions that will be handled each NAPI poll
+ * cycle is ring_size / ENA_TX_POLL_BUDGET_DIVIDER.
  */
-#define ENA_TX_POLL_BUDGET_DEVIDER	4
+#define ENA_TX_POLL_BUDGET_DIVIDER	4
 
 /* Refill Rx queue when number of available descriptors is below
- * QUEUE_SIZE / ENA_RX_REFILL_THRESH_DEVIDER
+ * QUEUE_SIZE / ENA_RX_REFILL_THRESH_DIVIDER
  */
-#define ENA_RX_REFILL_THRESH_DEVIDER	8
+#define ENA_RX_REFILL_THRESH_DIVIDER	8
 
 /* Number of queues to check for missing queues per timer service */
 #define ENA_MONITORED_TX_QUEUES	4
@@ -194,8 +194,8 @@ struct ena_ring {
 	/* Holds the empty requests for TX out of order completions */
 	u16 *free_tx_ids;
 	union {
-		struct ena_tx_buffer *tx_buffer_info; /* contex of tx packet */
-		struct ena_rx_buffer *rx_buffer_info; /* contex of rx packet */
+		struct ena_tx_buffer *tx_buffer_info;
+		struct ena_rx_buffer *rx_buffer_info;
 	};
 
 	/* cache ptr to avoid using the adapter */
@@ -220,7 +220,8 @@ struct ena_ring {
 
 	/* cpu for TPH */
 	int cpu;
-	int ring_size; /* number of tx/rx_buffer_info's entries */
+	 /* number of tx/rx_buffer_info's entries */
+	int ring_size;
 
 	enum ena_admin_placement_policy_type tx_mem_queue_type;
 

@@ -134,7 +134,7 @@ The ENA driver supports two Queue Operation modes for Tx SQs:
     device. For this operation mode, the driver uses a dedicated PCI
     device memory BAR, which is mapped with write-combine capability.
 
-The Rx SQs supports only the regular mode.
+The Rx SQs support only the regular mode.
 
 Note: Not all ENA devices support LLQ, and this feature is negotiated
       with the device upon initialization. If the ENA device does not

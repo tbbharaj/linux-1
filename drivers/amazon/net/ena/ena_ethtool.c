@@ -520,7 +520,6 @@ static int ena_get_rss_hash(struct ena_com_dev *ena_dev,
 	case ESP_V6_FLOW:
 	case SCTP_V4_FLOW:
 	case AH_ESP_V4_FLOW:
-		/* Unsupported */
 		return -EOPNOTSUPP;
 	default:
 		return -EINVAL;
@@ -573,7 +572,6 @@ static int ena_set_rss_hash(struct ena_com_dev *ena_dev,
 	case ESP_V6_FLOW:
 	case SCTP_V4_FLOW:
 	case AH_ESP_V4_FLOW:
-		/* Unsupported */
 		return -EOPNOTSUPP;
 	default:
 		return -EINVAL;
