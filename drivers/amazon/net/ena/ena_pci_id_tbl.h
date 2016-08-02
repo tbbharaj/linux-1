@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 - 2016 Amazon.com, Inc. or its affiliates.
+ * Copyright 2015 Amazon.com, Inc. or its affiliates.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -54,7 +54,7 @@
 #endif
 
 #define ENA_PCI_ID_TABLE_ENTRY(devid) \
-	{ PCI_DEVICE(PCI_VENDOR_ID_AMAZON, devid)},
+	{PCI_DEVICE(PCI_VENDOR_ID_AMAZON, devid)},
 
 static const struct pci_device_id ena_pci_tbl[] = {
 	ENA_PCI_ID_TABLE_ENTRY(PCI_DEV_ID_ENA_PF)

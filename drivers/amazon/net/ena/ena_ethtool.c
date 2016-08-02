@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 - 2016 Amazon.com, Inc. or its affiliates.
+ * Copyright 2015 Amazon.com, Inc. or its affiliates.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -31,6 +31,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/version.h>
 
 #include "ena_netdev.h"
 
@@ -93,7 +94,7 @@ static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(skb_alloc_fail),
 	ENA_STAT_RX_ENTRY(dma_mapping_err),
 	ENA_STAT_RX_ENTRY(bad_desc_num),
-	ENA_STAT_RX_ENTRY(small_copy_len_pkt),
+	ENA_STAT_RX_ENTRY(rx_copybreak_pkt),
 };
 
 static const struct ena_stats ena_stats_ena_com_strings[] = {
@@ -195,12 +196,13 @@ static void ena_get_ethtool_stats(struct net_device *netdev,
 
 int ena_get_sset_count(struct net_device *netdev, int sset)
 {
+	struct ena_adapter *adapter = netdev_priv(netdev);
+
 	if (sset != ETH_SS_STATS)
 		return -EOPNOTSUPP;
 
-	return  netdev->num_tx_queues *
-		(ENA_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX) +
-		ENA_STATS_ARRAY_GLOBAL + ENA_STATS_ARRAY_ENA_COM;
+	return  adapter->num_queues * (ENA_STATS_ARRAY_TX + ENA_STATS_ARRAY_RX)
+		+ ENA_STATS_ARRAY_GLOBAL + ENA_STATS_ARRAY_ENA_COM;
 }
 
 static void ena_queue_strings(struct ena_adapter *adapter, u8 **data)
@@ -263,32 +265,8 @@ static void ena_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 }
 
 static int ena_get_settings(struct net_device *netdev,
-			    struct ethtool_cmd *ecmd)
+							struct ethtool_cmd *ecmd)
 {
-	struct ena_adapter *adapter = netdev_priv(netdev);
-	struct ena_com_dev *ena_dev = adapter->ena_dev;
-	struct ena_admin_get_feature_link_desc *link;
-	struct ena_admin_get_feat_resp feat_resp;
-	int rc;
-
-	rc = ena_com_get_link_params(ena_dev, &feat_resp);
-	if (rc)
-		return rc;
-
-	link = &feat_resp.u.link;
-
-	ethtool_cmd_speed_set(ecmd, link->speed);
-
-	if (link->flags & ENA_ADMIN_GET_FEATURE_LINK_DESC_DUPLEX_MASK)
-		ecmd->duplex = DUPLEX_FULL;
-	else
-		ecmd->duplex = DUPLEX_HALF;
-
-	if (link->flags & ENA_ADMIN_GET_FEATURE_LINK_DESC_AUTONEG_MASK)
-		ecmd->autoneg = AUTONEG_ENABLE;
-	else
-		ecmd->autoneg = AUTONEG_DISABLE;
-
 	return 0;
 }
 
@@ -394,11 +372,6 @@ static int ena_set_coalesce(struct net_device *net_dev,
 	return 0;
 err:
 	return rc;
-}
-
-static int ena_nway_reset(struct net_device *netdev)
-{
-	return -ENODEV;
 }
 
 static u32 ena_get_msglevel(struct net_device *netdev)
@@ -595,7 +568,7 @@ static int ena_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
 	case ETHTOOL_SRXCLSRLINS:
 	default:
 		netif_err(adapter, drv, netdev,
-			  "Command parameters %d doesn't support\n", info->cmd);
+			  "Command parameter %d is not supported\n", info->cmd);
 		rc = -EOPNOTSUPP;
 	}
 
@@ -621,7 +594,7 @@ static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 	case ETHTOOL_GRXCLSRLALL:
 	default:
 		netif_err(adapter, drv, netdev,
-			  "Command parameters %x doesn't support\n", info->cmd);
+			  "Command parameter %d is not supported\n", info->cmd);
 		rc = -EOPNOTSUPP;
 	}
 
@@ -657,11 +630,13 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 	switch (ena_func) {
 	case ENA_ADMIN_TOEPLITZ:
 		func = ETH_RSS_HASH_TOP;
+		break;
 	case ENA_ADMIN_CRC32:
 		func = ETH_RSS_HASH_XOR;
+		break;
 	default:
 		netif_err(adapter, drv, netdev,
-			  "Command parameters doesn't support\n");
+			  "Command parameter is not supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -740,12 +715,54 @@ static void ena_get_channels(struct net_device *netdev,
 	channels->combined_count = 0;
 }
 
+static int ena_get_tunable(struct net_device *netdev,
+			   const struct ethtool_tunable *tuna, void *data)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	int ret = 0;
+
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		*(u32 *)data = adapter->rx_copybreak;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static int ena_set_tunable(struct net_device *netdev,
+			   const struct ethtool_tunable *tuna,
+			   const void *data)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	int ret = 0;
+	u32 len;
+
+	switch (tuna->id) {
+	case ETHTOOL_RX_COPYBREAK:
+		len = *(u32 *)data;
+		if (len > adapter->netdev->mtu) {
+			ret = -EINVAL;
+			break;
+		}
+		adapter->rx_copybreak = len;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
 static const struct ethtool_ops ena_ethtool_ops = {
 	.get_settings		= ena_get_settings,
 	.get_drvinfo		= ena_get_drvinfo,
 	.get_msglevel		= ena_get_msglevel,
 	.set_msglevel		= ena_set_msglevel,
-	.nway_reset		= ena_nway_reset,
 	.get_link		= ethtool_op_get_link,
 	.get_coalesce		= ena_get_coalesce,
 	.set_coalesce		= ena_set_coalesce,
@@ -760,6 +777,8 @@ static const struct ethtool_ops ena_ethtool_ops = {
 	.get_rxfh		= ena_get_rxfh,
 	.set_rxfh		= ena_set_rxfh,
 	.get_channels		= ena_get_channels,
+	.get_tunable		= ena_get_tunable,
+	.set_tunable		= ena_set_tunable,
 };
 
 void ena_set_ethtool_ops(struct net_device *netdev)
