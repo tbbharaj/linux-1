@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 - 2016 Amazon.com, Inc. or its affiliates.
+ * Copyright 2015 Amazon.com, Inc. or its affiliates.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -40,57 +40,6 @@
 #include "ena_sysfs.h"
 
 #define to_ext_attr(x) container_of(x, struct dev_ext_attribute, attr)
-static int ena_validate_small_copy_len(struct ena_adapter *adapter,
-				       unsigned long len)
-{
-	if (len > adapter->netdev->mtu)
-		return -EINVAL;
-
-	return 0;
-}
-
-static ssize_t ena_store_small_copy_len(struct device *dev,
-					struct device_attribute *attr,
-					const char *buf, size_t len)
-{
-	struct ena_adapter *adapter = dev_get_drvdata(dev);
-	unsigned long small_copy_len;
-	struct ena_ring *rx_ring;
-	int err, i;
-
-	err = kstrtoul(buf, 10, &small_copy_len);
-	if (err < 0)
-		return err;
-
-	err = ena_validate_small_copy_len(adapter, small_copy_len);
-	if (err)
-		return err;
-
-	rtnl_lock();
-	adapter->small_copy_len = small_copy_len;
-
-	for (i = 0; i < adapter->num_queues; i++) {
-		rx_ring = &adapter->rx_ring[i];
-		rx_ring->rx_small_copy_len = small_copy_len;
-	}
-	rtnl_unlock();
-
-	return len;
-}
-
-static ssize_t ena_show_small_copy_len(struct device *dev,
-				       struct device_attribute *attr, char *buf)
-{
-	struct ena_adapter *adapter = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%d\n", adapter->small_copy_len);
-}
-
-static struct device_attribute dev_attr_small_copy_len = {
-	.attr = {.name = "small_copy_len", .mode = (S_IRUGO | S_IWUSR)},
-	.show = ena_show_small_copy_len,
-	.store = ena_store_small_copy_len,
-};
 
 /* adaptive interrupt moderation */
 static ssize_t ena_show_intr_moderation(struct device *dev,
@@ -190,17 +139,12 @@ static ssize_t ena_show_enable_adaptive_intr_moderation(struct device *dev,
 		       ena_com_get_adaptive_moderation_enabled(adapter->ena_dev));
 }
 
-static struct device_attribute dev_attr_enable_adaptive_intr_moderation = {
-	.attr = {.name = "enable_adaptive_intr_moderation", .mode = (S_IRUGO | S_IWUSR)},
-	.show = ena_show_enable_adaptive_intr_moderation,
-	.store = ena_store_enable_adaptive_intr_moderation,
-};
+static DEVICE_ATTR(enable_adaptive_intr_moderation, S_IRUGO | S_IWUSR,
+		ena_show_enable_adaptive_intr_moderation,
+		ena_store_enable_adaptive_intr_moderation);
 
-static struct device_attribute dev_attr_intr_moderation_restore_default = {
-	.attr = {.name = "intr_moderation_restore_default", .mode = (S_IWUSR | S_IWGRP)},
-	.show = NULL,
-	.store = ena_store_intr_moderation_restore_default,
-};
+static DEVICE_ATTR(intr_moderation_restore_default, S_IWUSR | S_IWGRP,
+		NULL, ena_store_intr_moderation_restore_default);
 
 #define INTR_MODERATION_PREPARE_ATTR(_name, _type) {			\
 	__ATTR(intr_moderation_##_name, (S_IRUGO | S_IWUSR | S_IWGRP),	\
@@ -222,9 +166,6 @@ int ena_sysfs_init(struct device *dev)
 {
 	int i, rc;
 	struct ena_adapter *adapter = dev_get_drvdata(dev);
-
-	if (device_create_file(dev, &dev_attr_small_copy_len))
-		dev_err(dev, "failed to create small_copy_len sysfs entry");
 
 	if (ena_com_interrupt_moderation_supported(adapter->ena_dev)) {
 		if (device_create_file(dev,
@@ -259,7 +200,6 @@ void ena_sysfs_terminate(struct device *dev)
 	struct ena_adapter *adapter = dev_get_drvdata(dev);
 	int i;
 
-	device_remove_file(dev, &dev_attr_small_copy_len);
 	if (ena_com_interrupt_moderation_supported(adapter->ena_dev)) {
 		for (i = 0; i < ARRAY_SIZE(dev_attr_intr_moderation); i++)
 			sysfs_remove_file(&dev->kobj,
