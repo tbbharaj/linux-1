@@ -31,7 +31,6 @@
  */
 
 #include <linux/pci.h>
-#include <linux/version.h>
 
 #include "ena_netdev.h"
 
@@ -265,8 +264,32 @@ static void ena_get_strings(struct net_device *netdev, u32 sset, u8 *data)
 }
 
 static int ena_get_settings(struct net_device *netdev,
-							struct ethtool_cmd *ecmd)
+			    struct ethtool_cmd *ecmd)
 {
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	struct ena_com_dev *ena_dev = adapter->ena_dev;
+	struct ena_admin_get_feature_link_desc *link;
+	struct ena_admin_get_feat_resp feat_resp;
+	int rc;
+
+	rc = ena_com_get_link_params(ena_dev, &feat_resp);
+	if (rc)
+		return rc;
+
+	link = &feat_resp.u.link;
+
+	ethtool_cmd_speed_set(ecmd, link->speed);
+
+	if (link->flags & ENA_ADMIN_GET_FEATURE_LINK_DESC_DUPLEX_MASK)
+		ecmd->duplex = DUPLEX_FULL;
+	else
+		ecmd->duplex = DUPLEX_HALF;
+
+	if (link->flags & ENA_ADMIN_GET_FEATURE_LINK_DESC_AUTONEG_MASK)
+		ecmd->autoneg = AUTONEG_ENABLE;
+	else
+		ecmd->autoneg = AUTONEG_DISABLE;
+
 	return 0;
 }
 
