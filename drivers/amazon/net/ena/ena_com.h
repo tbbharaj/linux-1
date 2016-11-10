@@ -93,6 +93,10 @@
 #define ENA_INTR_INITIAL_RX_INTERVAL_USECS		4
 #define ENA_INTR_DELAY_OLD_VALUE_WEIGHT			6
 #define ENA_INTR_DELAY_NEW_VALUE_WEIGHT			4
+#define ENA_INTR_MODER_LEVEL_STRIDE			1
+#define ENA_INTR_BYTE_COUNT_NOT_SUPPORTED		0xFFFFFF
+
+#define ENA_HW_HINTS_NO_TIMEOUT				0xFFFF
 
 enum ena_intr_moder_level {
 	ENA_INTR_MODER_LOWEST = 0,
@@ -230,6 +234,7 @@ struct ena_com_admin_queue {
 	void *q_dmadev;
 	spinlock_t q_lock; /* spinlock for the admin queue */
 	struct ena_comp_ctx *comp_ctx;
+	u32 completion_timeout;
 	u16 q_depth;
 	struct ena_com_admin_cq cq;
 	struct ena_com_admin_sq sq;
@@ -264,6 +269,7 @@ struct ena_com_aenq {
 struct ena_com_mmio_read {
 	struct ena_admin_ena_mmio_req_read_less_resp *read_resp;
 	dma_addr_t read_resp_dma_addr;
+	u32 reg_read_to; /* in us */
 	u16 seq_num;
 	bool readless_supported;
 	/* spin lock to ensure a single outstanding read */
@@ -333,6 +339,7 @@ struct ena_com_dev_get_features_ctx {
 	struct ena_admin_device_attr_feature_desc dev_attr;
 	struct ena_admin_feature_aenq_desc aenq;
 	struct ena_admin_feature_offload_desc offload;
+	struct ena_admin_ena_hw_hints hw_hints;
 };
 
 struct ena_com_create_io_ctx {
@@ -982,19 +989,19 @@ static inline void ena_com_calculate_interrupt_delay(struct ena_com_dev *ena_dev
 		if ((pkts > curr_moder_entry->pkts_per_interval) ||
 		    (bytes > curr_moder_entry->bytes_per_interval))
 			new_moder_idx =
-				(enum ena_intr_moder_level)(curr_moder_idx + 1);
+				(enum ena_intr_moder_level)(curr_moder_idx + ENA_INTR_MODER_LEVEL_STRIDE);
 	} else {
-		pred_moder_entry = &intr_moder_tbl[curr_moder_idx - 1];
+		pred_moder_entry = &intr_moder_tbl[curr_moder_idx - ENA_INTR_MODER_LEVEL_STRIDE];
 
 		if ((pkts <= pred_moder_entry->pkts_per_interval) ||
 		    (bytes <= pred_moder_entry->bytes_per_interval))
 			new_moder_idx =
-				(enum ena_intr_moder_level)(curr_moder_idx - 1);
+				(enum ena_intr_moder_level)(curr_moder_idx - ENA_INTR_MODER_LEVEL_STRIDE);
 		else if ((pkts > curr_moder_entry->pkts_per_interval) ||
 			 (bytes > curr_moder_entry->bytes_per_interval)) {
 			if (curr_moder_idx != ENA_INTR_MODER_HIGHEST)
 				new_moder_idx =
-				(enum ena_intr_moder_level)(curr_moder_idx + 1);
+					(enum ena_intr_moder_level)(curr_moder_idx + ENA_INTR_MODER_LEVEL_STRIDE);
 		}
 	}
 	new_moder_entry = &intr_moder_tbl[new_moder_idx];

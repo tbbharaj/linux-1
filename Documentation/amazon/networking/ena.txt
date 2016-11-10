@@ -35,6 +35,46 @@ debug logs.
 Some of the ENA devices support a working mode called Low-latency
 Queue (LLQ), which saves several more microseconds.
 
+Driver compilation:
+===================
+Prerequisites:
+RHEL
+----
+sudo yum install gcc
+sudo yum update
+sudo yum install kernel-devel
+
+Ubuntu
+------
+sudo apt-get install make
+sudo apt-get install gcc
+
+Open Suse
+---------
+sudo zypper install make
+sudo zypper install gcc
+sudo zypper update
+sudo zypper install kernel-devel
+
+Compilation:
+Run "make" in the kernel/linux/ena/ folder
+ena.ko is created inside the folder
+
+Driver installation:
+====================
+loading driver:
+---------------
+insmod ena.ko
+
+For automatic driver start upon the OS boot
+RHEL / Open Suse / Ubuntu:
+--------------------------
+sudo vi /etc/modules-load.d/ena.conf
+insert "ena" to the file
+copy the ena.ko to /lib/modules/(uname -r)/
+sudo depmod
+restart the OS (sudo reboot and reconnect)
+
 Supported PCI vendor ID/device IDs:
 ===================================
 1d0f:0ec2 - ENA PF
@@ -203,8 +243,8 @@ The user can enable/disable adaptive moderation, modify the interrupt
 delay table and restore its default values through sysfs.
 
 The rx_copybreak is initialized by default to ENA_DEFAULT_RX_COPYBREAK
-and can be configured by the ETHTOOL_STUNABLE command of the
-SIOCETHTOOL ioctl.
+and can be configured by the sysfs path
+/sys/bus/pci/devices/<domain:bus:slot.function>/rx_copybreak.
 
 SKB:
 The driver-allocated SKB for frames received from Rx handling using

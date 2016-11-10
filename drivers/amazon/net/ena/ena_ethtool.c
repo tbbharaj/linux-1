@@ -80,7 +80,6 @@ static const struct ena_stats ena_stats_tx_strings[] = {
 	ENA_STAT_TX_ENTRY(tx_poll),
 	ENA_STAT_TX_ENTRY(doorbells),
 	ENA_STAT_TX_ENTRY(prepare_ctx_err),
-	ENA_STAT_TX_ENTRY(missing_tx_comp),
 	ENA_STAT_TX_ENTRY(bad_req_id),
 };
 
@@ -94,6 +93,11 @@ static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(dma_mapping_err),
 	ENA_STAT_RX_ENTRY(bad_desc_num),
 	ENA_STAT_RX_ENTRY(rx_copybreak_pkt),
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	ENA_STAT_RX_ENTRY(bp_yield),
+	ENA_STAT_RX_ENTRY(bp_missed),
+	ENA_STAT_RX_ENTRY(bp_cleaned),
+#endif
 };
 
 static const struct ena_stats ena_stats_ena_com_strings[] = {
@@ -306,10 +310,11 @@ static int ena_get_coalesce(struct net_device *net_dev,
 	coalesce->tx_coalesce_usecs =
 		ena_com_get_nonadaptive_moderation_interval_tx(ena_dev) /
 			ena_dev->intr_delay_resolution;
-	if (!ena_com_get_adaptive_moderation_enabled(ena_dev))
+	if (!ena_com_get_adaptive_moderation_enabled(ena_dev)) {
 		coalesce->rx_coalesce_usecs =
 			ena_com_get_nonadaptive_moderation_interval_rx(ena_dev)
 			/ ena_dev->intr_delay_resolution;
+	}
 	coalesce->use_adaptive_rx_coalesce =
 		ena_com_get_adaptive_moderation_enabled(ena_dev);
 
@@ -339,9 +344,7 @@ static int ena_set_coalesce(struct net_device *net_dev,
 		return -EOPNOTSUPP;
 	}
 
-	/* Note, adaptive coalescing settings are updated through sysfs */
 	if (coalesce->rx_coalesce_usecs_irq ||
-	    coalesce->rx_max_coalesced_frames ||
 	    coalesce->rx_max_coalesced_frames_irq ||
 	    coalesce->tx_coalesce_usecs_irq ||
 	    coalesce->tx_max_coalesced_frames ||
@@ -349,22 +352,25 @@ static int ena_set_coalesce(struct net_device *net_dev,
 	    coalesce->stats_block_coalesce_usecs ||
 	    coalesce->use_adaptive_tx_coalesce ||
 	    coalesce->pkt_rate_low ||
-	    coalesce->rx_coalesce_usecs_low ||
-	    coalesce->rx_max_coalesced_frames_low ||
 	    coalesce->tx_coalesce_usecs_low ||
 	    coalesce->tx_max_coalesced_frames_low ||
 	    coalesce->pkt_rate_high ||
-	    coalesce->rx_coalesce_usecs_high ||
-	    coalesce->rx_max_coalesced_frames_high ||
 	    coalesce->tx_coalesce_usecs_high ||
 	    coalesce->tx_max_coalesced_frames_high ||
 	    coalesce->rate_sample_interval)
 		return -EINVAL;
 
+	/* Note, adaptive coalescing settings are updated through sysfs */
+	if (coalesce->rx_max_coalesced_frames ||
+	    coalesce->rx_coalesce_usecs_low ||
+	    coalesce->rx_max_coalesced_frames_low ||
+	    coalesce->rx_coalesce_usecs_high ||
+	    coalesce->rx_max_coalesced_frames_high)
+		return -EINVAL;
 	rc = ena_com_update_nonadaptive_moderation_interval_tx(ena_dev,
 							       coalesce->tx_coalesce_usecs);
 	if (rc)
-		goto err;
+		return rc;
 
 	ena_update_tx_rings_intr_moderation(adapter);
 
@@ -373,11 +379,10 @@ static int ena_set_coalesce(struct net_device *net_dev,
 			ena_com_disable_adaptive_moderation(ena_dev);
 			rc = ena_com_update_nonadaptive_moderation_interval_rx(ena_dev,
 									       coalesce->rx_coalesce_usecs);
-			if (rc)
-				goto err;
+			return rc;
 		} else {
 			/* was in adaptive mode and remains in it,
-			 * allow to update only tx_usecs
+			 * allow to update only tx_usecs, rx is managed through sysfs
 			 */
 			if (coalesce->rx_coalesce_usecs)
 				return -EINVAL;
@@ -388,13 +393,11 @@ static int ena_set_coalesce(struct net_device *net_dev,
 		} else {
 			rc = ena_com_update_nonadaptive_moderation_interval_rx(ena_dev,
 									       coalesce->rx_coalesce_usecs);
-			goto err;
+			return rc;
 		}
 	}
 
 	return 0;
-err:
-	return rc;
 }
 
 static u32 ena_get_msglevel(struct net_device *netdev)

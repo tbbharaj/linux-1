@@ -32,17 +32,17 @@
 
 #include "ena_eth_com.h"
 
-static inline struct ena_eth_io_rx_cdesc_base *ena_com_get_next_rx_cdesc(
+static inline volatile struct ena_eth_io_rx_cdesc_base *ena_com_get_next_rx_cdesc(
 	struct ena_com_io_cq *io_cq)
 {
-	struct ena_eth_io_rx_cdesc_base *cdesc;
+	volatile struct ena_eth_io_rx_cdesc_base *cdesc;
 	u16 expected_phase, head_masked;
 	u16 desc_phase;
 
 	head_masked = io_cq->head & (io_cq->q_depth - 1);
 	expected_phase = io_cq->phase;
 
-	cdesc = (struct ena_eth_io_rx_cdesc_base *)(io_cq->cdesc_addr.virt_addr
+	cdesc = (volatile struct ena_eth_io_rx_cdesc_base *)(io_cq->cdesc_addr.virt_addr
 			+ (head_masked * io_cq->cdesc_entry_size_in_bytes));
 
 	desc_phase = (cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_PHASE_MASK) >>
@@ -50,6 +50,12 @@ static inline struct ena_eth_io_rx_cdesc_base *ena_com_get_next_rx_cdesc(
 
 	if (desc_phase != expected_phase)
 		return NULL;
+
+	/* Prefetch the next cacheline of completion descriptors
+	* called only once per cacheline
+	*/
+	if (!((uintptr_t)cdesc & (L1_CACHE_BYTES - 1)))
+		prefetch((u8 *)cdesc + L1_CACHE_BYTES);
 
 	return cdesc;
 }
@@ -71,6 +77,12 @@ static inline void *get_sq_desc(struct ena_com_io_sq *io_sq)
 	tail_masked = io_sq->tail & (io_sq->q_depth - 1);
 
 	offset = tail_masked * io_sq->desc_entry_size;
+
+	/* Prefetching the next cacheline with submissinon queue entry
+	 * so they are availabile for the driver to fill it */
+	if (!(offset % (L1_CACHE_BYTES - 1)))
+		prefetchw((u8 *)((uintptr_t)io_sq->desc_addr.virt_addr +
+				 offset + L1_CACHE_BYTES));
 
 	return (void *)((uintptr_t)io_sq->desc_addr.virt_addr + offset);
 }
@@ -130,7 +142,7 @@ static inline struct ena_eth_io_rx_cdesc_base *
 static inline u16 ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 					   u16 *first_cdesc_idx)
 {
-	struct ena_eth_io_rx_cdesc_base *cdesc;
+	volatile struct ena_eth_io_rx_cdesc_base *cdesc;
 	u16 count = 0, head_masked;
 	u32 last = 0;
 
@@ -475,13 +487,13 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq, u16 *req_id)
 {
 	u8 expected_phase, cdesc_phase;
-	struct ena_eth_io_tx_cdesc *cdesc;
+	volatile struct ena_eth_io_tx_cdesc *cdesc;
 	u16 masked_head;
 
 	masked_head = io_cq->head & (io_cq->q_depth - 1);
 	expected_phase = io_cq->phase;
 
-	cdesc = (struct ena_eth_io_tx_cdesc *)
+	cdesc = (volatile struct ena_eth_io_tx_cdesc *)
 		((uintptr_t)io_cq->cdesc_addr.virt_addr +
 		(masked_head * io_cq->cdesc_entry_size_in_bytes));
 
@@ -492,6 +504,10 @@ int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq, u16 *req_id)
 	cdesc_phase = cdesc->flags & ENA_ETH_IO_TX_CDESC_PHASE_MASK;
 	if (cdesc_phase != expected_phase)
 		return -EAGAIN;
+
+	/* prefetch next cacheline with tx completion descriptors */
+	if (!(((uintptr_t)cdesc) & (L1_CACHE_BYTES - 1)))
+		prefetchw((u8 *)((uintptr_t)cdesc + L1_CACHE_BYTES));
 
 	ena_com_cq_inc_head(io_cq);
 
