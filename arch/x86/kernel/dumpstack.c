@@ -106,7 +106,7 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	 * - hardirq stack
 	 */
 	for (; stack; stack = stack_info.next_sp) {
-		const char *str_begin, *str_end;
+		const char *stack_name;
 
 		/*
 		 * If we overflowed the task stack into a guard page, jump back
@@ -118,9 +118,9 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		if (get_stack_info(stack, task, &stack_info, &visit_mask))
 			break;
 
-		stack_type_str(stack_info.type, &str_begin, &str_end);
-		if (str_begin)
-			printk("%s <%s> ", log_lvl, str_begin);
+		stack_name = stack_type_name(stack_info.type);
+		if (stack_name)
+			printk("%s <%s>\n", log_lvl, stack_name);
 
 		/*
 		 * Scan the stack, printing any text addresses we find.  At the
@@ -184,8 +184,8 @@ next:
 				show_regs_safe(&stack_info, regs);
 		}
 
-		if (str_end)
-			printk("%s <%s> ", log_lvl, str_end);
+		if (stack_name)
+			printk("%s </%s>\n", log_lvl, stack_name);
 	}
 }
 
