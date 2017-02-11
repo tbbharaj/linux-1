@@ -37,6 +37,8 @@ bool xen_suspend_mode_is_xen_suspend(void);
 bool xen_suspend_mode_is_pm_suspend(void);
 bool xen_suspend_mode_is_pm_hibernation(void);
 
+void xen_setup_syscore_ops(void);
+
 extern unsigned long *xen_contiguous_bitmap;
 int xen_create_contiguous_region(phys_addr_t pstart, unsigned int order,
 				unsigned int address_bits,

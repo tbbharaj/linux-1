@@ -1938,6 +1938,9 @@ static void __init xen_hvm_guest_init(void)
 
 	if (xen_feature(XENFEAT_hvm_callback_vector))
 		xen_have_vector_callback = 1;
+
+	xen_setup_syscore_ops();
+
 	xen_hvm_smp_init();
 	WARN_ON(xen_cpuhp_setup());
 	xen_unplug_emulated_devices();
