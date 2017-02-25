@@ -1,4 +1,4 @@
-linux_TAGVER     = 4.4.44
+linux_TAGVER     = 4.4.51
 linux_TAR_BASE   = v$(linux_TAGVER)
 linux_PATCH_BASE = $(linux_TAR_BASE)
 linux_BRANCH     = ami-2016.03/master
