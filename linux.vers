@@ -1,7 +1,7 @@
-linux_TAGVER     = 4.4.51
+linux_TAGVER     = 4.9.15
 linux_TAR_BASE   = v$(linux_TAGVER)
 linux_PATCH_BASE = $(linux_TAR_BASE)
-linux_BRANCH     = ami-2016.03/master
+linux_BRANCH     = ami-2017.03/master
 linux_PATCH_HEAD = $(linux_BRANCH)
 
 # generate changelog entries only for commits to these items
