@@ -1324,6 +1324,7 @@ fi
 %dir %{_libexecdir}/perf-core
 %{_libexecdir}/perf-core/*
 %{_datadir}/perf-core/*
+%{_datadir}/doc/perf*/*
 %dir %{_libdir}/traceevent/plugins
 %{_libdir}/traceevent/plugins/*
 %{_mandir}/man[1-8]/perf*
@@ -1354,7 +1355,7 @@ fi
 %{_mandir}/man8/turbostat*
 %endif
 %{_libdir}/libcpupower.so.0
-%{_libdir}/libcpupower.so.0.0.0
+%{_libdir}/libcpupower.so.0.0.1
 #%{_initddir}/cpupower
 %config(noreplace) %{_sysconfdir}/sysconfig/cpupower
 
