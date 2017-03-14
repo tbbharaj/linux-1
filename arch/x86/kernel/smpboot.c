@@ -963,7 +963,7 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle)
 	idle->thread.sp = (unsigned long) (((struct pt_regs *)
 			  (THREAD_SIZE +  task_stack_page(idle))) - 1);
 
-	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
+	early_gdt_descr.address = (unsigned long)get_cpu_gdt_rw(cpu);
 	initial_code = (unsigned long)start_secondary;
 	initial_stack  = idle->thread.sp;
 
