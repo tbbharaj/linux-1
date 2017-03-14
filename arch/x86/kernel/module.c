@@ -36,6 +36,7 @@
 #include <asm/pgtable.h>
 #include <asm/setup.h>
 #include <asm/unwind.h>
+#include <asm/fixmap.h>
 
 #if 0
 #define DEBUGP(fmt, ...)				\
