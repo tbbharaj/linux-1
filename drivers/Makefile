@@ -175,3 +175,6 @@ obj-$(CONFIG_STM)		+= hwtracing/stm/
 obj-$(CONFIG_ANDROID)		+= android/
 obj-$(CONFIG_NVMEM)		+= nvmem/
 obj-$(CONFIG_FPGA)		+= fpga/
+
+# Amazon driver updates
+obj-$(CONFIG_AMAZON_DRIVER_UPDATES)	+= amazon/
