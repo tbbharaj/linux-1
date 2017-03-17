@@ -67,4 +67,19 @@ config AMAZON_XEN_BLKDEV_FRONTEND_MQ_DEFAULT
           The boot time parameter xen_blkfront.use_blk_mq can be used to
           change the setting regardless of this option.
 
+config AMAZON_GPU_MODULES
+        bool "Modules required by out-of-tree GPU drivers"
+        depends on DRM && PCI
+        select FW_LOADER
+        select DRM_KMS_HELPER
+        select DRM_TTM
+        select POWER_SUPPLY
+        select HWMON
+        select BACKLIGHT_CLASS_DEVICE
+        select BACKLIGHT_LCD_SUPPORT
+        select INTERVAL_TREE
+        help
+          This enables some GPU-related modules for out-of-tree GPU drivers.
+          This optoin itself doesn't provide any hardware-specific driver modules.
+
 endif # AMAZON_DRIVER_UPDATES
