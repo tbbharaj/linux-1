@@ -34,4 +34,13 @@ config AMAZON_IXGBEVF
 	  will be called ixgbevf.  MSI-X interrupt support is required
 	  for this driver to work correctly.
 
+config AMAZON_ENA_ETHERNET
+	tristate "Elastic Network Adapter (ENA) support"
+	depends on PCI_MSI && !ENA_ETHERNET
+	---help---
+	  This driver supports Elastic Network Adapter (ENA)
+
+	  To compile this driver as a module, choose M here.
+	  The module will be called ena.
+
 endif # AMAZON_DRIVER_UPDATES
