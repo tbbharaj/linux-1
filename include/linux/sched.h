@@ -1463,15 +1463,21 @@ enum perf_event_task_context {
 	perf_nr_task_contexts,
 };
 
+#ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
+#include <asm/tlbbatch.h>
+
 /* Track pages that require TLB flushes */
 struct tlbflush_unmap_batch {
 	/*
-	 * Each bit set is a CPU that potentially has a TLB entry for one of
-	 * the PFNs being flushed. See set_tlb_ubc_flush_pending().
+	 * The arch code makes the following promise: generic code can modify a
+	 * PTE, then call arch_tlbbatch_add_mm() (which internally provides all
+	 * needed barriers), then call arch_tlbbatch_flush(), and the entries
+	 * will be flushed on all CPUs by the time that arch_tlbbatch_flush()
+	 * returns.
 	 */
-	struct cpumask cpumask;
+	struct arch_tlbflush_unmap_batch arch;
 
-	/* True if any bit in cpumask is set */
+	/* True if a flush is needed. */
 	bool flush_required;
 
 	/*
@@ -1481,6 +1487,7 @@ struct tlbflush_unmap_batch {
 	 */
 	bool writable;
 };
+#endif
 
 struct task_struct {
 #ifdef CONFIG_THREAD_INFO_IN_TASK
