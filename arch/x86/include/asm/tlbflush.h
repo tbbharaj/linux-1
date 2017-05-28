@@ -211,11 +211,17 @@ static inline void __flush_tlb_one(unsigned long addr)
  *  - flush_tlb_page(vma, vmaddr) flushes one page
  *  - flush_tlb_range(vma, start, end) flushes a range of pages
  *  - flush_tlb_kernel_range(start, end) flushes a range of kernel pages
- *  - flush_tlb_others(cpumask, mm, start, end) flushes TLBs on other cpus
+ *  - flush_tlb_others(cpumask, info) flushes TLBs on other cpus
  *
  * ..but the i386 has somewhat limited tlb flushing capabilities,
  * and page-granular flushes are available only on i486 and up.
  */
+
+struct flush_tlb_info {
+	struct mm_struct *mm;
+	unsigned long start;
+	unsigned long end;
+};
 
 #ifndef CONFIG_SMP
 
@@ -275,9 +281,7 @@ static inline void flush_tlb_mm_range(struct mm_struct *mm,
 }
 
 static inline void native_flush_tlb_others(const struct cpumask *cpumask,
-					   struct mm_struct *mm,
-					   unsigned long start,
-					   unsigned long end)
+					   const struct flush_tlb_info *info)
 {
 }
 
@@ -315,8 +319,7 @@ static inline void flush_tlb_page(struct vm_area_struct *vma, unsigned long a)
 }
 
 void native_flush_tlb_others(const struct cpumask *cpumask,
-				struct mm_struct *mm,
-				unsigned long start, unsigned long end);
+			     const struct flush_tlb_info *info);
 
 #define TLBSTATE_OK	1
 #define TLBSTATE_LAZY	2
@@ -338,8 +341,8 @@ extern void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch);
 #endif	/* SMP */
 
 #ifndef CONFIG_PARAVIRT
-#define flush_tlb_others(mask, mm, start, end)	\
-	native_flush_tlb_others(mask, mm, start, end)
+#define flush_tlb_others(mask, info)	\
+	native_flush_tlb_others(mask, info)
 #endif
 
 #endif /* _ASM_X86_TLBFLUSH_H */
