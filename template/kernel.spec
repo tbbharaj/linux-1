@@ -22,6 +22,9 @@ Summary: The Linux kernel
 %undefine buildid
 %endif
 
+# Tentatively set this macro to override .amzn1
+%global dist .karoo0
+
 ###################################################################
 # Polite request for people who spin their own kernel rpms:
 # please modify the "buildid" define in a way that identifies
