@@ -280,7 +280,7 @@ Obsoletes: kernel-smp
 #
 BuildRequires: kmod >= 14, patch >= 2.5.4, bash >= 2.03, sh-utils, tar
 BuildRequires: bzip2, findutils, gzip, m4, perl, make >= 3.78, diffutils, gawk
-BuildRequires: gcc
+BuildRequires: gcc, hostname, openssl
 #defines based on the compiler version we need to use
 %global _gcc gcc
 %global _gxx g++
@@ -329,7 +329,6 @@ BuildRequires: rpm-build >= 4.4.2.1-4
 %endif
 
 %if %{signmodules}
-BuildRequires: openssl
 BuildRequires: pesign >= 0.10-4
 %endif
 
