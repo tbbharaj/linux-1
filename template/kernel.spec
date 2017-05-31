@@ -988,8 +988,7 @@ BuildKernel %make_target %kernel_image
   make %{?_smp_mflags} -C tools/perf -s V=1 EXTRA_CFLAGS="-Wno-error=array-bounds" \\\
   HAVE_CPLUS_DEMANGLE=1 NO_LIBUNWIND=1 NO_GTK2=1 NO_STRLCPY=1 \\\
   prefix=%{_prefix} \\\
-  PYTHON=$perfPYTHON \\\
-  PYTHON_INSTALL_LAYOUT="amzn"
+  PYTHON=$perfPYTHON
 
 %if %{with_perf}
 %{perf_make} all
