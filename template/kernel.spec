@@ -287,14 +287,9 @@ BuildRequires: openssl-devel
 BuildRequires: sparse >= 0.4.1
 %endif
 %if %{with_perf}
-BuildRequires: elfutils-devel zlib-devel binutils-devel newt-devel perl(ExtUtils::Embed) bison
+BuildRequires: elfutils-devel zlib-devel binutils-devel newt-devel python-devel perl(ExtUtils::Embed) bison
 BuildRequires: audit-libs-devel
 BuildRequires: numactl-devel
-%if 0%{?sys_python_pkg:1}
-BuildRequires: %{sys_python_pkg}-devel
-%else
-BuildRequires: python-devel
-%endif
 
 %endif
 %if %{with_tools}
@@ -979,17 +974,8 @@ BuildKernel %make_target %kernel_image
 %endif
 
 # perf
-%if 0%{?_sys_python:1}
-  perfPYTHON=%{_sys_python}
-%else
-  perfPYTHON=%{_python}
-%endif
 %global perf_make \
-  make %{?_smp_mflags} -C tools/perf -s V=1 EXTRA_CFLAGS="-Wno-error=array-bounds" \\\
-  HAVE_CPLUS_DEMANGLE=1 NO_LIBUNWIND=1 NO_GTK2=1 NO_STRLCPY=1 \\\
-  prefix=%{_prefix} \\\
-  PYTHON=$perfPYTHON
-
+  make %{?_smp_mflags} -C tools/perf -s V=1 EXTRA_CFLAGS="-Wno-error=array-bounds" HAVE_CPLUS_DEMANGLE=1 NO_LIBUNWIND=1 NO_GTK2=1 NO_LIBNUMA=1 NO_STRLCPY=1 prefix=%{_prefix} PYTHON=%{__python}
 %if %{with_perf}
 %{perf_make} all
 %{perf_make} man || %{doc_build_fail}
@@ -1320,11 +1306,7 @@ fi
 %{_libdir}/traceevent/plugins/*
 %{_mandir}/man[1-8]/perf*
 %doc linux-%{KVERREL}/tools/perf/Documentation/examples.txt
-%if 0%{?_sys_python_sitearch:1}
-%{_sys_python_sitearch}/*
-%else
-%{_python_sitearch}/*
-%endif
+%{python_sitearch}/*
 
 %if %{with_debuginfo}
 %files -f perf-debuginfo.list -n perf-debuginfo
