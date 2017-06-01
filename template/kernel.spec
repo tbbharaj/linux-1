@@ -13,7 +13,7 @@ Summary: The Linux kernel
 %endif
 
 # Tentatively set this macro to override .amzn1
-%global dist .karoo0
+%global dist .karoo1
 
 ###################################################################
 # Polite request for people who spin their own kernel rpms:
