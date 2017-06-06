@@ -77,95 +77,10 @@ startup_64:
 	/* Sanitize CPU configuration */
 	call verify_cpu
 
-	/*
-	 * Compute the delta between the address I am compiled to run at and the
-	 * address I am actually running at.
-	 */
-	leaq	_text(%rip), %rbp
-	subq	$_text - __START_KERNEL_map, %rbp
-
-	/* Is the address not 2M aligned? */
-	testl	$~PMD_PAGE_MASK, %ebp
-	jnz	bad_address
-
-	/*
-	 * Is the address too large?
-	 */
-	leaq	_text(%rip), %rax
-	shrq	$MAX_PHYSMEM_BITS, %rax
-	jnz	bad_address
-
-	/*
-	 * Fixup the physical addresses in the page table
-	 */
-	addq	%rbp, early_level4_pgt + (L4_START_KERNEL*8)(%rip)
-
-	addq	%rbp, level3_kernel_pgt + (510*8)(%rip)
-	addq	%rbp, level3_kernel_pgt + (511*8)(%rip)
-
-	addq	%rbp, level2_fixmap_pgt + (506*8)(%rip)
-
-	/*
-	 * Set up the identity mapping for the switchover.  These
-	 * entries should *NOT* have the global bit set!  This also
-	 * creates a bunch of nonsense entries but that is fine --
-	 * it avoids problems around wraparound.
-	 */
 	leaq	_text(%rip), %rdi
-	leaq	early_level4_pgt(%rip), %rbx
-
-	movq	%rdi, %rax
-	shrq	$PGDIR_SHIFT, %rax
-
-	leaq	(4096 + _KERNPG_TABLE)(%rbx), %rdx
-	movq	%rdx, 0(%rbx,%rax,8)
-	movq	%rdx, 8(%rbx,%rax,8)
-
-	addq	$4096, %rdx
-	movq	%rdi, %rax
-	shrq	$PUD_SHIFT, %rax
-	andl	$(PTRS_PER_PUD-1), %eax
-	movq	%rdx, 4096(%rbx,%rax,8)
-	incl	%eax
-	andl	$(PTRS_PER_PUD-1), %eax
-	movq	%rdx, 4096(%rbx,%rax,8)
-
-	addq	$8192, %rbx
-	movq	%rdi, %rax
-	shrq	$PMD_SHIFT, %rdi
-	addq	$(__PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL), %rax
-	leaq	(_end - 1)(%rip), %rcx
-	shrq	$PMD_SHIFT, %rcx
-	subq	%rdi, %rcx
-	incl	%ecx
-
-1:
-	andq	$(PTRS_PER_PMD - 1), %rdi
-	movq	%rax, (%rbx,%rdi,8)
-	incq	%rdi
-	addq	$PMD_SIZE, %rax
-	decl	%ecx
-	jnz	1b
-
-	/*
-	 * Fixup the kernel text+data virtual addresses. Note that
-	 * we might write invalid pmds, when the kernel is relocated
-	 * cleanup_highmap() fixes this up along with the mappings
-	 * beyond _end.
-	 */
-	leaq	level2_kernel_pgt(%rip), %rdi
-	leaq	4096(%rdi), %r8
-	/* See if it is a valid page table entry */
-1:	testb	$1, 0(%rdi)
-	jz	2f
-	addq	%rbp, 0(%rdi)
-	/* Go to the next page */
-2:	addq	$8, %rdi
-	cmp	%r8, %rdi
-	jne	1b
-
-	/* Fixup phys_base */
-	addq	%rbp, phys_base(%rip)
+	pushq	%rsi
+	call	__startup_64
+	popq	%rsi
 
 	movq	$(early_level4_pgt - __START_KERNEL_map), %rax
 	jmp 1f
