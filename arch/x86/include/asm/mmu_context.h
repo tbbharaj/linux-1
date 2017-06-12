@@ -277,7 +277,7 @@ static inline bool arch_pte_access_permitted(pte_t pte, bool write)
 
 /*
  * This can be used from process context to figure out what the value of
- * CR3 is without needing to do a (slow) read_cr3().
+ * CR3 is without needing to do a (slow) __read_cr3().
  *
  * It's intended to be used for code like KVM that sneakily changes CR3
  * and needs to restore it.  It needs to be used very carefully.
@@ -289,7 +289,7 @@ static inline unsigned long __get_current_cr3_fast(void)
 	/* For now, be very restrictive about when this can be called. */
 	VM_WARN_ON(in_nmi() || !in_atomic());
 
-	VM_BUG_ON(cr3 != read_cr3());
+	VM_BUG_ON(cr3 != __read_cr3());
 	return cr3;
 }
 
