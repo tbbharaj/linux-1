@@ -13,7 +13,7 @@ Summary: The Linux kernel
 %endif
 
 # Tentatively set this macro to override .amzn1
-%global dist .karoo1
+%global dist .amzn2
 
 ###################################################################
 # Polite request for people who spin their own kernel rpms:
@@ -234,8 +234,8 @@ Provides: kernel-uname-r = %{KVERREL}%{?1:.%{1}}\
 Requires(pre): %{kernel_prereq}\
 Requires(pre): %{initrd_prereq}\
 #Requires(pre): linux-firmware >= 20120206\
-Requires(post): /sbin/new-kernel-pkg\
-Requires(preun): /sbin/new-kernel-pkg\
+Requires(post): %{_sbindir}/new-kernel-pkg\
+Requires(preun): %{_sbindir}/new-kernel-pkg\
 Conflicts: %{kernel_dot_org_conflicts}\
 Conflicts: %{package_conflicts}\
 %{expand:%%{?kernel%{?1:_%{1}}_conflicts:Conflicts: %%{kernel%{?1:_%{1}}_conflicts}}}\
@@ -480,8 +480,8 @@ Provides: kernel-devel-%{_target_cpu} = %{version}-%{release}%{?1:.%{1}}\
 Provides: kernel-devel = %{version}-%{release}%{?1:.%{1}}\
 Provides: kernel-devel-uname-r = %{KVERREL}%{?1:.%{1}}\
 AutoReqProv: no\
-Requires(pre): /usr/bin/find\
-Requires(post): /usr/sbin/hardlink\
+Requires(pre): %{_bindir}/find\
+Requires(post): %{_sbindir}/hardlink\
 Requires: perl\
 %if "%{_gccver}" > "4"\
 Provides: buildrequires(gcc) = %{_gccver}\
@@ -1196,10 +1196,10 @@ rm -rf $RPM_BUILD_ROOT
 
 %if %{with_tools}
 %post tools
-/sbin/ldconfig
+%{_sbindir}/ldconfig
 
 %postun tools
-/sbin/ldconfig
+%{_sbindir}/ldconfig
 %endif
 
 #
@@ -1212,11 +1212,11 @@ if [ -f /etc/sysconfig/kernel ]\
 then\
     . /etc/sysconfig/kernel || exit $?\
 fi\
-if [ "$HARDLINK" != "no" -a -x /usr/sbin/hardlink ]\
+if [ "$HARDLINK" != "no" -a -x %{_sbindir}/hardlink ]\
 then\
     (cd /usr/src/kernels/%{KVERREL}%{?1:.%{1}} &&\
-     /usr/bin/find . -type f | while read f; do\
-       hardlink -c /usr/src/kernels/*.%{dist}.*/$f $f\
+     %{_bindir}/find . -type f | while read f; do\
+       %{_sbindir}/hardlink -c /usr/src/kernels/*.%{dist}.*/$f $f\
      done)\
 fi\
 %{nil}
@@ -1229,12 +1229,12 @@ fi\
 %{expand:%%posttrans %{?1}}\
 %{expand:\
 %if %{with_dracut}\
-/sbin/new-kernel-pkg --package kernel%{?1:-%{1}} --mkinitrd --make-default --dracut --depmod --install %{KVERREL}%{?1:-%{1}} || exit $?\
+%{_sbindir}/new-kernel-pkg --package kernel%{?1:-%{1}} --mkinitrd --make-default --dracut --depmod --install %{KVERREL}%{?1:-%{1}} || exit $?\
 %else\
-/sbin/new-kernel-pkg --package kernel%{?1:-%{1}} --mkinitrd --make-default --depmod --install %{KVERREL}%{?1:-%{1}} || exit $?\
+%{_sbindir}/new-kernel-pkg --package kernel%{?1:-%{1}} --mkinitrd --make-default --depmod --install %{KVERREL}%{?1:-%{1}} || exit $?\
 %endif\
 }\
-/sbin/new-kernel-pkg --package kernel%{?1:-%{1}} --rpmposttrans %{KVERREL}%{?1:.%{1}} || exit $?\
+%{_sbindir}/new-kernel-pkg --package kernel%{?1:-%{1}} --rpmposttrans %{KVERREL}%{?1:.%{1}} || exit $?\
 %{nil}
 
 #
@@ -1249,7 +1249,7 @@ fi\
 %{-r:\
 if [ `uname -i` == "x86_64" -o `uname -i` == "i386" ] &&\
    [ -f /etc/sysconfig/kernel ]; then\
-  /bin/sed -r -i -e 's/^DEFAULTKERNEL=%{-r*}$/DEFAULTKERNEL=kernel%{?-v:-%{-v*}}/' /etc/sysconfig/kernel || exit $?\
+  %{_bindir}/sed -r -i -e 's/^DEFAULTKERNEL=%{-r*}$/DEFAULTKERNEL=kernel%{?-v:-%{-v*}}/' /etc/sysconfig/kernel || exit $?\
 fi}\
 %{nil}
 
@@ -1259,7 +1259,7 @@ fi}\
 #
 %define kernel_variant_preun() \
 %{expand:%%preun %{?1}}\
-/sbin/new-kernel-pkg --rminitrd --rmmoddep --remove %{KVERREL}%{?1:.%{1}} || exit $?\
+%{_sbindir}/new-kernel-pkg --rminitrd --rmmoddep --remove %{KVERREL}%{?1:.%{1}} || exit $?\
 %{nil}
 
 %kernel_variant_preun
@@ -1268,9 +1268,9 @@ fi}\
 %kernel_variant_preun debug
 %kernel_variant_post -v debug
 
-if [ -x /sbin/ldconfig ]
+if [ -x %{_sbindir}/ldconfig ]
 then
-    /sbin/ldconfig -X || exit $?
+    %{_sbindir}/ldconfig -X || exit $?
 fi
 
 ###
