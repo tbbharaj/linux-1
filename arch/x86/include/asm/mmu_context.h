@@ -102,8 +102,10 @@ static inline void load_mm_ldt(struct mm_struct *mm)
 
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
-	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
-		this_cpu_write(cpu_tlbstate.state, TLBSTATE_LAZY);
+	int cpu = smp_processor_id();
+
+	if (cpumask_test_cpu(cpu, mm_cpumask(mm)))
+		cpumask_clear_cpu(cpu, mm_cpumask(mm));
 }
 
 static inline int init_new_context(struct task_struct *tsk,
