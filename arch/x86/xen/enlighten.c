@@ -1782,9 +1782,8 @@ asmlinkage __visible void __init xen_start_kernel(void)
 #endif
 }
 
-void __ref xen_hvm_init_shared_info(void)
+void __ref xen_hvm_map_shared_info(void)
 {
-	int cpu;
 	struct xen_add_to_physmap xatp;
 	static struct shared_info *shared_info_page = 0;
 
@@ -1799,6 +1798,13 @@ void __ref xen_hvm_init_shared_info(void)
 		BUG();
 
 	HYPERVISOR_shared_info = (struct shared_info *)shared_info_page;
+}
+
+void __ref xen_hvm_init_shared_info(void)
+{
+	int cpu;
+
+	xen_hvm_map_shared_info();
 
 	/* xen_vcpu is a pointer to the vcpu_info struct in the shared_info
 	 * page, we use it in the event channel upcall and in some pvclock
