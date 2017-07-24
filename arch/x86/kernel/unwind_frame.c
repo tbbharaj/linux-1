@@ -8,21 +8,20 @@
 
 unsigned long unwind_get_return_address(struct unwind_state *state)
 {
-	unsigned long addr;
-	unsigned long *addr_p = unwind_get_return_address_ptr(state);
-
 	if (unwind_done(state))
 		return 0;
 
-	if (state->regs && user_mode(state->regs))
-		return 0;
-
-	addr = ftrace_graph_ret_addr(state->task, &state->graph_idx, *addr_p,
-				     addr_p);
-
-	return __kernel_text_address(addr) ? addr : 0;
+	return __kernel_text_address(state->ip) ? state->ip : 0;
 }
 EXPORT_SYMBOL_GPL(unwind_get_return_address);
+
+unsigned long *unwind_get_return_address_ptr(struct unwind_state *state)
+{
+	if (unwind_done(state))
+		return NULL;
+
+	return state->regs ? &state->regs->ip : state->bp + 1;
+}
 
 /*
  * This determines if the frame pointer actually contains an encoded pointer to
