@@ -2283,6 +2283,36 @@ static int blkfront_resume(struct xenbus_device *dev)
 		}
 	}
 
+	if (blkfront_use_request_based) {
+		struct request *req;
+		struct bio_list merge_bio;
+
+		/*
+		 * Empty the queue, this is important because we might have
+		 * requests in the queue with more segments than what we
+		 * can handle now.
+		 */
+		spin_lock_irq(&info->io_lock);
+		while ((req = blk_fetch_request(info->rq)) != NULL) {
+			if (req_op(req) == REQ_OP_FLUSH ||
+			    req_op(req) == REQ_OP_DISCARD ||
+			    req_op(req) == REQ_OP_SECURE_ERASE ||
+			    req->cmd_flags & REQ_FUA) {
+				list_add(&req->queuelist, &info->requests);
+				continue;
+			}
+			merge_bio.head = req->bio;
+			merge_bio.tail = req->biotail;
+			bio_list_merge(&info->bio_list, &merge_bio);
+			req->bio = NULL;
+			if (req_op(req) == REQ_OP_FLUSH ||
+			    req->cmd_flags & REQ_FUA)
+				pr_alert("diskcache flush request found!\n");
+			__blk_end_request_all(req, 0);
+		}
+		spin_unlock_irq(&info->io_lock);
+	}
+
 	blkif_free(info, info->connected == BLKIF_STATE_CONNECTED);
 
 	err = negotiate_mq(info);
