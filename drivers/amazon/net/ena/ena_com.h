@@ -234,6 +234,7 @@ struct ena_com_stats_admin {
 struct ena_com_admin_queue {
 	void *q_dmadev;
 	spinlock_t q_lock; /* spinlock for the admin queue */
+
 	struct ena_comp_ctx *comp_ctx;
 	u32 completion_timeout;
 	u16 q_depth;
@@ -419,10 +420,12 @@ void ena_com_admin_destroy(struct ena_com_dev *ena_dev);
 
 /* ena_com_dev_reset - Perform device FLR to the device.
  * @ena_dev: ENA communication layer struct
+ * @reset_reason: Specify what is the trigger for the reset in case of an error.
  *
  * @return - 0 on success, negative value on failure.
  */
-int ena_com_dev_reset(struct ena_com_dev *ena_dev);
+int ena_com_dev_reset(struct ena_com_dev *ena_dev,
+		      enum ena_regs_reset_reason_types reset_reason);
 
 /* ena_com_create_io_queue - Create io queue.
  * @ena_dev: ENA communication layer struct
