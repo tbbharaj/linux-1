@@ -93,6 +93,8 @@ static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(dma_mapping_err),
 	ENA_STAT_RX_ENTRY(bad_desc_num),
 	ENA_STAT_RX_ENTRY(rx_copybreak_pkt),
+	ENA_STAT_RX_ENTRY(bad_req_id),
+	ENA_STAT_RX_ENTRY(empty_rx_ring),
 };
 
 static const struct ena_stats ena_stats_ena_com_strings[] = {
@@ -538,12 +540,8 @@ static int ena_get_rss_hash(struct ena_com_dev *ena_dev,
 	}
 
 	rc = ena_com_get_hash_ctrl(ena_dev, proto, &hash_fields);
-	if (rc) {
-		/* If device don't have permission, return unsupported */
-		if (rc == -EPERM)
-			rc = -EOPNOTSUPP;
+	if (rc)
 		return rc;
-	}
 
 	cmd->data = ena_flow_hash_to_flow_type(hash_fields);
 
@@ -611,7 +609,7 @@ static int ena_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
 		rc = -EOPNOTSUPP;
 	}
 
-	return (rc == -EPERM) ? -EOPNOTSUPP : rc;
+	return rc;
 }
 
 static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
@@ -637,7 +635,7 @@ static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 		rc = -EOPNOTSUPP;
 	}
 
-	return (rc == -EPERM) ? -EOPNOTSUPP : rc;
+	return rc;
 }
 
 static u32 ena_get_rxfh_indir_size(struct net_device *netdev)
@@ -738,7 +736,6 @@ static int ena_set_rxfh(struct net_device *netdev, const u32 *indir,
 
 	return 0;
 }
-#ifndef HAVE_RHEL6_ETHTOOL_OPS_EXT_STRUCT
 
 static void ena_get_channels(struct net_device *netdev,
 			     struct ethtool_channels *channels)
@@ -755,7 +752,6 @@ static void ena_get_channels(struct net_device *netdev,
 	channels->combined_count = 0;
 }
 
-#endif /* HAVE_RHEL6_ETHTOOL_OPS_EXT_STRUCT */
 static int ena_get_tunable(struct net_device *netdev,
 			   const struct ethtool_tunable *tuna, void *data)
 {
@@ -817,9 +813,7 @@ static const struct ethtool_ops ena_ethtool_ops = {
 	.get_rxfh_key_size	= ena_get_rxfh_key_size,
 	.get_rxfh		= ena_get_rxfh,
 	.set_rxfh		= ena_set_rxfh,
-#ifndef HAVE_RHEL6_ETHTOOL_OPS_EXT_STRUCT
 	.get_channels		= ena_get_channels,
-#endif
 	.get_tunable		= ena_get_tunable,
 	.set_tunable		= ena_set_tunable,
 };
