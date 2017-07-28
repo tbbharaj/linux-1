@@ -19,6 +19,7 @@
 #include <asm/microcode.h>
 #include <asm/kaslr.h>
 #include <asm/cpufeature.h>
+#include <asm/hypervisor.h>
 
 /*
  * We need to define the tracepoints somewhere, and tlb.c
@@ -669,6 +670,8 @@ void __init init_mem_mapping(void)
 
 	load_cr3(swapper_pg_dir);
 	__flush_tlb_all();
+
+	hypervisor_init_mem_mapping();
 
 	early_memtest(0, max_pfn_mapped << PAGE_SHIFT);
 }
