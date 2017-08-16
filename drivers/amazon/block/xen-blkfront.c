@@ -2004,7 +2004,7 @@ static int negotiate_mq(struct blkfront_info *info)
 	 * We need at least one ring. Also, do not allow to have multiple rings if blk-mq is
 	 * not used.
 	 */
-	if (!info->nr_rings || !blkfront_use_blk_mq)
+	if (!info->nr_rings || blkfront_use_request_based)
 		info->nr_rings = 1;
 
 	info->rinfo = kzalloc(sizeof(struct blkfront_ring_info) * info->nr_rings, GFP_KERNEL);
@@ -2142,7 +2142,7 @@ static int blkif_recover(struct blkfront_info *info)
 	xenbus_switch_state(info->xbdev, XenbusStateConnected);
 
 	/* blk_requeue_request below must be called with queue lock held */
-	if (!blkfront_use_blk_mq)
+	if (blkfront_use_request_based)
 		spin_lock_irq(&info->rinfo[FIRST_RING_ID].ring_lock);
 
 	/* Now safe for us to use the shared ring */
@@ -2169,7 +2169,7 @@ static int blkif_recover(struct blkfront_info *info)
 			blk_requeue_request(info->rq, req);
 	}
 
-	if (!blkfront_use_blk_mq)
+	if (blkfront_use_request_based)
 		spin_unlock_irq(&info->rinfo[FIRST_RING_ID].ring_lock);
 
 	if (blkfront_use_blk_mq)
