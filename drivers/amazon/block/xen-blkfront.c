@@ -160,6 +160,8 @@ static unsigned int blkfront_use_blk_mq = 0;
 module_param_named(use_blk_mq, blkfront_use_blk_mq, int, S_IRUGO);
 MODULE_PARM_DESC(use_blk_mq, "Override default block layer to use (0=request-based,1=blk-mq)");
 
+#define blkfront_use_request_based !blkfront_use_blk_mq
+
 /*
  * Index to the first available ring.
  */
