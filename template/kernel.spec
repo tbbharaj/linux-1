@@ -401,7 +401,26 @@ This package provides debug information for the perf package.
 # symlinks because of the trailing nonmatching alternation and
 # the leading .*, because of find-debuginfo.sh's buggy handling
 # of matching the pattern against the symlinks file.
-%{expand:%%global debuginfo_args %{?debuginfo_args} -p '.*%%{_bindir}/perf(\.debug)?|.*%%{_libexecdir}/perf-core/.*|.*%%{python_sitearch}/perf.so(\.debug)?|XXX' -o perf-debuginfo.list}
+%{expand:%%global debuginfo_args %{?debuginfo_args} -p '.*%%{_bindir}/perf(\.debug)?|.*%%{_libexecdir}/perf-core/.*|XXX' -o perf-debuginfo.list}
+
+%package -n python-perf
+Summary: Python bindings for apps which will manipulate perf events
+Group: Development/Libraries
+%description -n python-perf
+The python-perf package contains a module that permits applications
+written in the Python programming language to use the interface
+to manipulate perf events.
+
+%package -n python-perf-debuginfo
+Summary: Debug information for package perf python bindings
+Group: Development/Debug
+Requires: %{name}-debuginfo-common-%{_target_cpu} = %{version}-%{release}
+AutoReqProv: no
+%description -n python-perf-debuginfo
+This package provides debug information for the perf python bindings.
+
+%{expand:%%global debuginfo_args %{?debuginfo_args} -p '.*%%{python_sitearch}/perf.so(\.debug)?|XXX' -o python-perf-debuginfo.list}
+
 %endif #perf
 
 %if %{with_tools}
@@ -1306,12 +1325,18 @@ fi
 %{_libdir}/traceevent/plugins/*
 %{_mandir}/man[1-8]/perf*
 %doc linux-%{KVERREL}/tools/perf/Documentation/examples.txt
+
+%files -n python-perf
+%defattr(-,root,root)
 %{python_sitearch}/*
 
 %if %{with_debuginfo}
 %files -f perf-debuginfo.list -n perf-debuginfo
 %defattr(-,root,root)
-%endif
+
+%files -f python-perf-debuginfo.list -n python-perf-debuginfo
+%defattr(-,root,root)
+%endif # with_debuginfo
 %endif # with_perf
 
 %if %{with_tools}
