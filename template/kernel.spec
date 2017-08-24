@@ -414,7 +414,7 @@ This package provides debug information for the perf package.
 # symlinks because of the trailing nonmatching alternation and
 # the leading .*, because of find-debuginfo.sh's buggy handling
 # of matching the pattern against the symlinks file.
-%{expand:%%global debuginfo_args %{?debuginfo_args} -p '.*%%{_bindir}/perf(\.debug)?|.*%%{_libexecdir}/perf-core/.*|.*%%{python_sitearch}/perf.so(\.debug)?|XXX' -o perf-debuginfo.list}
+%{expand:%%global debuginfo_args %{?debuginfo_args} -p '.*%%{_bindir}/perf(\.debug)?|.*%%{_libexecdir}/perf-core/.*|.*%%{python_sitearch}/perf.so(\.debug)?|.*%%{_libdir}/traceevent/plugins/.*|XXX' -o perf-debuginfo.list}
 %endif #perf
 
 %if %{with_tools}
