@@ -277,6 +277,16 @@ static inline bool arch_pte_access_permitted(pte_t pte, bool write)
 	return __pkru_allows_pkey(pte_flags_pkey(pte_flags(pte)), write);
 }
 
+static inline unsigned long build_cr3(struct mm_struct *mm, u16 asid)
+{
+	return __pa(mm->pgd) | asid;
+}
+
+static inline unsigned long build_cr3_noflush(struct mm_struct *mm, u16 asid)
+{
+	return __pa(mm->pgd) | asid | CR3_NOFLUSH;
+}
+
 /*
  * This can be used from process context to figure out what the value of
  * CR3 is without needing to do a (slow) __read_cr3().
@@ -286,10 +296,8 @@ static inline bool arch_pte_access_permitted(pte_t pte, bool write)
  */
 static inline unsigned long __get_current_cr3_fast(void)
 {
-	unsigned long cr3 = __pa(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd);
-
-	if (static_cpu_has(X86_FEATURE_PCID))
-		cr3 |= this_cpu_read(cpu_tlbstate.loaded_mm_asid);
+	unsigned long cr3 = build_cr3(this_cpu_read(cpu_tlbstate.loaded_mm),
+		this_cpu_read(cpu_tlbstate.loaded_mm_asid));
 
 	/* For now, be very restrictive about when this can be called. */
 	VM_WARN_ON(in_nmi() || !in_atomic());
