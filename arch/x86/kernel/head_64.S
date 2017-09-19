@@ -215,7 +215,7 @@ ENTRY(secondary_startup_64)
 	pushq	$__KERNEL_CS	# set correct cs
 	pushq	%rax		# target address in negative space
 	lretq
-ENDPROC(secondary_startup_64)
+END(secondary_startup_64)
 
 #include "verify_cpu.S"
 
@@ -258,7 +258,7 @@ ENTRY(early_idt_handler_array)
 	i = i + 1
 	.fill early_idt_handler_array + i*EARLY_IDT_HANDLER_SIZE - ., 1, 0xcc
 	.endr
-ENDPROC(early_idt_handler_array)
+END(early_idt_handler_array)
 
 early_idt_handler_common:
 	/*
@@ -301,7 +301,7 @@ early_idt_handler_common:
 20:
 	decl early_recursion_flag(%rip)
 	jmp restore_regs_and_iret
-ENDPROC(early_idt_handler_common)
+END(early_idt_handler_common)
 
 	__INITDATA
 
