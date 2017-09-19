@@ -1645,6 +1645,8 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 
 		insn = next_insn;
 		if (!insn) {
+			if (state.cfa.base == CFI_UNDEFINED)
+				return 0;
 			WARN("%s: unexpected end of section", sec->name);
 			return 1;
 		}
