@@ -98,9 +98,9 @@ void __init kasan_init(void)
 	load_cr3(early_level4_pgt);
 	__flush_tlb_all();
 
-	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
+	clear_pgds(KASAN_SHADOW_START & PGDIR_MASK, KASAN_SHADOW_END);
 
-	kasan_populate_zero_shadow((void *)KASAN_SHADOW_START,
+	kasan_populate_zero_shadow((void *)(KASAN_SHADOW_START & PGDIR_MASK),
 			kasan_mem_to_shadow((void *)PAGE_OFFSET));
 
 	for (i = 0; i < E820_X_MAX; i++) {
