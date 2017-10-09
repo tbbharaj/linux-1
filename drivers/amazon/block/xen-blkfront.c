@@ -47,6 +47,7 @@
 #include <linux/bitmap.h>
 #include <linux/list.h>
 #include <linux/completion.h>
+#include <linux/delay.h>
 
 #include <xen/xen.h>
 #include <xen/xenbus.h>
@@ -288,6 +289,15 @@ static DEFINE_SPINLOCK(minor_lock);
 static int blkfront_setup_indirect(struct blkfront_ring_info *rinfo);
 static void blkfront_gather_backend_features(struct blkfront_info *info);
 static void __blkif_free(struct blkfront_info *info);
+
+static inline bool blkfront_ring_is_busy(struct blkif_front_ring *ring)
+{
+	if (RING_SIZE(ring) > RING_FREE_REQUESTS(ring) ||
+	    RING_HAS_UNCONSUMED_RESPONSES(ring))
+		return true;
+	else
+		return false;
+}
 
 static int get_id_from_freelist(struct blkfront_ring_info *rinfo)
 {
@@ -1311,6 +1321,9 @@ static void xlvbd_release_gendisk(struct blkfront_info *info)
 /* Already hold rinfo->ring_lock. */
 static inline void kick_pending_request_queues_locked(struct blkfront_ring_info *rinfo)
 {
+	if (unlikely(rinfo->dev_info->connected == BLKIF_STATE_FREEZING))
+		return;
+
 	if (RING_FULL(&rinfo->ring))
 		return;
 
@@ -1677,8 +1690,10 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 	spinlock_t *lock;
 	int error;
 
-	if (unlikely(info->connected != BLKIF_STATE_CONNECTED))
-		return IRQ_HANDLED;
+	if (unlikely(info->connected != BLKIF_STATE_CONNECTED)) {
+		if (info->connected != BLKIF_STATE_FREEZING)
+			return IRQ_HANDLED;
+	}
 
 	lock = blkfront_use_blk_mq ? &rinfo->ring_lock : &info->io_lock;
 
@@ -2881,30 +2896,23 @@ out_mutex:
 	mutex_unlock(&blkfront_mutex);
 }
 
-static void blkif_disable_interrupts(struct blkfront_info *info)
-{
-	struct blkfront_ring_info *rinfo;
-	int i;
-
-	for (i = 0; i < info->nr_rings; i++) {
-		rinfo = &info->rinfo[i];
-		disable_irq(rinfo->irq);
-	}
-}
-
 static int blkfront_freeze(struct xenbus_device *dev)
 {
 	unsigned int i;
 	struct blkfront_info *info = dev_get_drvdata(&dev->dev);
+	struct blkfront_ring_info *rinfo;
+	struct blkif_front_ring *ring;
 	/* This would be reasonable timeout as used in xenbus_dev_shutdown() */
 	unsigned int timeout = 5 * HZ;
 	int err = 0;
+
+	info->connected = BLKIF_STATE_FREEZING;
 
 	if (blkfront_use_blk_mq) {
 		blk_mq_stop_hw_queues(info->rq);
 
 		for (i = 0; i < info->nr_rings; i++) {
-			struct blkfront_ring_info *rinfo = &info->rinfo[i];
+			rinfo = &info->rinfo[i];
 
 			gnttab_cancel_free_callback(&rinfo->callback);
 			flush_work(&rinfo->work);
@@ -2920,10 +2928,41 @@ static int blkfront_freeze(struct xenbus_device *dev)
 		flush_work(&info->rinfo[FIRST_RING_ID].work);
 	}
 
-	blkif_disable_interrupts(info);
+	for (i = 0; i < info->nr_rings; i++) {
+		spinlock_t *lock;
+		bool busy;
+		unsigned long req_timeout_ms = 25;
+		unsigned long ring_timeout;
+
+		rinfo = &info->rinfo[i];
+		ring = &rinfo->ring;
+
+		lock = blkfront_use_blk_mq ?
+			&rinfo->ring_lock : &info->io_lock;
+
+		ring_timeout = jiffies +
+			msecs_to_jiffies(req_timeout_ms * RING_SIZE(ring));
+
+		do {
+			spin_lock_irq(lock);
+			busy = blkfront_ring_is_busy(ring);
+			spin_unlock_irq(lock);
+
+			if (busy)
+				msleep(req_timeout_ms);
+			else
+				break;
+		} while (time_is_after_jiffies(ring_timeout));
+
+		/* Timed out */
+		if (busy) {
+			xenbus_dev_error(dev, err, "the ring is still busy");
+			info->connected = BLKIF_STATE_CONNECTED;
+			return -EBUSY;
+		}
+	}
 
 	/* Kick the backend to disconnect */
-	info->connected = BLKIF_STATE_FREEZING;
 	xenbus_switch_state(dev, XenbusStateClosing);
 
 	/*
