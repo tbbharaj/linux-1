@@ -13,7 +13,7 @@ moddir=$1
 
 modules=`find $moddir -name *.ko`
 
-MODSECKEY="./signing_key.priv"
+MODSECKEY="./signing_key.pem"
 MODPUBKEY="./signing_key.x509"
 
 for mod in $modules
