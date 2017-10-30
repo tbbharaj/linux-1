@@ -69,6 +69,12 @@ module_param_named(max_queues, xennet_max_queues, uint, 0644);
 MODULE_PARM_DESC(max_queues,
 		 "Maximum number of queues per virtual interface");
 
+static unsigned int netfront_freeze_timeout_secs = 10;
+module_param_named(freeze_timeout_secs,
+		   netfront_freeze_timeout_secs, uint, 0644);
+MODULE_PARM_DESC(freeze_timeout_secs,
+		 "timeout when freezing netfront device in seconds");
+
 static const struct ethtool_ops xennet_ethtool_ops;
 
 struct netfront_cb {
@@ -1847,8 +1853,7 @@ static int xennet_create_queues(struct netfront_info *info,
 static int netfront_freeze(struct xenbus_device *dev)
 {
 	struct netfront_info *info = dev_get_drvdata(&dev->dev);
-	/* This would be reasonable timeout as used in xenbus_dev_shutdown() */
-	unsigned long timeout = 5 * HZ;
+	unsigned long timeout = netfront_freeze_timeout_secs * HZ;
 	int err = 0;
 
 	xennet_disable_interrupts(info->netdev);
