@@ -45,7 +45,7 @@
 #include "ena_eth_com.h"
 
 #define DRV_MODULE_VER_MAJOR	1
-#define DRV_MODULE_VER_MINOR	3
+#define DRV_MODULE_VER_MINOR	4
 #define DRV_MODULE_VER_SUBMINOR 0
 
 #define DRV_MODULE_NAME		"ena"
@@ -53,7 +53,7 @@
 #define DRV_MODULE_VERSION \
 	__stringify(DRV_MODULE_VER_MAJOR) "."	\
 	__stringify(DRV_MODULE_VER_MINOR) "."	\
-	__stringify(DRV_MODULE_VER_SUBMINOR) "u"
+	__stringify(DRV_MODULE_VER_SUBMINOR) "U"
 #endif
 
 #define DEVICE_NAME	"Elastic Network Adapter (ENA)"
@@ -274,7 +274,8 @@ enum ena_flags_t {
 	ENA_FLAG_DEV_UP,
 	ENA_FLAG_LINK_UP,
 	ENA_FLAG_MSIX_ENABLED,
-	ENA_FLAG_TRIGGER_RESET
+	ENA_FLAG_TRIGGER_RESET,
+	ENA_FLAG_ONGOING_RESET
 };
 
 /* adapter specific private data structure */
