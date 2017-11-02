@@ -133,6 +133,7 @@ Summary: The Linux kernel
 %define with_headers 0
 %define with_tools 0
 %define with_perf 0
+%define signmodules 0
 %define all_arch_configs kernel-%{version}-*.config
 %endif
 
