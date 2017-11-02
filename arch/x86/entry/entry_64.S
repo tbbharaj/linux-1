@@ -35,6 +35,7 @@
 #include <asm/asm.h>
 #include <asm/smap.h>
 #include <asm/pgtable_types.h>
+#include <asm/unwind_hints.h>
 #include <asm/export.h>
 #include <linux/err.h>
 
@@ -318,9 +319,18 @@ return_from_SYSCALL_64:
 	 */
 syscall_return_via_sysret:
 	/* rcx and r11 are already restored (see code above) */
-	RESTORE_EXTRA_REGS
-	RESTORE_C_REGS_EXCEPT_RCX_R11
-	movq	RSP(%rsp), %rsp
+	UNWIND_HINT_EMPTY
+	POP_EXTRA_REGS
+	popq	%rsi	/* skip r11 */
+	popq	%r10
+	popq	%r9
+	popq	%r8
+	popq	%rax
+	popq	%rsi	/* skip rcx */
+	popq	%rdx
+	popq	%rsi
+	popq	%rdi
+	movq	RSP-ORIG_RAX(%rsp), %rsp
 	USERGS_SYSRET64
 END(entry_SYSCALL_64)
 
