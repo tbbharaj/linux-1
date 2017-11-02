@@ -38,6 +38,7 @@ asmlinkage void machine_check(void);
 #endif /* CONFIG_X86_MCE */
 asmlinkage void simd_coprocessor_error(void);
 
+asmlinkage void xen_xennmi(void);
 #ifdef CONFIG_TRACING
 asmlinkage void trace_page_fault(void);
 #define trace_stack_segment stack_segment
