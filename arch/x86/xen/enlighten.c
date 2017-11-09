@@ -2030,10 +2030,10 @@ const struct hypervisor_x86 x86_hyper_xen = {
 	.name			= "Xen",
 	.detect			= xen_platform,
 #ifdef CONFIG_XEN_PVHVM
-	.init_platform		= xen_hvm_guest_init,
+	.init.init_platform	= xen_hvm_guest_init,
 #endif
-	.x2apic_available	= xen_x2apic_para_available,
-	.pin_vcpu               = xen_pin_vcpu,
+	.init.x2apic_available	= xen_x2apic_para_available,
+	.runtime.pin_vcpu       = xen_pin_vcpu,
 };
 EXPORT_SYMBOL(x86_hyper_xen);
 
