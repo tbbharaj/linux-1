@@ -1,4 +1,4 @@
-linux_TAGVER     = 4.9.58
+linux_TAGVER     = 4.9.62
 linux_TAR_BASE   = v$(linux_TAGVER)
 linux_PATCH_BASE = $(linux_TAR_BASE)
 linux_BRANCH     = karoo/devel
