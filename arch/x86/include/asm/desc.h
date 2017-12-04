@@ -68,17 +68,10 @@ static inline unsigned long get_current_gdt_rw_vaddr(void)
 	return (unsigned long)get_current_gdt_rw();
 }
 
-/* Get the fixmap index for a specific processor */
-static inline unsigned int get_cpu_gdt_ro_index(int cpu)
-{
-	return FIX_GDT_REMAP_END - cpu;
-}
-
 /* Provide the fixmap address of the remapped GDT */
 static inline struct desc_struct *get_cpu_gdt_ro(int cpu)
 {
-	unsigned int idx = get_cpu_gdt_ro_index(cpu);
-	return (struct desc_struct *)__fix_to_virt(idx);
+	return (struct desc_struct *)&get_cpu_entry_area(cpu)->gdt;
 }
 
 static inline unsigned long get_cpu_gdt_ro_vaddr(int cpu)
