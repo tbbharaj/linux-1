@@ -56,6 +56,29 @@ void printk_address(unsigned long address)
 	pr_cont(" [<%p>] %pS\n", (void *)address, (void *)address);
 }
 
+void show_iret_regs(struct pt_regs *regs)
+{
+	printk(KERN_DEFAULT "RIP: %04x:%pS\n", (int)regs->cs, (void *)regs->ip);
+	printk(KERN_DEFAULT "RSP: %04x:%016lx EFLAGS: %08lx", (int)regs->ss,
+		regs->sp, regs->flags);
+}
+
+static void show_regs_safe(struct stack_info *info, struct pt_regs *regs)
+{
+	if (regs)
+		show_regs_safe(info, regs);
+
+	else if (on_stack(info, (void *)regs + IRET_FRAME_OFFSET,
+			  IRET_FRAME_SIZE)) {
+		/*
+		 * When an interrupt or exception occurs in entry code, the
+		 * full pt_regs might not have been saved yet.  In that case
+		 * just print the iret frame.
+		 */
+		show_iret_regs(regs);
+	}
+}
+
 void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			unsigned long *stack, char *log_lvl)
 {
@@ -119,6 +142,13 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			if (!__kernel_text_address(addr))
 				continue;
 
+			/*
+			 * Don't print regs->ip again if it was already printed
+			 * by show_regs_safe() below.
+			 */
+			if (regs && stack == &regs->ip)
+				goto next;
+
 			if (stack == ret_addr_p)
 				reliable = 1;
 
@@ -140,12 +170,18 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			if (!reliable)
 				continue;
 
+next:
 			/*
 			 * Get the next frame from the unwinder.  No need to
 			 * check for an error: if anything goes wrong, the rest
 			 * of the addresses will just be printed as unreliable.
 			 */
 			unwind_next_frame(&state);
+
+			/* if the frame has entry regs, print them */
+			regs = unwind_get_entry_regs(&state);
+			if (regs)
+				show_regs_safe(&stack_info, regs);
 		}
 
 		if (str_end)
