@@ -72,7 +72,7 @@ static inline unsigned long get_current_gdt_rw_vaddr(void)
 /* Get the fixmap index for a specific processor */
 static inline unsigned int get_cpu_gdt_ro_index(int cpu)
 {
-	return FIX_GDT_REMAP_BEGIN + cpu;
+	return FIX_GDT_REMAP_END - cpu;
 }
 
 /* Provide the fixmap address of the remapped GDT */
