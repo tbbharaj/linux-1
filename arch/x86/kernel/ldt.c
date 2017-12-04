@@ -21,6 +21,62 @@
 #include <asm/desc.h>
 #include <asm/mmu_context.h>
 #include <asm/syscalls.h>
+#include <asm/fixmap.h>
+
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
+
+#define LDT_EPP		(PAGE_SIZE / LDT_ENTRY_SIZE)
+
+static void set_ldt_and_map(struct ldt_struct *ldt)
+{
+	phys_addr_t pa = ldt->entries_pa;
+	void *fixva;
+	int idx, i;
+
+	if (!static_cpu_has_bug(X86_BUG_CPU_SECURE_MODE_PTI)) {
+		set_ldt(ldt->entries, ldt->size);
+		return;
+	}
+
+	idx = get_cpu_entry_area_index(smp_processor_id(), ldt_entries);
+	fixva = (void *) __fix_to_virt(idx);
+	for (i = 0; i < ldt->size; idx--, i += LDT_EPP, pa += PAGE_SIZE)
+		__set_fixmap(idx, pa, PAGE_KERNEL);
+	set_ldt(fixva, ldt->size);
+}
+#else
+static void set_ldt_and_map(struct ldt_struct *ldt)
+{
+	set_ldt(ldt->entries, ldt->size);
+}
+#endif
+
+void load_mm_ldt(struct mm_struct *mm)
+{
+	struct ldt_struct *ldt;
+
+	/* READ_ONCE synchronizes with smp_store_release */
+	ldt = READ_ONCE(mm->context.ldt);
+
+	/*
+	 * Any change to mm->context.ldt is followed by an IPI to all
+	 * CPUs with the mm active.  The LDT will not be freed until
+	 * after the IPI is handled by all such CPUs.  This means that,
+	 * if the ldt_struct changes before we return, the values we see
+	 * will be safe, and the new values will be loaded before we run
+	 * any user code.
+	 *
+	 * NB: don't try to convert this to use RCU without extreme care.
+	 * We would still need IRQs off, because we don't want to change
+	 * the local LDT after an IPI loaded a newer value than the one
+	 * that we can see.
+	 */
+
+	if (unlikely(ldt))
+		set_ldt_and_map(ldt);
+	else
+		clear_LDT();
+}
 
 /* context.lock is held for us, so we don't need any locking. */
 static void flush_ldt(void *__mm)
@@ -32,7 +88,13 @@ static void flush_ldt(void *__mm)
 		return;
 
 	pc = &mm->context;
-	set_ldt(pc->ldt->entries, pc->ldt->size);
+	set_ldt_and_map(pc->ldt);
+}
+
+static void __free_ldt_struct(struct ldt_struct *ldt)
+{
+	free_pages((unsigned long)ldt->entries, ldt->order);
+	kfree(ldt);
 }
 
 /* The caller must call finalize_ldt_struct on the result. LDT starts zeroed. */
@@ -40,16 +102,19 @@ static struct ldt_struct *alloc_ldt_struct(int size)
 {
 	struct ldt_struct *new_ldt;
 	int alloc_size;
+	struct page *page;
+	int order;
 
 	if (size > LDT_ENTRIES)
 		return NULL;
 
-	new_ldt = kmalloc(sizeof(struct ldt_struct), GFP_KERNEL);
+	new_ldt = kzalloc(sizeof(struct ldt_struct), GFP_KERNEL);
 	if (!new_ldt)
 		return NULL;
 
 	BUILD_BUG_ON(LDT_ENTRY_SIZE != sizeof(struct desc_struct));
 	alloc_size = size * LDT_ENTRY_SIZE;
+	order = get_order(alloc_size);
 
 	/*
 	 * Xen is very picky: it requires a page-aligned LDT that has no
@@ -57,17 +122,15 @@ static struct ldt_struct *alloc_ldt_struct(int size)
 	 * Keep it simple: zero the whole allocation and never allocate less
 	 * than PAGE_SIZE.
 	 */
-	if (alloc_size > PAGE_SIZE)
-		new_ldt->entries = vzalloc(alloc_size);
-	else
-		new_ldt->entries = (void *)get_zeroed_page(GFP_KERNEL);
-
-	if (!new_ldt->entries) {
+	page = alloc_pages(GFP_KERNEL | __GFP_ZERO, order);
+	if (!page) {
 		kfree(new_ldt);
 		return NULL;
 	}
-
 	new_ldt->size = size;
+	new_ldt->entries = page_address(page);
+	new_ldt->entries_pa = virt_to_phys(new_ldt->entries);
+	new_ldt->order = order;
 	return new_ldt;
 }
 
@@ -94,11 +157,7 @@ static void free_ldt_struct(struct ldt_struct *ldt)
 		return;
 
 	paravirt_free_ldt(ldt->entries, ldt->size);
-	if (ldt->size * LDT_ENTRY_SIZE > PAGE_SIZE)
-		vfree(ldt->entries);
-	else
-		free_page((unsigned long)ldt->entries);
-	kfree(ldt);
+	__free_ldt_struct(ldt);
 }
 
 /*
@@ -258,8 +317,11 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 	if (!new_ldt)
 		goto out_unlock;
 
-	if (old_ldt)
-		memcpy(new_ldt->entries, old_ldt->entries, oldsize * LDT_ENTRY_SIZE);
+	if (old_ldt) {
+		memcpy(new_ldt->entries, old_ldt->entries,
+		       oldsize * LDT_ENTRY_SIZE);
+	}
+
 	new_ldt->entries[ldt_info.entry_number] = ldt;
 	finalize_ldt_struct(new_ldt);
 
