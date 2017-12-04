@@ -127,6 +127,22 @@ void __init init_espfix_bsp(void)
 	pgd_p = &init_level4_pgt[pgd_index(ESPFIX_BASE_ADDR)];
 	pgd_populate(&init_mm, pgd_p, (pud_t *)espfix_pud_page);
 
+	/*
+	 * Just copy the top-level PGD that is mapping the espfix area to
+	 * ensure it is mapped into the user page tables.
+	 *
+	 * For 5-level paging, the espfix pgd was populated when
+	 * pti_init() pre-populated all the pgd entries.  The above
+	 * p4d_alloc() would never do anything and the p4d_populate() would
+	 * be done to a p4d already mapped in the userspace pgd.
+	 */
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
+	if (CONFIG_PGTABLE_LEVELS <= 4) {
+		set_pgd(kernel_to_user_pgdp(pgd_p),
+			__pgd(_KERNPG_TABLE | (pgd_val(*pgd_p) & PTE_PFN_MASK)));
+	}
+#endif
+
 	/* Randomize the locations */
 	init_espfix_random();
 
