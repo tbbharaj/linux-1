@@ -992,6 +992,8 @@ void __init trap_init(void)
 	set_system_intr_gate(IA32_SYSCALL_VECTOR, entry_INT80_32);
 	set_bit(IA32_SYSCALL_VECTOR, used_vectors);
 #endif
+	/* Init cpu_entry_area before IST entries are set up */
+	setup_cpu_entry_areas();
 
 	/*
 	 * Set the IDT descriptor to a fixed read-only location, so that the
