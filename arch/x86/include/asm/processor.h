@@ -300,7 +300,16 @@ struct x86_hw_tss {
 
 struct tss_struct {
 	/*
-	 * The hardware state:
+	 * Space for the temporary SYSENTER stack, used for SYSENTER
+	 * and the entry trampoline as well.
+	 */
+	unsigned long		SYSENTER_stack_canary;
+	unsigned long		SYSENTER_stack[64];
+
+	/*
+	 * The fixed hardware portion.  This must not cross a page boundary
+	 * at risk of violating the SDM's advice and potentially triggering
+	 * errata.
 	 */
 	struct x86_hw_tss	x86_tss;
 
@@ -311,15 +320,9 @@ struct tss_struct {
 	 * be within the limit.
 	 */
 	unsigned long		io_bitmap[IO_BITMAP_LONGS + 1];
+} __aligned(PAGE_SIZE);
 
-	/*
-	 * Space for the temporary SYSENTER stack.
-	 */
-	unsigned long		SYSENTER_stack_canary;
-	unsigned long		SYSENTER_stack[64];
-} ____cacheline_aligned;
-
-DECLARE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss);
+DECLARE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss);
 
 #ifdef CONFIG_X86_32
 DECLARE_PER_CPU(unsigned long, cpu_current_top_of_stack);
