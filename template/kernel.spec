@@ -282,7 +282,11 @@ BuildRequires: gcc72
 %global _gcc gcc
 %global _gxx g++
 %global _gccver %(eval %{_gcc} -dumpversion 2>/dev/null || :)
-%if "%{_gccver}" > "4"
+%if %{lua:print(rpm.vercmp(rpm.expand("%{_gccver}"), '7'))} >= 0
+%global _gccver %(eval %{_gcc} -dumpfullversion 2>/dev/null || :)
+%endif
+
+%if  %{lua:print(rpm.vercmp(rpm.expand("%{_gccver}"), '4'))} > 0
 Provides: buildrequires(gcc) = %{_gccver}
 %endif
 BuildRequires: binutils >= 2.12
@@ -496,7 +500,7 @@ AutoReqProv: no\
 Requires(pre): /usr/bin/find\
 Requires(post): /usr/sbin/hardlink\
 Requires: perl\
-%if "%{_gccver}" > "4"\
+%if  %{lua:print(rpm.vercmp(rpm.expand("%{_gccver}"), '4'))} > 0\
 Provides: buildrequires(gcc) = %{_gccver}\
 %endif\
 %description -n kernel%{?variant}%{?1:-%{1}}-devel\
