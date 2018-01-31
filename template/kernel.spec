@@ -64,7 +64,7 @@ Summary: The Linux kernel
 # kernel-debug
 %define with_debug     %{?_without_debug:     0} %{?!_without_debug:     0}
 # kernel-doc
-%define with_doc       %{?_without_doc:       0} %{?!_without_doc:       1}
+%define with_doc       %{?_without_doc:       0} %{?!_without_doc:       0}
 # kernel-headers
 %define with_headers   %{?_without_headers:   0} %{?!_without_headers:   1}
 # perf
