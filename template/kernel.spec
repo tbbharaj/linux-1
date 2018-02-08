@@ -286,6 +286,7 @@ BuildRequires: gcc, hostname, openssl
 %if  %{lua:print(rpm.vercmp(rpm.expand("%{_gccver}"), '4'))} > 0
 Provides: buildrequires(gcc) = %{_gccver}
 %endif
+BuildRequires: gcc(major) = 7
 BuildRequires: binutils >= 2.12
 BuildRequires: system-rpm-config, gdb, bc
 BuildRequires: net-tools
@@ -517,6 +518,7 @@ Requires: perl\
 %if  %{lua:print(rpm.vercmp(rpm.expand("%{_gccver}"), '4'))} > 0\
 Provides: buildrequires(gcc) = %{_gccver}\
 %endif\
+Requires: gcc(major) = 7\
 %description -n kernel%{?variant}%{?1:-%{1}}-devel\
 This package provides kernel headers and makefiles sufficient to build modules\
 against the %{?2:%{2} }kernel package.\
