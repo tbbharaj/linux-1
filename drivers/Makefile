@@ -186,3 +186,5 @@ obj-$(CONFIG_MULTIPLEXER)	+= mux/
 obj-$(CONFIG_UNISYS_VISORBUS)	+= visorbus/
 obj-$(CONFIG_SIOX)		+= siox/
 obj-$(CONFIG_GNSS)		+= gnss/
+# Amazon driver updates
+obj-$(CONFIG_AMAZON_DRIVER_UPDATES)    += amazon/
