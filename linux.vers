@@ -1,4 +1,4 @@
-linux_TAGVER     = 4.14.15
+linux_TAGVER     = 4.14.20
 linux_TAR_BASE   = v$(linux_TAGVER)
 linux_PATCH_BASE = $(linux_TAR_BASE)
 linux_BRANCH     = amazon-4.14.y/master
