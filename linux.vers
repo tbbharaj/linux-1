@@ -1,7 +1,7 @@
-linux_TAGVER     = 4.9.81
+linux_TAGVER     = 4.14.20
 linux_TAR_BASE   = v$(linux_TAGVER)
 linux_PATCH_BASE = $(linux_TAR_BASE)
-linux_BRANCH     = ami-2017.09/master
+linux_BRANCH     = amazon-4.14.y/master
 linux_PATCH_HEAD = $(linux_BRANCH)
 
 # generate changelog entries only for commits to these items
