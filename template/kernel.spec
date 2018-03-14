@@ -277,16 +277,12 @@ Obsoletes: kernel-smp
 #
 BuildRequires: kmod >= 14, patch >= 2.5.4, bash >= 2.03, sh-utils, tar
 BuildRequires: bzip2, findutils, gzip, m4, perl, make >= 3.78, diffutils, gawk
-BuildRequires: gcc72
+BuildRequires: gcc >= 7.2.1
 #defines based on the compiler version we need to use
 %global _gcc gcc
 %global _gxx g++
-%global _gccver %(eval %{_gcc} -dumpversion 2>/dev/null || :)
-%if %{lua:print(rpm.vercmp(rpm.expand("%{_gccver}"), '7'))} >= 0
 %global _gccver %(eval %{_gcc} -dumpfullversion 2>/dev/null || :)
-%endif
-
-%if  %{lua:print(rpm.vercmp(rpm.expand("%{_gccver}"), '4'))} > 0
+%if "%{_gccver}" > "7"
 Provides: buildrequires(gcc) = %{_gccver}
 %endif
 BuildRequires: binutils >= 2.12
@@ -500,7 +496,8 @@ AutoReqProv: no\
 Requires(pre): /usr/bin/find\
 Requires(post): /usr/sbin/hardlink\
 Requires: perl\
-%if  %{lua:print(rpm.vercmp(rpm.expand("%{_gccver}"), '4'))} > 0\
+Requires: gcc >= 7.2.1\
+%if  "%{_gccver}" > "7"\
 Provides: buildrequires(gcc) = %{_gccver}\
 %endif\
 %description -n kernel%{?variant}%{?1:-%{1}}-devel\
