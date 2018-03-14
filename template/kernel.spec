@@ -274,19 +274,14 @@ Obsoletes: kernel-smp
 #
 BuildRequires: kmod >= 14, patch >= 2.5.4, bash >= 2.03, sh-utils, tar
 BuildRequires: bzip2, findutils, gzip, m4, perl, make >= 3.78, diffutils, gawk
-BuildRequires: gcc, hostname, openssl
+BuildRequires: gcc >= 7.2.1, hostname, openssl
 #defines based on the compiler version we need to use
 %global _gcc gcc
 %global _gxx g++
-%global _gccver %(eval %{_gcc} -dumpversion 2>/dev/null || :)
-%if %{lua:print(rpm.vercmp(rpm.expand("%{_gccver}"), '7'))} >= 0
 %global _gccver %(eval %{_gcc} -dumpfullversion 2>/dev/null || :)
-%endif
-
-%if  %{lua:print(rpm.vercmp(rpm.expand("%{_gccver}"), '4'))} > 0
+%if "%{_gccver}" > "7"
 Provides: buildrequires(gcc) = %{_gccver}
 %endif
-BuildRequires: gcc(major) = 7
 BuildRequires: binutils >= 2.12
 BuildRequires: system-rpm-config, gdb, bc
 BuildRequires: net-tools
@@ -515,10 +510,10 @@ AutoReqProv: no\
 Requires(pre): %{_bindir}/find\
 Requires(post): %{_sbindir}/hardlink\
 Requires: perl\
-%if  %{lua:print(rpm.vercmp(rpm.expand("%{_gccver}"), '4'))} > 0\
+Requires: gcc >= 7.2.1\
+%if  "%{_gccver}" > "7"\
 Provides: buildrequires(gcc) = %{_gccver}\
 %endif\
-Requires: gcc(major) = 7\
 %description -n kernel%{?variant}%{?1:-%{1}}-devel\
 This package provides kernel headers and makefiles sufficient to build modules\
 against the %{?2:%{2} }kernel package.\
