@@ -496,6 +496,7 @@ AutoReqProv: no\
 Requires(pre): /usr/bin/find\
 Requires(post): /usr/sbin/hardlink\
 Requires: perl\
+Requires: elfutils-libelf-devel\
 Requires: gcc >= 7.2.1\
 %if  "%{_gccver}" > "7"\
 Provides: buildrequires(gcc) = %{_gccver}\
