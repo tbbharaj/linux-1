@@ -278,6 +278,8 @@ Obsoletes: kernel-smp
 BuildRequires: kmod >= 14, patch >= 2.5.4, bash >= 2.03, sh-utils, tar
 BuildRequires: bzip2, findutils, gzip, m4, perl, make >= 3.78, diffutils, gawk
 BuildRequires: gcc >= 7.2.1
+# Required for kernel documentation build
+BuildRequires: python-virtualenv, python-sphinx, ImageMagick-perl
 #defines based on the compiler version we need to use
 %global _gcc gcc
 %global _gxx g++
@@ -346,6 +348,8 @@ Source19: Makefile.config
 Source20: config-generic
 Source30: config-x86_32-generic
 Source40: config-x86_64-generic
+Source50: split-man.pl
+%define split_man_cmd %{SOURCE50}
 
 # Sources for kernel-tools
 Source2000: cpupower.init
@@ -1037,8 +1041,30 @@ make %{?_smp_mflags} -C tools/power/cpupower CPUFREQ_BENCH=false
 %endif # tools
 
 %if %{with_doc}
-# Make the HTML and man pages.
-make htmldocs mandocs || %{doc_build_fail}
+#
+# Make the HTML documents.
+# Newer kernel versions use ReST markups for documentation which
+# needs to be built using Sphinx. Sphinx toolchain is fragile and any
+# upgrade to its toolchain or dependent python package can cause
+# documentation build to fail. To avoid this problem, documentation
+# build uses one particular version of Sphinx. To build document,
+# we create a virtual environment and install the required version
+# of Sphinx inside it.
+# Refer to $SRC/Documentation/sphinx/requirements.txt for more
+# information related to package and version dependency.
+#
+virtualenv doc_build_env
+source ./doc_build_env/bin/activate
+pip install -r Documentation/sphinx/requirements.txt
+make htmldocs || %{doc_build_fail}
+deactivate
+rm -rf doc_build_env
+
+# Build man pages for the kernel API (section 9)
+scripts/kernel-doc -man $(find . -name '*.[ch]') | %{split_man_cmd} Documentation/output/man
+pushd Documentation/output/man
+gzip *.9
+popd
 
 # sometimes non-world-readable files sneak into the kernel source tree
 chmod -R a=rX Documentation
@@ -1046,7 +1072,7 @@ find Documentation -type d | xargs chmod u+w
 
 # switch absolute symlinks to relative ones
 find . -lname "$(pwd)*" -exec sh -c 'ln -snvf $(python -c "from os.path import *; print relpath(\"$(readlink {})\",dirname(\"{}\"))") {}' \;
-%endif
+%endif # with_doc
 
 # In the modsign case, we do 3 things.  1) We check the "flavour" and hard
 # code the value in the following invocations.  This is somewhat sub-optimal
@@ -1123,13 +1149,8 @@ tar -f - --exclude=man --exclude='.*' -c Documentation | tar xf - -C $docdir
 
 # Install man pages for the kernel API.
 mkdir -p $man9dir
-pushd Documentation/DocBook/man
-for manfile in $(find -type f -name "*.9.gz");
-do
-	# simulate old non-duplicate layout
-	ln -f -s $manfile $(basename $manfile);
-done
-find -maxdepth 1 -type l -name '*.9.gz' -print0 |
+pushd Documentation/output/man
+find -type f -name '*.9.gz' -print0 |
 xargs -0 --no-run-if-empty %{__install} -m 444 -t $man9dir $m
 popd
 ls $man9dir | grep -q '' || > $man9dir/BROKEN
