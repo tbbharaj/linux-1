@@ -1,0 +1,2 @@
+kernel_TAGVER     = ami-2017.09
+kernel_TAG_BASE   = $(kernel_TAGVER)-base
