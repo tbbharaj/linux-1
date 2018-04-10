@@ -78,8 +78,9 @@ PATCH_BASE	= $(shell $(call git_ref,$(linux_PATCH_BASE)))
 PATCH_HEAD	= $(shell $(call git_ref,$(linux_PATCH_HEAD)))
 
 # update the method of computing the buildid
+include kernel.vers
 define get_build_id
-kernel_id=$$($(GIT) describe --long --all HEAD^ | sed -re 's/^.+-([0-9]+)-[^-]+$$/\1/') ; \
+kernel_id=$$($(GIT) describe --long --all --match $(kernel_TAG_BASE) | sed -re 's/^.+-([0-9]+)-[^-]+$$/\1/') ; \
 linux_id=$$(cd linux; $(GIT) describe --long --match $(linux_TAR_BASE) $(PATCH_HEAD) | sed -re 's/^.+-([0-9]+)-[^-]+$$/\1/') ; \
 echo "$$(($${kernel_id:-0}+1)).$$(($${linux_id:-0}+1))"
 endef

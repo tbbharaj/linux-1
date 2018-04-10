@@ -1,0 +1,2 @@
+kernel_TAGVER     = amzn2-2017.12
+kernel_TAG_BASE   = $(kernel_TAGVER)-base
