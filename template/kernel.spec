@@ -173,7 +173,7 @@ Summary: The Linux kernel
 # Which is a BadThing(tm).
 
 # We don't build a kernel on i386; we only do kernel-headers there
-%define nobuildarches i386 i486 i586
+%define nobuildarches i386 i486 i586 i686
 
 %ifarch %nobuildarches
 %define with_up 0
@@ -181,6 +181,7 @@ Summary: The Linux kernel
 %define with_perf 0
 %define with_tools 0
 %define _enable_debug_packages 0
+%define signmodules 0
 %endif
 
 # Architectures we build tools/cpupower on
@@ -657,8 +658,10 @@ tar xf %{SOURCE1}
 cp $RPM_SOURCE_DIR/config-* .
 cp %{SOURCE15} .
 
+%ifnarch %nobuildarches
 # Dynamically generate kernel .config files from config-* files
 make -f %{SOURCE19} VERSION=%{version} config
+%endif
 
 # apply the patches we had included in the -patches tarball. We use the
 # linux-KVER-patches.list hardcoded apply log filename
