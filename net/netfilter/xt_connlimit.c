@@ -47,7 +47,8 @@ struct xt_connlimit_conn {
 	struct hlist_node		node;
 	struct nf_conntrack_tuple	tuple;
 	union nf_inet_addr		addr;
-	bool				pending_add;
+	int				cpu;
+	u32				jiffies32;
 };
 
 struct xt_connlimit_rb {
@@ -127,7 +128,8 @@ static bool add_hlist(struct hlist_head *head,
 		return false;
 	conn->tuple = *tuple;
 	conn->addr = *addr;
-	conn->pending_add = true;
+	conn->cpu = raw_smp_processor_id();
+	conn->jiffies32 = (u32)jiffies;
 	hlist_add_head(&conn->node, head);
 	return true;
 }
@@ -156,7 +158,14 @@ static unsigned int check_hlist(struct net *net,
 			 * yet. If former delete it from the list, else
 			 * increase count and move on.
 			 */
-			if (conn->pending_add) {
+			unsigned long a, b;
+			int cpu = raw_smp_processor_id();
+			__u32 age;
+
+			b = conn->jiffies32;
+			a = (u32)jiffies;
+			age = a - b;
+			if (conn->cpu != cpu && age <= 2) {
 				length++;
 			} else {
 				hlist_del(&conn->node);
@@ -169,7 +178,6 @@ static unsigned int check_hlist(struct net *net,
 		 * connection tracking table before, then it's time to clear
 		 * the flag.
 		 */
-		conn->pending_add = false;
 
 		found_ct = nf_ct_tuplehash_to_ctrack(found);
 
@@ -289,6 +297,8 @@ count_tree(struct net *net, struct rb_root *root,
 
 	conn->tuple = *tuple;
 	conn->addr = *addr;
+	conn->cpu = raw_smp_processor_id();
+	conn->jiffies32 = (u32)jiffies;
 	rbconn->addr = *addr;
 
 	INIT_HLIST_HEAD(&rbconn->hhead);
