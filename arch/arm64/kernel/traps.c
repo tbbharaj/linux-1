@@ -438,7 +438,7 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 
 int cpu_enable_cache_maint_trap(void *__unused)
 {
-	config_sctlr_el1(SCTLR_EL1_UCI, 0);
+	sysreg_clear_set(sctlr_el1, SCTLR_EL1_UCI, 0);
 	return 0;
 }
 
