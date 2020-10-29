@@ -3136,6 +3136,14 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 			res_stateid = &calldata->res.stateid;
 			renew_lease(server, calldata->timestamp);
 			break;
+		 case -NFS4ERR_STALE:
+			printk("\n %s: ANCHAL NFS4ERR_STALE error received, restarting the rpm call \n", __func__);
+			if (calldata->arg.bitmask != NULL) {
+				calldata->arg.bitmask = NULL;
+				printk("\n %s: ANCHAL NFS4ERR_STALE error received, setting bitmask=NULL \n", __func__);
+				goto out_restart;
+			}
+			break;
 		case -NFS4ERR_ACCESS:
 			if (calldata->arg.bitmask != NULL) {
 				calldata->arg.bitmask = NULL;
@@ -3241,8 +3249,10 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 
 	if (calldata->res.fattr == NULL)
 		calldata->arg.bitmask = NULL;
-	else if (calldata->arg.bitmask == NULL)
+	else if (calldata->arg.bitmask == NULL){
+		-printk("\n %s: ANCHAL setting  fattr NULL\n", __func__);
 		calldata->res.fattr = NULL;
+	}
 	calldata->timestamp = jiffies;
 	if (nfs4_setup_sequence(NFS_SERVER(inode)->nfs_client,
 				&calldata->arg.seq_args,
