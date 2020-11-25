@@ -3098,6 +3098,7 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 	struct nfs_server *server = NFS_SERVER(calldata->inode);
 	nfs4_stateid *res_stateid = NULL;
 
+	printk("\n test change for tag verification");
 	dprintk("%s: begin!\n", __func__);
 	if (!nfs4_sequence_done(task, &calldata->res.seq_res))
 		return;
