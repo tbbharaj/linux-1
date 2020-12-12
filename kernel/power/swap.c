@@ -235,6 +235,7 @@ static void hib_init_batch(struct hib_bio_batch *hb)
 	init_waitqueue_head(&hb->wait);
 	hb->error = BLK_STS_OK;
 	blk_start_plug(&hb->plug);
+	printk("Test Commit");
 }
 
 static void hib_finish_batch(struct hib_bio_batch *hb)
