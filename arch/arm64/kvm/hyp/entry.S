@@ -131,6 +131,19 @@ SYM_INNER_LABEL(__guest_exit, SYM_L_GLOBAL)
 	// Store the guest regs x18-x29, lr
 	save_callee_saved_regs x1
 
+alternative_cb spectre_v2_bhb_mitigation_enable
+	b 3f
+	mov x21, #32
+alternative_cb_end
+1:
+	b 2f
+2:
+	subs x21, x21, #1
+	b.ne 1b
+3:
+	dsb	nsh
+	isb
+
 	// Store the guest's sp_el0
 	save_sp_el0	x1, x2
 

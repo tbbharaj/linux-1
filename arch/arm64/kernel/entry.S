@@ -151,6 +151,21 @@ alternative_cb_end
 .L__asm_ssbd_skip\@:
 	.endm
 
+	.macro mitigate_spectre_v2_bhb, tmp
+alternative_cb spectre_v2_bhb_mitigation_enable
+	b .L__asm_mitigate_spectre_v2_bhb_skip\@
+	mov	\tmp, #32
+alternative_cb_end
+1:
+	b 2f
+2:
+	subs \tmp, \tmp, #1
+	b.ne 1b
+	dsb	nsh
+	isb
+.L__asm_mitigate_spectre_v2_bhb_skip\@:
+	.endm
+
 	/* Check for MTE asynchronous tag check faults */
 	.macro check_mte_async_tcf, tmp, ti_flags
 #ifdef CONFIG_ARM64_MTE
@@ -201,6 +216,7 @@ alternative_else_nop_endif
 
 	.if	\el == 0
 	clear_gp_regs
+	mitigate_spectre_v2_bhb x21
 	mrs	x21, sp_el0
 	ldr_this_cpu	tsk, __entry_task, x20
 	msr	sp_el0, tsk

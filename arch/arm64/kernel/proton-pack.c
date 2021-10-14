@@ -319,6 +319,53 @@ void spectre_v2_enable_mitigation(const struct arm64_cpu_capabilities *__unused)
 	update_mitigation_state(&spectre_v2_state, state);
 }
 
+void __init
+spectre_v2_bhb_mitigation_enable(struct alt_instr *alt,
+						  __le32 *origptr,
+						  __le32 *updptr, int nr_inst)
+{
+	u32 insn;
+
+	static const struct midr_range spectre_v2_bhb_n1_list[] = {
+		MIDR_ALL_VERSIONS(MIDR_NEOVERSE_N1),
+		{},
+	};
+	static const struct midr_range spectre_v2_bhb_v1_list[] = {
+		MIDR_ALL_VERSIONS(MIDR_NEOVERSE_V1),
+		{},
+	};
+	static const struct midr_range spectre_v2_bhb_a72_list[] = {
+		MIDR_ALL_VERSIONS(MIDR_CORTEX_A72),
+		{},
+	};
+
+
+	BUG_ON(nr_inst != 2); /* Branch -> NOP ; mov with correct */
+	if (__nospectre_v2 || cpu_mitigations_off()
+	    || !cpus_have_final_cap(ARM64_WORKAROUND_FILL_BHB))
+		return;
+
+	*updptr++ = cpu_to_le32(aarch64_insn_gen_nop());
+
+	if (is_midr_in_range_list(read_cpuid_id(), spectre_v2_bhb_n1_list)) {
+	     insn = aarch64_insn_gen_movewide(AARCH64_INSN_REG_21, 24, 0,
+                                         AARCH64_INSN_VARIANT_64BIT,
+                                         AARCH64_INSN_MOVEWIDE_ZERO);
+	} else if (is_midr_in_range_list(read_cpuid_id(), spectre_v2_bhb_v1_list)) {
+	     insn = aarch64_insn_gen_movewide(AARCH64_INSN_REG_21, 32, 0,
+                                         AARCH64_INSN_VARIANT_64BIT,
+                                         AARCH64_INSN_MOVEWIDE_ZERO);
+	} else if (is_midr_in_range_list(read_cpuid_id(), spectre_v2_bhb_a72_list)) {
+	     insn = aarch64_insn_gen_movewide(AARCH64_INSN_REG_21, 8, 0,
+                                         AARCH64_INSN_VARIANT_64BIT,
+                                         AARCH64_INSN_MOVEWIDE_ZERO);
+	} else {
+		BUG_ON(1);
+	}
+
+	*updptr = cpu_to_le32(insn);
+}
+
 /*
  * Spectre v4.
  *
