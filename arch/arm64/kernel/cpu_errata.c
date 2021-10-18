@@ -471,6 +471,13 @@ static const struct midr_range arm64_ssb_cpus[] = {
 	{},
 };
 
+static const struct midr_range arm64_bhb_stuff_cpus[] = {
+	MIDR_ALL_VERSIONS(MIDR_NEOVERSE_N1),
+	MIDR_ALL_VERSIONS(MIDR_NEOVERSE_V1),
+	MIDR_ALL_VERSIONS(MIDR_CORTEX_A72),
+	{},
+};
+
 #ifdef CONFIG_ARM64_ERRATUM_1463225
 DEFINE_PER_CPU(int, __in_cortex_a76_erratum_1463225_wa);
 
@@ -645,6 +652,53 @@ has_neoverse_n1_erratum_1542419(const struct arm64_cpu_capabilities *entry,
 
 	WARN_ON(scope != SCOPE_LOCAL_CPU || preemptible());
 	return is_midr_in_range(midr, &range) && has_dic;
+}
+
+void __init
+spectre_v2_bhb_mitigation_enable(struct alt_instr *alt,
+						  __le32 *origptr,
+						  __le32 *updptr, int nr_inst)
+{
+	u32 insn;
+
+	static const struct midr_range spectre_v2_bhb_n1_list[] = {
+		MIDR_ALL_VERSIONS(MIDR_NEOVERSE_N1),
+		{},
+	};
+	static const struct midr_range spectre_v2_bhb_v1_list[] = {
+		MIDR_ALL_VERSIONS(MIDR_NEOVERSE_V1),
+		{},
+	};
+	static const struct midr_range spectre_v2_bhb_a72_list[] = {
+		MIDR_ALL_VERSIONS(MIDR_CORTEX_A72),
+		{},
+	};
+
+
+	BUG_ON(nr_inst != 2); /* Branch -> NOP ; mov with correct */
+	if (__nospectre_v2 || cpu_mitigations_off()
+	    || !cpus_have_const_cap(ARM64_WORKAROUND_FILL_BHB))
+		return;
+
+	*updptr++ = cpu_to_le32(aarch64_insn_gen_nop());
+
+	if (is_midr_in_range_list(read_cpuid_id(), spectre_v2_bhb_n1_list)) {
+	     insn = aarch64_insn_gen_movewide(AARCH64_INSN_REG_21, 24, 0,
+                                         AARCH64_INSN_VARIANT_64BIT,
+                                         AARCH64_INSN_MOVEWIDE_ZERO);
+	} else if (is_midr_in_range_list(read_cpuid_id(), spectre_v2_bhb_v1_list)) {
+	     insn = aarch64_insn_gen_movewide(AARCH64_INSN_REG_21, 32, 0,
+                                         AARCH64_INSN_VARIANT_64BIT,
+                                         AARCH64_INSN_MOVEWIDE_ZERO);
+	} else if (is_midr_in_range_list(read_cpuid_id(), spectre_v2_bhb_a72_list)) {
+		insn = aarch64_insn_gen_movewide(AARCH64_INSN_REG_21, 8, 0,
+					 AARCH64_INSN_VARIANT_64BIT,
+					 AARCH64_INSN_MOVEWIDE_ZERO);
+	} else {
+		BUG_ON(1);
+	}
+
+	*updptr = cpu_to_le32(insn);
 }
 
 #ifdef CONFIG_HARDEN_EL2_VECTORS
@@ -943,6 +997,11 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		.cpu_enable = cpu_enable_trap_ctr_access,
 	},
 #endif
+	{
+		.desc = "Spectre-BHB",
+		.capability = ARM64_WORKAROUND_FILL_BHB,
+		ERRATA_MIDR_RANGE_LIST(arm64_bhb_stuff_cpus),
+	},
 	{
 	}
 };

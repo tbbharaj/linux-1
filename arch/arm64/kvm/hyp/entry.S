@@ -128,6 +128,19 @@ ENTRY(__guest_exit)
 	// Store the guest regs x19-x29, lr
 	save_callee_saved_regs x1
 
+alternative_cb spectre_v2_bhb_mitigation_enable
+	b 3f
+	mov x21, #32
+alternative_cb_end
+1:
+	b 2f
+2:
+	subs x21, x21, #1
+	b.ne 1b
+3:
+	dsb	nsh
+	isb
+
 	get_host_ctxt	x2, x3
 
 	// Macro ptrauth_switch_to_guest format:
