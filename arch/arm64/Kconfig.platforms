@@ -38,7 +38,7 @@ config ARCH_BCM2835
 	select PINCTRL_BCM2835
 	select ARM_AMBA
 	select ARM_GIC
-	select ARM_TIMER_SP804
+#	select ARM_TIMER_SP804
 	help
 	  This enables support for the Broadcom BCM2837 and BCM2711 SoC.
 	  These SoCs are used in the Raspberry Pi 3 and 4 devices.
@@ -130,7 +130,7 @@ config ARCH_LG1K
 
 config ARCH_HISI
 	bool "Hisilicon SoC Family"
-	select ARM_TIMER_SP804
+#	select ARM_TIMER_SP804
 	select HISILICON_IRQ_MBIGEN if PCI
 	select PINCTRL
 	help
