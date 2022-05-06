@@ -16,6 +16,7 @@ static const char *proc_self_get_link(struct dentry *dentry,
 	pid_t tgid = task_tgid_nr_ns(current, ns);
 	char *name;
 
+<<<<<<< HEAD
 	/*
 	 * Not currently supported. Once we can inherit all of struct pid,
 	 * we can allow this.
@@ -23,6 +24,8 @@ static const char *proc_self_get_link(struct dentry *dentry,
 	if (current->flags & PF_IO_WORKER)
 		return ERR_PTR(-EOPNOTSUPP);
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	if (!tgid)
 		return ERR_PTR(-ENOENT);
 	/* max length of unsigned int in decimal + NULL term */

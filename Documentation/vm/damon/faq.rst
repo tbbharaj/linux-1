@@ -31,7 +31,11 @@ Does DAMON support virtual memory only?
 =======================================
 
 No.  The core of the DAMON is address space independent.  The address space
+<<<<<<< HEAD
 specific low level primitive parts including monitoring target regions
+=======
+specific monitoring operations including monitoring target regions
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 constructions and actual access checks can be implemented and configured on the
 DAMON core by the users.  In this way, DAMON users can monitor any address
 space with any access check technique.

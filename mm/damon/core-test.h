@@ -24,7 +24,11 @@ static void damon_test_regions(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 2ul, r->ar.end);
 	KUNIT_EXPECT_EQ(test, 0u, r->nr_accesses);
 
+<<<<<<< HEAD
 	t = damon_new_target(42);
+=======
+	t = damon_new_target();
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	KUNIT_EXPECT_EQ(test, 0u, damon_nr_regions(t));
 
 	damon_add_region(r, t);
@@ -52,8 +56,12 @@ static void damon_test_target(struct kunit *test)
 	struct damon_ctx *c = damon_new_ctx();
 	struct damon_target *t;
 
+<<<<<<< HEAD
 	t = damon_new_target(42);
 	KUNIT_EXPECT_EQ(test, 42ul, t->id);
+=======
+	t = damon_new_target();
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	KUNIT_EXPECT_EQ(test, 0u, nr_damon_targets(c));
 
 	damon_add_target(c, t);
@@ -78,7 +86,10 @@ static void damon_test_target(struct kunit *test)
 static void damon_test_aggregate(struct kunit *test)
 {
 	struct damon_ctx *ctx = damon_new_ctx();
+<<<<<<< HEAD
 	unsigned long target_ids[] = {1, 2, 3};
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	unsigned long saddr[][3] = {{10, 20, 30}, {5, 42, 49}, {13, 33, 55} };
 	unsigned long eaddr[][3] = {{15, 27, 40}, {31, 45, 55}, {23, 44, 66} };
 	unsigned long accesses[][3] = {{42, 95, 84}, {10, 20, 30}, {0, 1, 2} };
@@ -86,7 +97,14 @@ static void damon_test_aggregate(struct kunit *test)
 	struct damon_region *r;
 	int it, ir;
 
+<<<<<<< HEAD
 	damon_set_targets(ctx, target_ids, 3);
+=======
+	for (it = 0; it < 3; it++) {
+		t = damon_new_target();
+		damon_add_target(ctx, t);
+	}
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	it = 0;
 	damon_for_each_target(t, ctx) {
@@ -122,7 +140,11 @@ static void damon_test_split_at(struct kunit *test)
 	struct damon_target *t;
 	struct damon_region *r;
 
+<<<<<<< HEAD
 	t = damon_new_target(42);
+=======
+	t = damon_new_target();
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	r = damon_new_region(0, 100);
 	damon_add_region(r, t);
 	damon_split_region_at(c, t, r, 25);
@@ -143,7 +165,11 @@ static void damon_test_merge_two(struct kunit *test)
 	struct damon_region *r, *r2, *r3;
 	int i;
 
+<<<<<<< HEAD
 	t = damon_new_target(42);
+=======
+	t = damon_new_target();
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	r = damon_new_region(0, 100);
 	r->nr_accesses = 10;
 	damon_add_region(r, t);
@@ -191,7 +217,11 @@ static void damon_test_merge_regions_of(struct kunit *test)
 	unsigned long eaddrs[] = {112, 130, 156, 170, 230};
 	int i;
 
+<<<<<<< HEAD
 	t = damon_new_target(42);
+=======
+	t = damon_new_target();
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	for (i = 0; i < ARRAY_SIZE(sa); i++) {
 		r = damon_new_region(sa[i], ea[i]);
 		r->nr_accesses = nrs[i];
@@ -215,14 +245,22 @@ static void damon_test_split_regions_of(struct kunit *test)
 	struct damon_target *t;
 	struct damon_region *r;
 
+<<<<<<< HEAD
 	t = damon_new_target(42);
+=======
+	t = damon_new_target();
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	r = damon_new_region(0, 22);
 	damon_add_region(r, t);
 	damon_split_regions_of(c, t, 2);
 	KUNIT_EXPECT_LE(test, damon_nr_regions(t), 2u);
 	damon_free_target(t);
 
+<<<<<<< HEAD
 	t = damon_new_target(42);
+=======
+	t = damon_new_target();
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	r = damon_new_region(0, 220);
 	damon_add_region(r, t);
 	damon_split_regions_of(c, t, 4);

@@ -2730,7 +2730,11 @@ static const struct soc_device_attribute renesas_usb3_quirks_match[] = {
 		.soc_id = "r8a7795", .revision = "ES1.*",
 		.data = &renesas_usb3_priv_r8a7795_es1,
 	},
+<<<<<<< HEAD
 	{ /* sentinel */ },
+=======
+	{ /* sentinel */ }
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 };
 
 static const unsigned int renesas_usb3_cable[] = {

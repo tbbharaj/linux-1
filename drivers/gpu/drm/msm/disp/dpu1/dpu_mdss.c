@@ -29,7 +29,8 @@ struct dpu_irq_controller {
 struct dpu_mdss {
 	struct msm_mdss base;
 	void __iomem *mmio;
-	struct dss_module_power mp;
+	struct clk_bulk_data *clocks;
+	size_t num_clocks;
 	struct dpu_irq_controller irq_controller;
 };
 
@@ -45,20 +46,13 @@ static void dpu_mdss_irq(struct irq_desc *desc)
 
 	while (interrupts) {
 		irq_hw_number_t hwirq = fls(interrupts) - 1;
-		unsigned int mapping;
 		int rc;
 
-		mapping = irq_find_mapping(dpu_mdss->irq_controller.domain,
-					   hwirq);
-		if (mapping == 0) {
-			DRM_ERROR("couldn't find irq mapping for %lu\n", hwirq);
-			break;
-		}
-
-		rc = generic_handle_irq(mapping);
+		rc = generic_handle_domain_irq(dpu_mdss->irq_controller.domain,
+					       hwirq);
 		if (rc < 0) {
-			DRM_ERROR("handle irq fail: irq=%lu mapping=%u rc=%d\n",
-				  hwirq, mapping, rc);
+			DRM_ERROR("handle irq fail: irq=%lu rc=%d\n",
+				  hwirq, rc);
 			break;
 		}
 
@@ -118,7 +112,7 @@ static int _dpu_mdss_irq_domain_add(struct dpu_mdss *dpu_mdss)
 	struct device *dev;
 	struct irq_domain *domain;
 
-	dev = dpu_mdss->base.dev->dev;
+	dev = dpu_mdss->base.dev;
 
 	domain = irq_domain_add_linear(dev->of_node, 32,
 			&dpu_mdss_irqdomain_ops, dpu_mdss);
@@ -143,10 +137,13 @@ static void _dpu_mdss_irq_domain_fini(struct dpu_mdss *dpu_mdss)
 static int dpu_mdss_enable(struct msm_mdss *mdss)
 {
 	struct dpu_mdss *dpu_mdss = to_dpu_mdss(mdss);
-	struct dss_module_power *mp = &dpu_mdss->mp;
 	int ret;
 
+<<<<<<< HEAD
 	ret = msm_dss_enable_clk(mp->clk_config, mp->num_clk, true);
+=======
+	ret = clk_bulk_prepare_enable(dpu_mdss->num_clocks, dpu_mdss->clocks);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	if (ret) {
 		DPU_ERROR("clock enable failed, ret:%d\n", ret);
 		return ret;
@@ -170,6 +167,9 @@ static int dpu_mdss_enable(struct msm_mdss *mdss)
 	case DPU_HW_VER_620:
 		writel_relaxed(0x1e, dpu_mdss->mmio + UBWC_STATIC);
 		break;
+	case DPU_HW_VER_720:
+		writel_relaxed(0x101e, dpu_mdss->mmio + UBWC_STATIC);
+		break;
 	}
 
 	return ret;
@@ -178,6 +178,7 @@ static int dpu_mdss_enable(struct msm_mdss *mdss)
 static int dpu_mdss_disable(struct msm_mdss *mdss)
 {
 	struct dpu_mdss *dpu_mdss = to_dpu_mdss(mdss);
+<<<<<<< HEAD
 	struct dss_module_power *mp = &dpu_mdss->mp;
 	int ret;
 
@@ -186,28 +187,34 @@ static int dpu_mdss_disable(struct msm_mdss *mdss)
 		DPU_ERROR("clock disable failed, ret:%d\n", ret);
 
 	return ret;
+=======
+
+	clk_bulk_disable_unprepare(dpu_mdss->num_clocks, dpu_mdss->clocks);
+
+	return 0;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 }
 
-static void dpu_mdss_destroy(struct drm_device *dev)
+static void dpu_mdss_destroy(struct msm_mdss *mdss)
 {
-	struct platform_device *pdev = to_platform_device(dev->dev);
-	struct msm_drm_private *priv = dev->dev_private;
-	struct dpu_mdss *dpu_mdss = to_dpu_mdss(priv->mdss);
-	struct dss_module_power *mp = &dpu_mdss->mp;
+	struct platform_device *pdev = to_platform_device(mdss->dev);
+	struct dpu_mdss *dpu_mdss = to_dpu_mdss(mdss);
 	int irq;
 
-	pm_runtime_suspend(dev->dev);
-	pm_runtime_disable(dev->dev);
+	pm_runtime_suspend(mdss->dev);
+	pm_runtime_disable(mdss->dev);
 	_dpu_mdss_irq_domain_fini(dpu_mdss);
 	irq = platform_get_irq(pdev, 0);
 	irq_set_chained_handler_and_data(irq, NULL, NULL);
+<<<<<<< HEAD
 	msm_dss_put_clk(mp->clk_config, mp->num_clk);
 	devm_kfree(&pdev->dev, mp->clk_config);
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	if (dpu_mdss->mmio)
 		devm_iounmap(&pdev->dev, dpu_mdss->mmio);
 	dpu_mdss->mmio = NULL;
-	priv->mdss = NULL;
 }
 
 static const struct msm_mdss_funcs mdss_funcs = {
@@ -216,33 +223,41 @@ static const struct msm_mdss_funcs mdss_funcs = {
 	.destroy = dpu_mdss_destroy,
 };
 
-int dpu_mdss_init(struct drm_device *dev)
+int dpu_mdss_init(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev->dev);
-	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_drm_private *priv = platform_get_drvdata(pdev);
 	struct dpu_mdss *dpu_mdss;
+<<<<<<< HEAD
 	struct dss_module_power *mp;
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	int ret;
 	int irq;
 
-	dpu_mdss = devm_kzalloc(dev->dev, sizeof(*dpu_mdss), GFP_KERNEL);
+	dpu_mdss = devm_kzalloc(&pdev->dev, sizeof(*dpu_mdss), GFP_KERNEL);
 	if (!dpu_mdss)
 		return -ENOMEM;
 
-	dpu_mdss->mmio = msm_ioremap(pdev, "mdss", "mdss");
+	dpu_mdss->mmio = msm_ioremap(pdev, "mdss");
 	if (IS_ERR(dpu_mdss->mmio))
 		return PTR_ERR(dpu_mdss->mmio);
 
 	DRM_DEBUG("mapped mdss address space @%pK\n", dpu_mdss->mmio);
 
+<<<<<<< HEAD
 	mp = &dpu_mdss->mp;
 	ret = msm_dss_parse_clock(pdev, mp);
 	if (ret) {
+=======
+	ret = devm_clk_bulk_get_all(&pdev->dev, &dpu_mdss->clocks);
+	if (ret < 0) {
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		DPU_ERROR("failed to parse clocks, ret=%d\n", ret);
 		goto clk_parse_err;
 	}
+	dpu_mdss->num_clocks = ret;
 
-	dpu_mdss->base.dev = dev;
+	dpu_mdss->base.dev = &pdev->dev;
 	dpu_mdss->base.funcs = &mdss_funcs;
 
 	ret = _dpu_mdss_irq_domain_add(dpu_mdss);
@@ -260,16 +275,18 @@ int dpu_mdss_init(struct drm_device *dev)
 
 	priv->mdss = &dpu_mdss->base;
 
+<<<<<<< HEAD
 	pm_runtime_enable(dev->dev);
+=======
+	pm_runtime_enable(&pdev->dev);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	return 0;
 
 irq_error:
 	_dpu_mdss_irq_domain_fini(dpu_mdss);
 irq_domain_error:
-	msm_dss_put_clk(mp->clk_config, mp->num_clk);
 clk_parse_err:
-	devm_kfree(&pdev->dev, mp->clk_config);
 	if (dpu_mdss->mmio)
 		devm_iounmap(&pdev->dev, dpu_mdss->mmio);
 	dpu_mdss->mmio = NULL;

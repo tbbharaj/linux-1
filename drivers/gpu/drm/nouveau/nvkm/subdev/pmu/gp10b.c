@@ -83,6 +83,7 @@ gp10b_pmu = {
 	.intr = gt215_pmu_intr,
 	.recv = gm20b_pmu_recv,
 	.initmsg = gm20b_pmu_initmsg,
+	.reset = gp102_pmu_reset,
 };
 
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_210_SOC)
@@ -99,7 +100,8 @@ gp10b_pmu_fwif[] = {
 };
 
 int
-gp10b_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
+gp10b_pmu_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
+	      struct nvkm_pmu **ppmu)
 {
-	return nvkm_pmu_new_(gp10b_pmu_fwif, device, index, ppmu);
+	return nvkm_pmu_new_(gp10b_pmu_fwif, device, type, inst, ppmu);
 }

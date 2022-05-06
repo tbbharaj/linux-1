@@ -9,6 +9,10 @@
 #include <linux/types.h>
 #include <linux/usb/typec.h>
 #include <linux/usb/pd.h>
+<<<<<<< HEAD
+=======
+#include <linux/usb/role.h>
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 /* -------------------------------------------------------------------------- */
 
@@ -316,6 +320,7 @@ struct ucsi_connector {
 	struct mutex lock; /* port lock */
 	struct work_struct work;
 	struct completion complete;
+	struct workqueue_struct *wq;
 
 	struct typec_port *port;
 	struct typec_partner *partner;
@@ -333,6 +338,8 @@ struct ucsi_connector {
 	u32 rdo;
 	u32 src_pdos[PDO_MAX_OBJECTS];
 	int num_pdos;
+
+	struct usb_role_switch *usb_role_sw;
 };
 
 int ucsi_send_command(struct ucsi *ucsi, u64 command,

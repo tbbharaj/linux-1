@@ -11,10 +11,17 @@
 
 TRACE_EVENT(damon_aggregated,
 
+<<<<<<< HEAD
 	TP_PROTO(struct damon_target *t, struct damon_region *r,
 		unsigned int nr_regions),
 
 	TP_ARGS(t, r, nr_regions),
+=======
+	TP_PROTO(struct damon_target *t, unsigned int target_id,
+		struct damon_region *r, unsigned int nr_regions),
+
+	TP_ARGS(t, target_id, r, nr_regions),
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	TP_STRUCT__entry(
 		__field(unsigned long, target_id)
@@ -22,19 +29,37 @@ TRACE_EVENT(damon_aggregated,
 		__field(unsigned long, start)
 		__field(unsigned long, end)
 		__field(unsigned int, nr_accesses)
+<<<<<<< HEAD
 	),
 
 	TP_fast_assign(
 		__entry->target_id = t->id;
+=======
+		__field(unsigned int, age)
+	),
+
+	TP_fast_assign(
+		__entry->target_id = target_id;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		__entry->nr_regions = nr_regions;
 		__entry->start = r->ar.start;
 		__entry->end = r->ar.end;
 		__entry->nr_accesses = r->nr_accesses;
+<<<<<<< HEAD
 	),
 
 	TP_printk("target_id=%lu nr_regions=%u %lu-%lu: %u",
 			__entry->target_id, __entry->nr_regions,
 			__entry->start, __entry->end, __entry->nr_accesses)
+=======
+		__entry->age = r->age;
+	),
+
+	TP_printk("target_id=%lu nr_regions=%u %lu-%lu: %u %u",
+			__entry->target_id, __entry->nr_regions,
+			__entry->start, __entry->end,
+			__entry->nr_accesses, __entry->age)
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 );
 
 #endif /* _TRACE_DAMON_H */

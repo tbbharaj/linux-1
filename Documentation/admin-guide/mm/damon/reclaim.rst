@@ -208,6 +208,34 @@ PID of the DAMON thread.
 If DAMON_RECLAIM is enabled, this becomes the PID of the worker thread.  Else,
 -1.
 
+<<<<<<< HEAD
+=======
+nr_reclaim_tried_regions
+------------------------
+
+Number of memory regions that tried to be reclaimed by DAMON_RECLAIM.
+
+bytes_reclaim_tried_regions
+---------------------------
+
+Total bytes of memory regions that tried to be reclaimed by DAMON_RECLAIM.
+
+nr_reclaimed_regions
+--------------------
+
+Number of memory regions that successfully be reclaimed by DAMON_RECLAIM.
+
+bytes_reclaimed_regions
+-----------------------
+
+Total bytes of memory regions that successfully be reclaimed by DAMON_RECLAIM.
+
+nr_quota_exceeds
+----------------
+
+Number of times that the time/space quota limits have exceeded.
+
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 Example
 =======
 

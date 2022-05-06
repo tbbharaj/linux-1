@@ -51,6 +51,7 @@ struct arpt_error {
 extern void *arpt_alloc_initial_table(const struct xt_table *);
 int arpt_register_table(struct net *net, const struct xt_table *table,
 			const struct arpt_replace *repl,
+<<<<<<< HEAD
 			const struct nf_hook_ops *ops, struct xt_table **res);
 void arpt_unregister_table(struct net *net, struct xt_table *table);
 void arpt_unregister_table_pre_exit(struct net *net, struct xt_table *table,
@@ -58,8 +59,15 @@ void arpt_unregister_table_pre_exit(struct net *net, struct xt_table *table,
 extern unsigned int arpt_do_table(struct sk_buff *skb,
 				  const struct nf_hook_state *state,
 				  struct xt_table *table);
+=======
+			const struct nf_hook_ops *ops);
+void arpt_unregister_table(struct net *net, const char *name);
+void arpt_unregister_table_pre_exit(struct net *net, const char *name);
+extern unsigned int arpt_do_table(void *priv, struct sk_buff *skb,
+				  const struct nf_hook_state *state);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
-#ifdef CONFIG_COMPAT
+#ifdef CONFIG_NETFILTER_XTABLES_COMPAT
 #include <net/compat.h>
 
 struct compat_arpt_entry {

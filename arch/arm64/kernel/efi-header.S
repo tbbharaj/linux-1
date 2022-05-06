@@ -28,7 +28,10 @@
 	.macro	__EFI_PE_HEADER
 #ifdef CONFIG_EFI
 	.set	.Lpe_header_offset, . - .L_head
+<<<<<<< HEAD
 SYM_DATA_START_LOCAL(arm64_efi_header)
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	.long	PE_MAGIC
 	.short	IMAGE_FILE_MACHINE_ARM64		// Machine
 	.short	.Lsection_count				// NumberOfSections
@@ -159,16 +162,12 @@ SYM_DATA_START_LOCAL(arm64_efi_header)
 	.set	.Lefi_debug_entry_size, . - .Lefi_debug_entry
 #endif
 
-	/*
-	 * EFI will load .text onwards at the 4k section alignment
-	 * described in the PE/COFF header. To ensure that instruction
-	 * sequences using an adrp and a :lo12: immediate will function
-	 * correctly at this alignment, we must ensure that .text is
-	 * placed at a 4k boundary in the Image to begin with.
-	 */
 	.balign	SEGMENT_ALIGN
 .Lefi_header_end:
+<<<<<<< HEAD
 SYM_DATA_END_LABEL(arm64_efi_header, SYM_L_LOCAL, efi_header_end)
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #else
 	.set	.Lpe_header_offset, 0x0
 #endif

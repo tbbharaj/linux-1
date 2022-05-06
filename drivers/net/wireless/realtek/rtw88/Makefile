@@ -15,6 +15,10 @@ rtw88_core-y += main.o \
 	   ps.o \
 	   sec.o \
 	   bf.o \
+<<<<<<< HEAD
+=======
+	   sar.o \
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	   regd.o
 
 rtw88_core-$(CONFIG_PM) += wow.o

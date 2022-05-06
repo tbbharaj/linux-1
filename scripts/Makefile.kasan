@@ -4,6 +4,15 @@ KASAN_SHADOW_OFFSET ?= $(CONFIG_KASAN_SHADOW_OFFSET)
 
 cc-param = $(call cc-option, -mllvm -$(1), $(call cc-option, --param $(1)))
 
+<<<<<<< HEAD
+=======
+ifdef CONFIG_KASAN_STACK
+	stack_enable := 1
+else
+	stack_enable := 0
+endif
+
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 ifdef CONFIG_KASAN_GENERIC
 
 ifdef CONFIG_KASAN_INLINE
@@ -27,9 +36,10 @@ else
 	CFLAGS_KASAN := $(CFLAGS_KASAN_SHADOW) \
 	 $(call cc-param,asan-globals=1) \
 	 $(call cc-param,asan-instrumentation-with-call-threshold=$(call_threshold)) \
-	 $(call cc-param,asan-stack=$(CONFIG_KASAN_STACK)) \
 	 $(call cc-param,asan-instrument-allocas=1)
 endif
+
+CFLAGS_KASAN += $(call cc-param,asan-stack=$(stack_enable))
 
 endif # CONFIG_KASAN_GENERIC
 
@@ -42,8 +52,14 @@ else
 endif
 
 CFLAGS_KASAN := -fsanitize=kernel-hwaddress \
+<<<<<<< HEAD
 		$(call cc-param,hwasan-instrument-stack=$(CONFIG_KASAN_STACK)) \
 		$(call cc-param,hwasan-use-short-granules=0) \
+=======
+		$(call cc-param,hwasan-instrument-stack=$(stack_enable)) \
+		$(call cc-param,hwasan-use-short-granules=0) \
+		$(call cc-param,hwasan-inline-all-checks=0) \
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		$(instrumentation_flags)
 
 endif # CONFIG_KASAN_SW_TAGS

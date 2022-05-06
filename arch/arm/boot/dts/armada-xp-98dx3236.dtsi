@@ -264,6 +264,11 @@
 &i2c0 {
 	compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
 	reg = <0x11000 0x100>;
+<<<<<<< HEAD
+=======
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 };
 
 &mpic {
@@ -318,6 +323,11 @@
 		marvell,pins = "mpp0", "mpp1",
 			       "mpp2", "mpp3";
 		marvell,function = "spi0";
+	};
+
+	i2c0_pins: i2c-pins-0 {
+		marvell,pins = "mpp14", "mpp15";
+		marvell,function = "i2c0";
 	};
 };
 

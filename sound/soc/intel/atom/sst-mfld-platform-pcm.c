@@ -127,7 +127,11 @@ static void sst_fill_alloc_params(struct snd_pcm_substream *substream,
 	snd_pcm_uframes_t period_size;
 	ssize_t periodbytes;
 	ssize_t buffer_bytes = snd_pcm_lib_buffer_bytes(substream);
+<<<<<<< HEAD
 	u32 buffer_addr = virt_to_phys(substream->runtime->dma_area);
+=======
+	u32 buffer_addr = substream->runtime->dma_addr;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	channels = substream->runtime->channels;
 	period_size = substream->runtime->period_size;
@@ -486,14 +490,22 @@ static struct snd_soc_dai_driver sst_platform_dai[] = {
 		.stream_name = "Headset Playback",
 		.channels_min = SST_STEREO,
 		.channels_max = SST_STEREO,
+<<<<<<< HEAD
 		.rates = SNDRV_PCM_RATE_44100|SNDRV_PCM_RATE_48000,
+=======
+		.rates = SNDRV_PCM_RATE_48000,
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 	.capture = {
 		.stream_name = "Headset Capture",
 		.channels_min = 1,
 		.channels_max = 2,
+<<<<<<< HEAD
 		.rates = SNDRV_PCM_RATE_44100|SNDRV_PCM_RATE_48000,
+=======
+		.rates = SNDRV_PCM_RATE_48000,
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 },
@@ -504,7 +516,11 @@ static struct snd_soc_dai_driver sst_platform_dai[] = {
 		.stream_name = "Deepbuffer Playback",
 		.channels_min = SST_STEREO,
 		.channels_max = SST_STEREO,
+<<<<<<< HEAD
 		.rates = SNDRV_PCM_RATE_44100|SNDRV_PCM_RATE_48000,
+=======
+		.rates = SNDRV_PCM_RATE_48000,
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 },
@@ -653,8 +669,19 @@ static snd_pcm_uframes_t sst_soc_pointer(struct snd_soc_component *component,
 		dev_err(rtd->dev, "sst: error code = %d\n", ret_val);
 		return ret_val;
 	}
-	substream->runtime->delay = str_info->pcm_delay;
 	return str_info->buffer_ptr;
+}
+
+static snd_pcm_sframes_t sst_soc_delay(struct snd_soc_component *component,
+				       struct snd_pcm_substream *substream)
+{
+	struct sst_runtime_stream *stream = substream->runtime->private_data;
+	struct pcm_stream_info *str_info = &stream->stream_info;
+
+	if (sst_get_stream_status(stream) == SST_PLATFORM_INIT)
+		return 0;
+
+	return str_info->pcm_delay;
 }
 
 static int sst_soc_pcm_new(struct snd_soc_component *component,
@@ -695,6 +722,7 @@ static const struct snd_soc_component_driver sst_soc_platform_drv  = {
 	.open		= sst_soc_open,
 	.trigger	= sst_soc_trigger,
 	.pointer	= sst_soc_pointer,
+	.delay		= sst_soc_delay,
 	.compress_ops	= &sst_platform_compress_ops,
 	.pcm_construct	= sst_soc_pcm_new,
 };

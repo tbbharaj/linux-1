@@ -50,6 +50,11 @@ struct sysc_regbits {
 	s8 emufree_shift;
 };
 
+<<<<<<< HEAD
+=======
+#define SYSC_MODULE_QUIRK_OTG		BIT(30)
+#define SYSC_QUIRK_RESET_ON_CTX_LOST	BIT(29)
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #define SYSC_QUIRK_REINIT_ON_CTX_LOST	BIT(28)
 #define SYSC_QUIRK_REINIT_ON_RESUME	BIT(27)
 #define SYSC_QUIRK_GPMC_DEBUG		BIT(26)

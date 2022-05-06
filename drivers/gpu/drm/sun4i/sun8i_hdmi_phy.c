@@ -658,8 +658,15 @@ int sun8i_hdmi_phy_get(struct sun8i_dw_hdmi *hdmi, struct device_node *node)
 		return -EPROBE_DEFER;
 
 	phy = platform_get_drvdata(pdev);
+<<<<<<< HEAD
 	if (!phy)
 		return -EPROBE_DEFER;
+=======
+	if (!phy) {
+		put_device(&pdev->dev);
+		return -EPROBE_DEFER;
+	}
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	hdmi->phy = phy;
 

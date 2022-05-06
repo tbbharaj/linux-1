@@ -700,6 +700,7 @@ static int update_usable_mem_fdt(void *fdt, struct crash_mem *usable_mem)
 		if (ret) {
 			pr_err("Failed to set linux,usable-memory property for %s node",
 			       dn->full_name);
+			of_node_put(dn);
 			goto out;
 		}
 	}
@@ -816,9 +817,9 @@ static int load_elfcorehdr_segment(struct kimage *image, struct kexec_buf *kbuf)
 		goto out;
 	}
 
-	image->arch.elfcorehdr_addr = kbuf->mem;
-	image->arch.elf_headers_sz = headers_sz;
-	image->arch.elf_headers = headers;
+	image->elf_load_addr = kbuf->mem;
+	image->elf_headers_sz = headers_sz;
+	image->elf_headers = headers;
 out:
 	kfree(cmem);
 	return ret;
@@ -852,7 +853,7 @@ int load_crashdump_segments_ppc64(struct kimage *image,
 		return ret;
 	}
 	pr_debug("Loaded elf core header at 0x%lx, bufsz=0x%lx memsz=0x%lx\n",
-		 image->arch.elfcorehdr_addr, kbuf->bufsz, kbuf->memsz);
+		 image->elf_load_addr, kbuf->bufsz, kbuf->memsz);
 
 	return 0;
 }
@@ -927,6 +928,7 @@ out:
 }
 
 /**
+<<<<<<< HEAD
  * kexec_fdt_totalsize_ppc64 - Return the estimated size needed to setup FDT
  *                             for kexec/kdump kernel.
  * @image:                     kexec image being loaded.
@@ -950,14 +952,35 @@ unsigned int kexec_fdt_totalsize_ppc64(struct kimage *image)
 
 	/*
 	 * For kdump kernel, also account for linux,usable-memory and
+=======
+ * kexec_extra_fdt_size_ppc64 - Return the estimated additional size needed to
+ *                              setup FDT for kexec/kdump kernel.
+ * @image:                      kexec image being loaded.
+ *
+ * Returns the estimated extra size needed for kexec/kdump kernel FDT.
+ */
+unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image)
+{
+	u64 usm_entries;
+
+	if (image->type != KEXEC_TYPE_CRASH)
+		return 0;
+
+	/*
+	 * For kdump kernel, account for linux,usable-memory and
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	 * linux,drconf-usable-memory properties. Get an approximate on the
 	 * number of usable memory entries and use for FDT size estimation.
 	 */
 	usm_entries = ((memblock_end_of_DRAM() / drmem_lmb_size()) +
 		       (2 * (resource_size(&crashk_res) / drmem_lmb_size())));
+<<<<<<< HEAD
 	fdt_size += (unsigned int)(usm_entries * sizeof(u64));
 
 	return fdt_size;
+=======
+	return (unsigned int)(usm_entries * sizeof(u64));
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 }
 
 /**
@@ -1065,10 +1088,6 @@ int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
 {
 	struct crash_mem *umem = NULL, *rmem = NULL;
 	int i, nr_ranges, ret;
-
-	ret = setup_new_fdt(image, fdt, initrd_load_addr, initrd_len, cmdline);
-	if (ret)
-		goto out;
 
 	/*
 	 * Restrict memory usage for kdump kernel by setting up
@@ -1234,9 +1253,12 @@ int arch_kimage_file_post_load_cleanup(struct kimage *image)
 	vfree(image->arch.backup_buf);
 	image->arch.backup_buf = NULL;
 
-	vfree(image->arch.elf_headers);
-	image->arch.elf_headers = NULL;
-	image->arch.elf_headers_sz = 0;
+	vfree(image->elf_headers);
+	image->elf_headers = NULL;
+	image->elf_headers_sz = 0;
+
+	kvfree(image->arch.fdt);
+	image->arch.fdt = NULL;
 
 	return kexec_image_post_load_cleanup_default(image);
 }

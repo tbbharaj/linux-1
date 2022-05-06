@@ -69,8 +69,14 @@ struct __packed vmcs12 {
 	u64 vm_function_control;
 	u64 eptp_list_address;
 	u64 pml_address;
+<<<<<<< HEAD
 	u64 tsc_multiplier;
 	u64 padding64[2]; /* room for future expansion */
+=======
+	u64 encls_exiting_bitmap;
+	u64 tsc_multiplier;
+	u64 padding64[1]; /* room for future expansion */
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	/*
 	 * To allow migration of L1 (complete with its L2 guests) between
 	 * machines of different natural widths (32 or 64 bit), we cannot have
@@ -251,7 +257,12 @@ static inline void vmx_check_vmcs12_offsets(void)
 	CHECK_OFFSET(vm_function_control, 296);
 	CHECK_OFFSET(eptp_list_address, 304);
 	CHECK_OFFSET(pml_address, 312);
+<<<<<<< HEAD
 	CHECK_OFFSET(tsc_multiplier, 320);
+=======
+	CHECK_OFFSET(encls_exiting_bitmap, 320);
+	CHECK_OFFSET(tsc_multiplier, 328);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	CHECK_OFFSET(cr0_guest_host_mask, 344);
 	CHECK_OFFSET(cr4_guest_host_mask, 352);
 	CHECK_OFFSET(cr0_read_shadow, 360);
@@ -359,12 +370,10 @@ static inline void vmx_check_vmcs12_offsets(void)
 	CHECK_OFFSET(guest_pml_index, 996);
 }
 
-extern const unsigned short vmcs_field_to_offset_table[];
+extern const unsigned short vmcs12_field_offsets[];
 extern const unsigned int nr_vmcs12_fields;
 
-#define ROL16(val, n) ((u16)(((u16)(val) << (n)) | ((u16)(val) >> (16 - (n)))))
-
-static inline short vmcs_field_to_offset(unsigned long field)
+static inline short get_vmcs12_field_offset(unsigned long field)
 {
 	unsigned short offset;
 	unsigned int index;
@@ -377,13 +386,11 @@ static inline short vmcs_field_to_offset(unsigned long field)
 		return -ENOENT;
 
 	index = array_index_nospec(index, nr_vmcs12_fields);
-	offset = vmcs_field_to_offset_table[index];
+	offset = vmcs12_field_offsets[index];
 	if (offset == 0)
 		return -ENOENT;
 	return offset;
 }
-
-#undef ROL16
 
 static inline u64 vmcs12_read_any(struct vmcs12 *vmcs12, unsigned long field,
 				  u16 offset)

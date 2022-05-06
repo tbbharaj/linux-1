@@ -22,6 +22,11 @@
 	status = "okay";
 
 	phy0: ethernet-phy@0 {
+<<<<<<< HEAD
+=======
+		compatible = "ethernet-phy-id001c.c915",
+			     "ethernet-phy-ieee802.3-c22";
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		reg = <0>;
 		interrupt-parent = <&gpio2>;
 		interrupts = <21 IRQ_TYPE_LEVEL_LOW>;

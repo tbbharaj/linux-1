@@ -41,7 +41,7 @@
 
 #include <asm/ldt.h>
 #include <asm/processor.h>
-#include <asm/fpu/internal.h>
+#include <asm/fpu/sched.h>
 #include <asm/desc.h>
 
 #include <linux/err.h>
@@ -159,6 +159,10 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 {
 	struct thread_struct *prev = &prev_p->thread,
 			     *next = &next_p->thread;
+<<<<<<< HEAD
+=======
+	struct fpu *prev_fpu = &prev->fpu;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	int cpu = smp_processor_id();
 
 	/* never put a printk in __switch_to... printk() calls wake_up*() indirectly */
@@ -211,7 +215,11 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 
 	this_cpu_write(current_task, next_p);
 
+<<<<<<< HEAD
 	switch_fpu_finish(next_p);
+=======
+	switch_fpu_finish();
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	/* Load the Intel cache allocation PQR MSR. */
 	resctrl_sched_in();

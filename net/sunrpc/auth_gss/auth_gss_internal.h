@@ -35,7 +35,11 @@ simple_get_netobj(const void *p, const void *end, struct xdr_netobj *dest)
 	if (unlikely(q > end || q < p))
 		return ERR_PTR(-EFAULT);
 	if (len) {
+<<<<<<< HEAD
 		dest->data = kmemdup(p, len, GFP_NOFS);
+=======
+		dest->data = kmemdup(p, len, GFP_KERNEL);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		if (unlikely(dest->data == NULL))
 			return ERR_PTR(-ENOMEM);
 	} else

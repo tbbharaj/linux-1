@@ -51,7 +51,10 @@ struct udl_device {
 	struct drm_device drm;
 	struct device *dev;
 	struct device *dmadev;
+<<<<<<< HEAD
 	struct usb_device *udev;
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	struct drm_simple_display_pipe display_pipe;
 
@@ -66,6 +69,11 @@ struct udl_device {
 };
 
 #define to_udl(x) container_of(x, struct udl_device, drm)
+
+static inline struct usb_device *udl_to_usb_device(struct udl_device *udl)
+{
+	return interface_to_usbdev(to_usb_interface(udl->drm.dev));
+}
 
 /* modeset */
 int udl_modeset_init(struct drm_device *dev);

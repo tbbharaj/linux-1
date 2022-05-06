@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 generic-y += early_ioremap.h
-generic-y += extable.h
 generic-y += flat.h
 generic-y += kvm_para.h
+<<<<<<< HEAD
+=======
+generic-y += parport.h
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 generic-y += user.h
 generic-y += vmlinux.lds.h

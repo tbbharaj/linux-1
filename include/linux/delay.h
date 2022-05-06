@@ -19,7 +19,11 @@
  *   https://lists.openwall.net/linux-kernel/2011/01/09/56
  */
 
+<<<<<<< HEAD
 #include <linux/kernel.h>
+=======
+#include <linux/math.h>
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #include <linux/sched.h>
 
 extern unsigned long loops_per_jiffy;

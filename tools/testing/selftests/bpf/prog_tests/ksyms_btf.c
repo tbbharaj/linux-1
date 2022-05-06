@@ -6,6 +6,11 @@
 #include <bpf/btf.h>
 #include "test_ksyms_btf.skel.h"
 #include "test_ksyms_btf_null_check.skel.h"
+<<<<<<< HEAD
+=======
+#include "test_ksyms_weak.skel.h"
+#include "test_ksyms_weak.lskel.h"
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #include "test_ksyms_btf_write_check.skel.h"
 
 static int duration;
@@ -82,12 +87,73 @@ static void test_null_check(void)
 	test_ksyms_btf_null_check__destroy(skel);
 }
 
+<<<<<<< HEAD
+=======
+static void test_weak_syms(void)
+{
+	struct test_ksyms_weak *skel;
+	struct test_ksyms_weak__data *data;
+	int err;
+
+	skel = test_ksyms_weak__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "test_ksyms_weak__open_and_load"))
+		return;
+
+	err = test_ksyms_weak__attach(skel);
+	if (!ASSERT_OK(err, "test_ksyms_weak__attach"))
+		goto cleanup;
+
+	/* trigger tracepoint */
+	usleep(1);
+
+	data = skel->data;
+	ASSERT_EQ(data->out__existing_typed, 0, "existing typed ksym");
+	ASSERT_NEQ(data->out__existing_typeless, -1, "existing typeless ksym");
+	ASSERT_EQ(data->out__non_existent_typeless, 0, "nonexistent typeless ksym");
+	ASSERT_EQ(data->out__non_existent_typed, 0, "nonexistent typed ksym");
+
+cleanup:
+	test_ksyms_weak__destroy(skel);
+}
+
+static void test_weak_syms_lskel(void)
+{
+	struct test_ksyms_weak_lskel *skel;
+	struct test_ksyms_weak_lskel__data *data;
+	int err;
+
+	skel = test_ksyms_weak_lskel__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "test_ksyms_weak_lskel__open_and_load"))
+		return;
+
+	err = test_ksyms_weak_lskel__attach(skel);
+	if (!ASSERT_OK(err, "test_ksyms_weak_lskel__attach"))
+		goto cleanup;
+
+	/* trigger tracepoint */
+	usleep(1);
+
+	data = skel->data;
+	ASSERT_EQ(data->out__existing_typed, 0, "existing typed ksym");
+	ASSERT_NEQ(data->out__existing_typeless, -1, "existing typeless ksym");
+	ASSERT_EQ(data->out__non_existent_typeless, 0, "nonexistent typeless ksym");
+	ASSERT_EQ(data->out__non_existent_typed, 0, "nonexistent typed ksym");
+
+cleanup:
+	test_ksyms_weak_lskel__destroy(skel);
+}
+
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 static void test_write_check(void)
 {
 	struct test_ksyms_btf_write_check *skel;
 
 	skel = test_ksyms_btf_write_check__open_and_load();
+<<<<<<< HEAD
 	CHECK(skel, "skel_open", "unexpected load of a prog writing to ksym memory\n");
+=======
+	ASSERT_ERR_PTR(skel, "unexpected load of a prog writing to ksym memory\n");
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	test_ksyms_btf_write_check__destroy(skel);
 }
@@ -98,8 +164,7 @@ void test_ksyms_btf(void)
 	struct btf *btf;
 
 	btf = libbpf_find_kernel_btf();
-	if (CHECK(IS_ERR(btf), "btf_exists", "failed to load kernel BTF: %ld\n",
-		  PTR_ERR(btf)))
+	if (!ASSERT_OK_PTR(btf, "btf_exists"))
 		return;
 
 	percpu_datasec = btf__find_by_name_kind(btf, ".data..percpu",
@@ -118,6 +183,15 @@ void test_ksyms_btf(void)
 	if (test__start_subtest("null_check"))
 		test_null_check();
 
+<<<<<<< HEAD
+=======
+	if (test__start_subtest("weak_ksyms"))
+		test_weak_syms();
+
+	if (test__start_subtest("weak_ksyms_lskel"))
+		test_weak_syms_lskel();
+
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	if (test__start_subtest("write_check"))
 		test_write_check();
 }

@@ -23,6 +23,11 @@ static inline int get_rssi0(struct wcn36xx_rx_bd *bd)
 	return 100 - ((bd->phy_stat0 >> 24) & 0xff);
 }
 
+static inline int get_snr(struct wcn36xx_rx_bd *bd)
+{
+	return ((bd->phy_stat1 >> 24) & 0xff);
+}
+
 struct wcn36xx_rate {
 	u16 bitrate;
 	u16 mcs_or_legacy_index;
@@ -231,6 +236,69 @@ static const struct wcn36xx_rate wcn36xx_rate_table[] = {
 	{ 4333, 9, RX_ENC_VHT, RX_ENC_FLAG_SHORT_GI, RATE_INFO_BW_80 },
 };
 
+static struct sk_buff *wcn36xx_unchain_msdu(struct sk_buff_head *amsdu)
+{
+	struct sk_buff *skb, *first;
+	int total_len = 0;
+	int space;
+
+	first = __skb_dequeue(amsdu);
+
+	skb_queue_walk(amsdu, skb)
+		total_len += skb->len;
+
+	space = total_len - skb_tailroom(first);
+	if (space > 0 && pskb_expand_head(first, 0, space, GFP_ATOMIC) < 0) {
+		__skb_queue_head(amsdu, first);
+		return NULL;
+	}
+
+	/* Walk list again, copying contents into msdu_head */
+	while ((skb = __skb_dequeue(amsdu))) {
+		skb_copy_from_linear_data(skb, skb_put(first, skb->len),
+					  skb->len);
+		dev_kfree_skb_irq(skb);
+	}
+
+	return first;
+}
+
+static void __skb_queue_purge_irq(struct sk_buff_head *list)
+{
+	struct sk_buff *skb;
+
+	while ((skb = __skb_dequeue(list)) != NULL)
+		dev_kfree_skb_irq(skb);
+}
+
+static void wcn36xx_update_survey(struct wcn36xx *wcn, int rssi, int snr,
+				  int band, int freq)
+{
+	static struct ieee80211_channel *channel;
+	struct ieee80211_supported_band *sband;
+	int idx;
+	int i;
+
+	idx = 0;
+	if (band == NL80211_BAND_5GHZ)
+		idx = wcn->hw->wiphy->bands[NL80211_BAND_2GHZ]->n_channels;
+
+	sband = wcn->hw->wiphy->bands[band];
+	channel = sband->channels;
+
+	for (i = 0; i < sband->n_channels; i++, channel++) {
+		if (channel->center_freq == freq) {
+			idx += i;
+			break;
+		}
+	}
+
+	spin_lock(&wcn->survey_lock);
+	wcn->chan_survey[idx].rssi = rssi;
+	wcn->chan_survey[idx].snr = snr;
+	spin_unlock(&wcn->survey_lock);
+}
+
 int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 {
 	struct ieee80211_rx_status status;
@@ -250,6 +318,26 @@ int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 	wcn36xx_dbg_dump(WCN36XX_DBG_RX_DUMP,
 			 "BD   <<< ", (char *)bd,
 			 sizeof(struct wcn36xx_rx_bd));
+
+	if (bd->pdu.mpdu_data_off <= bd->pdu.mpdu_header_off ||
+	    bd->pdu.mpdu_len < bd->pdu.mpdu_header_len)
+		goto drop;
+
+	if (bd->asf && !bd->esf) { /* chained A-MSDU chunks */
+		/* Sanity check */
+		if (bd->pdu.mpdu_data_off + bd->pdu.mpdu_len > WCN36XX_PKT_SIZE)
+			goto drop;
+
+		skb_put(skb, bd->pdu.mpdu_data_off + bd->pdu.mpdu_len);
+		skb_pull(skb, bd->pdu.mpdu_data_off);
+
+		/* Only set status for first chained BD (with mac header) */
+		goto done;
+	}
+
+	if (bd->pdu.mpdu_header_off < sizeof(*bd) ||
+	    bd->pdu.mpdu_header_off + bd->pdu.mpdu_len > WCN36XX_PKT_SIZE)
+		goto drop;
 
 	skb_put(skb, bd->pdu.mpdu_header_off + bd->pdu.mpdu_len);
 	skb_pull(skb, bd->pdu.mpdu_header_off);
@@ -288,6 +376,12 @@ int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 		status.freq = WCN36XX_CENTER_FREQ(wcn);
 	}
 
+<<<<<<< HEAD
+=======
+	wcn36xx_update_survey(wcn, status.signal, get_snr(bd),
+			      status.band, status.freq);
+
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	if (bd->rate_id < ARRAY_SIZE(wcn36xx_rate_table)) {
 		rate = &wcn36xx_rate_table[bd->rate_id];
 		status.encoding = rate->encoding;
@@ -327,9 +421,37 @@ int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 				 (char *)skb->data, skb->len);
 	}
 
+done:
+	/*  Chained AMSDU ? slow path */
+	if (unlikely(bd->asf && !(bd->lsf && bd->esf))) {
+		if (bd->esf && !skb_queue_empty(&wcn->amsdu)) {
+			wcn36xx_err("Discarding non complete chain");
+			__skb_queue_purge_irq(&wcn->amsdu);
+		}
+
+		__skb_queue_tail(&wcn->amsdu, skb);
+
+		if (!bd->lsf)
+			return 0; /* Not the last AMSDU, wait for more */
+
+		skb = wcn36xx_unchain_msdu(&wcn->amsdu);
+		if (!skb)
+			goto drop;
+	}
+
 	ieee80211_rx_irqsafe(wcn->hw, skb);
 
 	return 0;
+
+drop: /* drop everything */
+	wcn36xx_err("Drop frame! skb:%p len:%u hoff:%u doff:%u asf=%u esf=%u lsf=%u\n",
+		    skb, bd->pdu.mpdu_len, bd->pdu.mpdu_header_off,
+		    bd->pdu.mpdu_data_off, bd->asf, bd->esf, bd->lsf);
+
+	dev_kfree_skb_irq(skb);
+	__skb_queue_purge_irq(&wcn->amsdu);
+
+	return -EINVAL;
 }
 
 static void wcn36xx_set_tx_pdu(struct wcn36xx_tx_bd *bd,

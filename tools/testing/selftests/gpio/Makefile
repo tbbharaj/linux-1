@@ -1,16 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
-VAR_CFLAGS := $(shell pkg-config --cflags mount 2>/dev/null)
-VAR_LDLIBS := $(shell pkg-config --libs mount 2>/dev/null)
-ifeq ($(VAR_LDLIBS),)
-VAR_LDLIBS := -lmount -I/usr/include/libmount
-endif
-
-CFLAGS += -O2 -g -std=gnu99 -Wall -I../../../../usr/include/ $(VAR_CFLAGS)
-LDLIBS += $(VAR_LDLIBS)
-
-TEST_PROGS := gpio-mockup.sh
+TEST_PROGS := gpio-mockup.sh gpio-sim.sh
 TEST_FILES := gpio-mockup-sysfs.sh
+<<<<<<< HEAD
 TEST_GEN_PROGS_EXTENDED := gpio-mockup-chardev
 
 KSFT_KHDR_INSTALL := 1
@@ -32,3 +24,9 @@ $(GPIOOUT):
 
 $(GPIOOBJ): $(GPIOOUT)
 	$(MAKE) OUTPUT=$(GPIOOUT) -C $(GPIODIR)
+=======
+TEST_GEN_PROGS_EXTENDED := gpio-mockup-cdev gpio-chip-info gpio-line-name
+CFLAGS += -O2 -g -Wall -I../../../../usr/include/
+
+include ../lib.mk
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a

@@ -12,12 +12,10 @@
 #define USER_ASID_FLAG	(UL(1) << USER_ASID_BIT)
 #define TTBR_ASID_MASK	(UL(0xffff) << 48)
 
-#define BP_HARDEN_EL2_SLOTS 4
-#define __BP_HARDEN_HYP_VECS_SZ (BP_HARDEN_EL2_SLOTS * SZ_2K)
-
 #ifndef __ASSEMBLY__
 
 #include <linux/refcount.h>
+#include <asm/cpufeature.h>
 
 typedef struct {
 	atomic64_t	id;
@@ -62,6 +60,7 @@ static inline bool arm64_kernel_unmapped_at_el0(void)
 	return cpus_have_const_cap(ARM64_UNMAP_KERNEL_AT_EL0);
 }
 
+<<<<<<< HEAD
 typedef void (*bp_hardening_cb_t)(void);
 
 struct bp_hardening_data {
@@ -94,6 +93,8 @@ static inline void arm64_apply_bp_hardening(void)
 		d->fn();
 }
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 extern void arm64_memblock_init(void);
 extern void paging_init(void);
 extern void bootmem_init(void);

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // SPDX-License-Identifier: GPL-2.0
 /*
  *	MMX 3DNow! library helper functions
@@ -386,3 +387,5 @@ void mmx_copy_page(void *to, void *from)
 		fast_copy_page(to, from);
 }
 EXPORT_SYMBOL(mmx_copy_page);
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a

@@ -59,7 +59,7 @@ int kvm_s390_pv_create_cpu(struct kvm_vcpu *vcpu, u16 *rc, u16 *rrc)
 	if (kvm_s390_pv_cpu_get_handle(vcpu))
 		return -EINVAL;
 
-	vcpu->arch.pv.stor_base = __get_free_pages(GFP_KERNEL,
+	vcpu->arch.pv.stor_base = __get_free_pages(GFP_KERNEL_ACCOUNT,
 						   get_order(uv_info.guest_cpu_stor_len));
 	if (!vcpu->arch.pv.stor_base)
 		return -ENOMEM;
@@ -71,7 +71,7 @@ int kvm_s390_pv_create_cpu(struct kvm_vcpu *vcpu, u16 *rc, u16 *rrc)
 	uvcb.stor_origin = (u64)vcpu->arch.pv.stor_base;
 
 	/* Alloc Secure Instruction Data Area Designation */
-	vcpu->arch.sie_block->sidad = __get_free_page(GFP_KERNEL | __GFP_ZERO);
+	vcpu->arch.sie_block->sidad = __get_free_page(GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!vcpu->arch.sie_block->sidad) {
 		free_pages(vcpu->arch.pv.stor_base,
 			   get_order(uv_info.guest_cpu_stor_len));
@@ -116,10 +116,9 @@ static int kvm_s390_pv_alloc_vm(struct kvm *kvm)
 	unsigned long base = uv_info.guest_base_stor_len;
 	unsigned long virt = uv_info.guest_virt_var_stor_len;
 	unsigned long npages = 0, vlen = 0;
-	struct kvm_memory_slot *memslot;
 
 	kvm->arch.pv.stor_var = NULL;
-	kvm->arch.pv.stor_base = __get_free_pages(GFP_KERNEL, get_order(base));
+	kvm->arch.pv.stor_base = __get_free_pages(GFP_KERNEL_ACCOUNT, get_order(base));
 	if (!kvm->arch.pv.stor_base)
 		return -ENOMEM;
 
@@ -130,8 +129,7 @@ static int kvm_s390_pv_alloc_vm(struct kvm *kvm)
 	 * Slots are sorted by GFN
 	 */
 	mutex_lock(&kvm->slots_lock);
-	memslot = kvm_memslots(kvm)->memslots;
-	npages = memslot->base_gfn + memslot->npages;
+	npages = kvm_s390_get_gfn_end(kvm_memslots(kvm));
 	mutex_unlock(&kvm->slots_lock);
 
 	kvm->arch.pv.guest_len = npages * PAGE_SIZE;

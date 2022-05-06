@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2016-2017 Advanced Micro Devices, Inc.
+ * Copyright 2016-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -35,7 +36,11 @@ static int kfd_debugfs_open(struct inode *inode, struct file *file)
 }
 static int kfd_debugfs_hang_hws_read(struct seq_file *m, void *data)
 {
+<<<<<<< HEAD
 	seq_printf(m, "echo gpu_id > hang_hws\n");
+=======
+	seq_puts(m, "echo gpu_id > hang_hws\n");
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	return 0;
 }
 

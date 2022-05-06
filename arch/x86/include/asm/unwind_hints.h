@@ -51,6 +51,14 @@
 .macro UNWIND_HINT_FUNC
 	UNWIND_HINT sp_reg=ORC_REG_SP sp_offset=8 type=UNWIND_HINT_TYPE_FUNC
 .endm
+<<<<<<< HEAD
+=======
+
+#else
+
+#define UNWIND_HINT_FUNC \
+	UNWIND_HINT(ORC_REG_SP, 8, UNWIND_HINT_TYPE_FUNC, 0)
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 #endif /* __ASSEMBLY__ */
 

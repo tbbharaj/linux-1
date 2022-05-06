@@ -30,6 +30,13 @@
 #include "test_migrate_reuseport.skel.h"
 #include "network_helpers.h"
 
+<<<<<<< HEAD
+=======
+#ifndef TCP_FASTOPEN_CONNECT
+#define TCP_FASTOPEN_CONNECT 30
+#endif
+
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #define IFINDEX_LO 1
 
 #define NR_SERVERS 5
@@ -200,8 +207,13 @@ static int pass_ack(struct migrate_reuseport_test_case *test_case)
 {
 	int err;
 
+<<<<<<< HEAD
 	err = bpf_link__detach(test_case->link);
 	if (!ASSERT_OK(err, "bpf_link__detach"))
+=======
+	err = bpf_link__destroy(test_case->link);
+	if (!ASSERT_OK(err, "bpf_link__destroy"))
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		return -1;
 
 	test_case->link = NULL;
@@ -537,7 +549,11 @@ close_servers:
 	}
 }
 
+<<<<<<< HEAD
 void test_migrate_reuseport(void)
+=======
+void serial_test_migrate_reuseport(void)
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 {
 	struct test_migrate_reuseport *skel;
 	int i;

@@ -15,6 +15,7 @@
 #define PERF_REG_IP	PERF_REG_CSKY_PC
 #define PERF_REG_SP	PERF_REG_CSKY_SP
 
+<<<<<<< HEAD
 static inline const char *__perf_reg_name(int id)
 {
 	switch (id) {
@@ -97,4 +98,6 @@ static inline const char *__perf_reg_name(int id)
 	return NULL;
 }
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #endif /* ARCH_PERF_REGS_H */

@@ -113,8 +113,11 @@ static const struct proc_ops led_proc_ops = {
 	.proc_write	= led_proc_write,
 };
 #endif
+<<<<<<< HEAD
 
 static struct proc_dir_entry *led;
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 #define LED_VERSION	"0.1"
 
@@ -122,10 +125,10 @@ static int __init led_init(void)
 {
 	timer_setup(&led_blink_timer, led_blink, 0);
 
-	led = proc_create("led", 0, NULL, &led_proc_ops);
-	if (!led)
+#ifdef CONFIG_PROC_FS
+	if (!proc_create("led", 0, NULL, &led_proc_ops))
 		return -ENOMEM;
-
+#endif
 	printk(KERN_INFO
 	       "led: version %s, Lars Kotthoff <metalhead@metalhead.ws>\n",
 	       LED_VERSION);

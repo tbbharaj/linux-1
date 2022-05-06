@@ -17,7 +17,12 @@
 #include <linux/sort.h>
 #include <linux/slab.h>
 
+<<<<<<< HEAD
 #include "cros_ec_trace.h"
+=======
+#define CREATE_TRACE_POINTS
+#include "cros_ec_sensorhub_trace.h"
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 /* Precision of fixed point for the m values from the filter */
 #define M_PRECISION BIT(23)

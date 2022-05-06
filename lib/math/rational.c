@@ -13,6 +13,10 @@
 #include <linux/export.h>
 #include <linux/minmax.h>
 #include <linux/limits.h>
+<<<<<<< HEAD
+=======
+#include <linux/module.h>
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 /*
  * calculate best rational approximation for a given fraction
@@ -106,3 +110,5 @@ void rational_best_approximation(
 }
 
 EXPORT_SYMBOL(rational_best_approximation);
+
+MODULE_LICENSE("GPL v2");

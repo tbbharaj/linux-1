@@ -57,7 +57,11 @@ patternProperties:
           rate
 
       sound-dai:
+<<<<<<< HEAD
         $ref: /schemas/types.yaml#/definitions/phandle-array
+=======
+        maxItems: 1
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
         description: phandle of the CPU DAI
 
     patternProperties:
@@ -71,7 +75,11 @@ patternProperties:
 
         properties:
           sound-dai:
+<<<<<<< HEAD
             $ref: /schemas/types.yaml#/definitions/phandle-array
+=======
+            maxItems: 1
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
             description: phandle of the codec DAI
 
         required:

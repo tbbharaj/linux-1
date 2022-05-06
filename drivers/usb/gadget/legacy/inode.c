@@ -471,7 +471,7 @@ static void ep_user_copy_worker(struct work_struct *work)
 		ret = -EFAULT;
 
 	/* completing the iocb can drop the ctx and mm, don't touch mm after */
-	iocb->ki_complete(iocb, ret, ret);
+	iocb->ki_complete(iocb, ret);
 
 	kfree(priv->buf);
 	kfree(priv->to_free);
@@ -498,10 +498,8 @@ static void ep_aio_complete(struct usb_ep *ep, struct usb_request *req)
 		kfree(priv->to_free);
 		kfree(priv);
 		iocb->private = NULL;
-		/* aio_complete() reports bytes-transferred _and_ faults */
-
-		iocb->ki_complete(iocb, req->actual ? req->actual : req->status,
-				req->status);
+		iocb->ki_complete(iocb,
+				req->actual ? req->actual : (long)req->status);
 	} else {
 		/* ep_copy_to_user() won't report both; we hide some faults */
 		if (unlikely(0 != req->status))
@@ -1215,8 +1213,8 @@ dev_release (struct inode *inode, struct file *fd)
 static __poll_t
 ep0_poll (struct file *fd, poll_table *wait)
 {
-       struct dev_data         *dev = fd->private_data;
-       __poll_t                mask = 0;
+	struct dev_data         *dev = fd->private_data;
+	__poll_t                mask = 0;
 
 	if (dev->state <= STATE_DEV_OPENED)
 		return DEFAULT_POLLMASK;
@@ -1244,7 +1242,7 @@ out:
 	return mask;
 }
 
-static long dev_ioctl (struct file *fd, unsigned code, unsigned long value)
+static long gadget_dev_ioctl (struct file *fd, unsigned code, unsigned long value)
 {
 	struct dev_data		*dev = fd->private_data;
 	struct usb_gadget	*gadget = dev->gadget;
@@ -1906,7 +1904,7 @@ fail:
 }
 
 static int
-dev_open (struct inode *inode, struct file *fd)
+gadget_dev_open (struct inode *inode, struct file *fd)
 {
 	struct dev_data		*dev = inode->i_private;
 	int			value = -EBUSY;
@@ -1926,12 +1924,12 @@ dev_open (struct inode *inode, struct file *fd)
 static const struct file_operations ep0_operations = {
 	.llseek =	no_llseek,
 
-	.open =		dev_open,
+	.open =		gadget_dev_open,
 	.read =		ep0_read,
 	.write =	dev_config,
 	.fasync =	ep0_fasync,
 	.poll =		ep0_poll,
-	.unlocked_ioctl = dev_ioctl,
+	.unlocked_ioctl = gadget_dev_ioctl,
 	.release =	dev_release,
 };
 
@@ -2103,7 +2101,7 @@ MODULE_ALIAS_FS("gadgetfs");
 
 /*----------------------------------------------------------------------*/
 
-static int __init init (void)
+static int __init gadgetfs_init (void)
 {
 	int status;
 
@@ -2113,12 +2111,12 @@ static int __init init (void)
 			shortname, driver_desc);
 	return status;
 }
-module_init (init);
+module_init (gadgetfs_init);
 
-static void __exit cleanup (void)
+static void __exit gadgetfs_cleanup (void)
 {
 	pr_debug ("unregister %s\n", shortname);
 	unregister_filesystem (&gadgetfs_type);
 }
-module_exit (cleanup);
+module_exit (gadgetfs_cleanup);
 

@@ -4,6 +4,7 @@
 #
 
 # Please keep it in alphabetic order
+<<<<<<< HEAD
 obj-$(CONFIG_CEC_CROS_EC)	+= cros-ec/
 obj-$(CONFIG_CEC_GPIO)		+= cec-gpio/
 obj-$(CONFIG_CEC_MESON_AO)	+= meson/
@@ -12,4 +13,14 @@ obj-$(CONFIG_CEC_SECO)		+= seco/
 obj-$(CONFIG_CEC_STI)		+= sti/
 obj-$(CONFIG_CEC_STM32)		+= stm32/
 obj-$(CONFIG_CEC_TEGRA)		+= tegra/
+=======
+obj-$(CONFIG_CEC_CROS_EC) += cros-ec/
+obj-$(CONFIG_CEC_GPIO) += cec-gpio/
+obj-$(CONFIG_CEC_MESON_AO) += meson/
+obj-$(CONFIG_CEC_SAMSUNG_S5P) += s5p/
+obj-$(CONFIG_CEC_SECO) += seco/
+obj-$(CONFIG_CEC_STI) += sti/
+obj-$(CONFIG_CEC_STM32) += stm32/
+obj-$(CONFIG_CEC_TEGRA) += tegra/
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 

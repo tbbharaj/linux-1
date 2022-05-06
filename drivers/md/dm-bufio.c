@@ -1525,7 +1525,11 @@ EXPORT_SYMBOL_GPL(dm_bufio_get_block_size);
 
 sector_t dm_bufio_get_device_size(struct dm_bufio_client *c)
 {
+<<<<<<< HEAD
 	sector_t s = i_size_read(c->bdev->bd_inode) >> SECTOR_SHIFT;
+=======
+	sector_t s = bdev_nr_sectors(c->bdev);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	if (s >= c->start)
 		s -= c->start;
 	else
@@ -2082,7 +2086,6 @@ static void __exit dm_bufio_exit(void)
 	int bug = 0;
 
 	cancel_delayed_work_sync(&dm_bufio_cleanup_old_work);
-	flush_workqueue(dm_bufio_wq);
 	destroy_workqueue(dm_bufio_wq);
 
 	if (dm_bufio_client_count) {

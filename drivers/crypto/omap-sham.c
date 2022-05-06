@@ -35,7 +35,8 @@
 #include <linux/crypto.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/algapi.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <crypto/hash.h>
 #include <crypto/hmac.h>
 #include <crypto/internal/hash.h>
@@ -104,7 +105,6 @@
 #define FLAGS_FINAL		1
 #define FLAGS_DMA_ACTIVE	2
 #define FLAGS_OUTPUT_READY	3
-#define FLAGS_INIT		4
 #define FLAGS_CPU		5
 #define FLAGS_DMA_READY		6
 #define FLAGS_AUTO_XOR		7
@@ -367,6 +367,7 @@ static void omap_sham_copy_ready_hash(struct ahash_request *req)
 			hash[i] = le32_to_cpup((__le32 *)in + i);
 }
 
+<<<<<<< HEAD
 static int omap_sham_hw_init(struct omap_sham_dev *dd)
 {
 	int err;
@@ -385,6 +386,8 @@ static int omap_sham_hw_init(struct omap_sham_dev *dd)
 	return 0;
 }
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 static void omap_sham_write_ctrl_omap2(struct omap_sham_dev *dd, size_t length,
 				 int final, int dma)
 {
@@ -1092,11 +1095,14 @@ static int omap_sham_hash_one_req(struct crypto_engine *engine, void *areq)
 	dev_dbg(dd->dev, "hash-one: op: %u, total: %u, digcnt: %zd, final: %d",
 		ctx->op, ctx->total, ctx->digcnt, final);
 
-	dd->req = req;
-
-	err = omap_sham_hw_init(dd);
-	if (err)
+	err = pm_runtime_resume_and_get(dd->dev);
+	if (err < 0) {
+		dev_err(dd->dev, "failed to get sync: %d\n", err);
 		return err;
+	}
+
+	dd->err = 0;
+	dd->req = req;
 
 	if (ctx->digcnt)
 		dd->pdata->copy_hash(req, 0);
@@ -2060,7 +2066,7 @@ static struct attribute *omap_sham_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group omap_sham_attr_group = {
+static const struct attribute_group omap_sham_attr_group = {
 	.attrs = omap_sham_attrs,
 };
 
@@ -2128,7 +2134,6 @@ static int omap_sham_probe(struct platform_device *pdev)
 	dd->fallback_sz = OMAP_SHA_DMA_THRESHOLD;
 
 	pm_runtime_enable(dev);
-	pm_runtime_irq_safe(dev);
 
 	err = pm_runtime_get_sync(dev);
 	if (err < 0) {
@@ -2197,6 +2202,7 @@ err_engine:
 	list_del(&dd->list);
 	spin_unlock_bh(&sham.lock);
 err_pm:
+	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_disable(dev);
 	if (!dd->polling_mode)
 		dma_release_channel(dd->dma_lch);
@@ -2224,6 +2230,7 @@ static int omap_sham_remove(struct platform_device *pdev)
 			dd->pdata->algs_info[i].registered--;
 		}
 	tasklet_kill(&dd->done_task);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	if (!dd->polling_mode)
@@ -2234,6 +2241,7 @@ static int omap_sham_remove(struct platform_device *pdev)
 	return 0;
 }
 
+<<<<<<< HEAD
 #ifdef CONFIG_PM_SLEEP
 static int omap_sham_suspend(struct device *dev)
 {
@@ -2254,12 +2262,13 @@ static int omap_sham_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(omap_sham_pm_ops, omap_sham_suspend, omap_sham_resume);
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 static struct platform_driver omap_sham_driver = {
 	.probe	= omap_sham_probe,
 	.remove	= omap_sham_remove,
 	.driver	= {
 		.name	= "omap-sham",
-		.pm	= &omap_sham_pm_ops,
 		.of_match_table	= omap_sham_of_match,
 	},
 };

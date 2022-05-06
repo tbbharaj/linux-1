@@ -6,5 +6,9 @@ TEST_GEN_FILES += huge_count_read_write
 TEST_FILES = _chk_dependency.sh _debugfs_common.sh
 TEST_PROGS = debugfs_attrs.sh debugfs_schemes.sh debugfs_target_ids.sh
 TEST_PROGS += debugfs_empty_targets.sh debugfs_huge_count_read_write.sh
+<<<<<<< HEAD
+=======
+TEST_PROGS += sysfs.sh
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 include ../lib.mk

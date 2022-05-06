@@ -127,7 +127,11 @@ static int spi_execute(struct scsi_device *sdev, const void *cmd,
 				      REQ_FAILFAST_TRANSPORT |
 				      REQ_FAILFAST_DRIVER,
 				      RQF_PM, NULL);
+<<<<<<< HEAD
 		if (driver_byte(result) != DRIVER_SENSE ||
+=======
+		if (result < 0 || !scsi_sense_valid(sshdr) ||
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		    sshdr->sense_key != UNIT_ATTENTION)
 			break;
 	}
@@ -1230,7 +1234,7 @@ int spi_populate_tag_msg(unsigned char *msg, struct scsi_cmnd *cmd)
 {
         if (cmd->flags & SCMD_TAGGED) {
 		*msg++ = SIMPLE_QUEUE_TAG;
-        	*msg++ = cmd->request->tag;
+		*msg++ = scsi_cmd_to_rq(cmd)->tag;
         	return 2;
 	}
 

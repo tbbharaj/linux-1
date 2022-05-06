@@ -61,6 +61,20 @@ enum cc_attr {
 	 * Examples include SEV-ES.
 	 */
 	CC_ATTR_GUEST_STATE_ENCRYPT,
+<<<<<<< HEAD
+=======
+
+	/**
+	 * @CC_ATTR_GUEST_UNROLL_STRING_IO: String I/O is implemented with
+	 *                                  IN/OUT instructions
+	 *
+	 * The platform/OS is running as a guest/virtual machine and uses
+	 * IN/OUT instructions in place of string I/O.
+	 *
+	 * Examples include TDX guest & SEV.
+	 */
+	CC_ATTR_GUEST_UNROLL_STRING_IO,
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 };
 
 #ifdef CONFIG_ARCH_HAS_CC_PLATFORM

@@ -181,9 +181,15 @@ func_add(struct tracepoint_func **funcs, struct tracepoint_func *tp_func,
 	 int prio)
 {
 	struct tracepoint_func *old, *new;
+<<<<<<< HEAD
 	int nr_probes = 0;
 	int stub_funcs = 0;
 	int pos = -1;
+=======
+	int iter_probes;	/* Iterate over old probe array. */
+	int nr_probes = 0;	/* Counter for probes */
+	int pos = -1;		/* Insertion position into new array */
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	if (WARN_ON(!tp_func->func))
 		return ERR_PTR(-EINVAL);
@@ -192,15 +198,18 @@ func_add(struct tracepoint_func **funcs, struct tracepoint_func *tp_func,
 	old = *funcs;
 	if (old) {
 		/* (N -> N+1), (N != 0, 1) probes */
-		for (nr_probes = 0; old[nr_probes].func; nr_probes++) {
-			/* Insert before probes of lower priority */
-			if (pos < 0 && old[nr_probes].prio < prio)
-				pos = nr_probes;
-			if (old[nr_probes].func == tp_func->func &&
-			    old[nr_probes].data == tp_func->data)
+		for (iter_probes = 0; old[iter_probes].func; iter_probes++) {
+			if (old[iter_probes].func == tp_stub_func)
+				continue;	/* Skip stub functions. */
+			if (old[iter_probes].func == tp_func->func &&
+			    old[iter_probes].data == tp_func->data)
 				return ERR_PTR(-EEXIST);
+<<<<<<< HEAD
 			if (old[nr_probes].func == tp_stub_func)
 				stub_funcs++;
+=======
+			nr_probes++;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		}
 	}
 	/* + 2 : one for new probe, one for NULL func - stub functions */
@@ -208,6 +217,7 @@ func_add(struct tracepoint_func **funcs, struct tracepoint_func *tp_func,
 	if (new == NULL)
 		return ERR_PTR(-ENOMEM);
 	if (old) {
+<<<<<<< HEAD
 		if (stub_funcs) {
 			/* Need to copy one at a time to remove stubs */
 			int probes = 0;
@@ -235,11 +245,26 @@ func_add(struct tracepoint_func **funcs, struct tracepoint_func *tp_func,
 			/* Copy the rest after it. */
 			memcpy(new + pos + 1, old + pos,
 			       (nr_probes - pos) * sizeof(struct tracepoint_func));
+=======
+		nr_probes = 0;
+		for (iter_probes = 0; old[iter_probes].func; iter_probes++) {
+			if (old[iter_probes].func == tp_stub_func)
+				continue;
+			/* Insert before probes of lower priority */
+			if (pos < 0 && old[iter_probes].prio < prio)
+				pos = nr_probes++;
+			new[nr_probes++] = old[iter_probes];
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		}
-	} else
+		if (pos < 0)
+			pos = nr_probes++;
+		/* nr_probes now points to the end of the new array */
+	} else {
 		pos = 0;
+		nr_probes = 1; /* must point at end of array */
+	}
 	new[pos] = *tp_func;
-	new[nr_probes + 1].func = NULL;
+	new[nr_probes].func = NULL;
 	*funcs = new;
 	debug_print_probes(*funcs);
 	return old;
@@ -282,11 +307,20 @@ static void *func_remove(struct tracepoint_func **funcs,
 		/* + 1 for NULL */
 		new = allocate_probes(nr_probes - nr_del + 1);
 		if (new) {
+<<<<<<< HEAD
 			for (i = 0; old[i].func; i++)
 				if ((old[i].func != tp_func->func
 				     || old[i].data != tp_func->data)
 				    && old[i].func != tp_stub_func)
 					new[j++] = old[i];
+=======
+			for (i = 0; old[i].func; i++) {
+				if ((old[i].func != tp_func->func ||
+				     old[i].data != tp_func->data) &&
+				    old[i].func != tp_stub_func)
+					new[j++] = old[i];
+			}
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 			new[nr_probes - nr_del].func = NULL;
 			*funcs = new;
 		} else {
@@ -294,6 +328,7 @@ static void *func_remove(struct tracepoint_func **funcs,
 			 * Failed to allocate, replace the old function
 			 * with calls to tp_stub_func.
 			 */
+<<<<<<< HEAD
 			for (i = 0; old[i].func; i++)
 				if (old[i].func == tp_func->func &&
 				    old[i].data == tp_func->data) {
@@ -305,6 +340,13 @@ static void *func_remove(struct tracepoint_func **funcs,
 					else
 						old[i].prio = -1;
 				}
+=======
+			for (i = 0; old[i].func; i++) {
+				if (old[i].func == tp_func->func &&
+				    old[i].data == tp_func->data)
+					WRITE_ONCE(old[i].func, tp_stub_func);
+			}
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 			*funcs = old;
 		}
 	}
@@ -598,7 +640,7 @@ bool trace_module_has_bad_taint(struct module *mod)
 static BLOCKING_NOTIFIER_HEAD(tracepoint_notify_list);
 
 /**
- * register_tracepoint_notifier - register tracepoint coming/going notifier
+ * register_tracepoint_module_notifier - register tracepoint coming/going notifier
  * @nb: notifier block
  *
  * Notifiers registered with this function are called on module
@@ -624,7 +666,7 @@ end:
 EXPORT_SYMBOL_GPL(register_tracepoint_module_notifier);
 
 /**
- * unregister_tracepoint_notifier - unregister tracepoint coming/going notifier
+ * unregister_tracepoint_module_notifier - unregister tracepoint coming/going notifier
  * @nb: notifier block
  *
  * The notifier block callback should expect a "struct tp_module" data
@@ -784,7 +826,7 @@ int syscall_regfunc(void)
 	if (!sys_tracepoint_refcount) {
 		read_lock(&tasklist_lock);
 		for_each_process_thread(p, t) {
-			set_tsk_thread_flag(t, TIF_SYSCALL_TRACEPOINT);
+			set_task_syscall_work(t, SYSCALL_TRACEPOINT);
 		}
 		read_unlock(&tasklist_lock);
 	}
@@ -801,7 +843,7 @@ void syscall_unregfunc(void)
 	if (!sys_tracepoint_refcount) {
 		read_lock(&tasklist_lock);
 		for_each_process_thread(p, t) {
-			clear_tsk_thread_flag(t, TIF_SYSCALL_TRACEPOINT);
+			clear_task_syscall_work(t, SYSCALL_TRACEPOINT);
 		}
 		read_unlock(&tasklist_lock);
 	}

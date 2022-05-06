@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 1994 Linus Torvalds
@@ -588,3 +589,5 @@ static inline void switch_fpu_finish(struct task_struct *next)
 }
 
 #endif /* _ASM_X86_FPU_INTERNAL_H */
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a

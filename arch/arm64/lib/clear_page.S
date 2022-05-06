@@ -14,7 +14,11 @@
  * Parameters:
  *	x0 - dest
  */
+<<<<<<< HEAD
 SYM_FUNC_START_PI(clear_page)
+=======
+SYM_FUNC_START(__pi_clear_page)
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	mrs	x1, dczid_el0
 	tbnz	x1, #4, 2f	/* Branch if DC ZVA is prohibited */
 	and	w1, w1, #0xf
@@ -35,5 +39,10 @@ SYM_FUNC_START_PI(clear_page)
 	tst	x0, #(PAGE_SIZE - 1)
 	b.ne	2b
 	ret
+<<<<<<< HEAD
 SYM_FUNC_END_PI(clear_page)
+=======
+SYM_FUNC_END(__pi_clear_page)
+SYM_FUNC_ALIAS(clear_page, __pi_clear_page)
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 EXPORT_SYMBOL(clear_page)

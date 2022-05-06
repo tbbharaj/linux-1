@@ -71,6 +71,7 @@ TRACE_EVENT(cros_ec_request_done,
 		  __entry->retval)
 );
 
+<<<<<<< HEAD
 TRACE_EVENT(cros_ec_sensorhub_timestamp,
 	    TP_PROTO(u32 ec_sample_timestamp, u32 ec_fifo_timestamp, s64 fifo_timestamp,
 		     s64 current_timestamp, s64 current_time),
@@ -165,6 +166,8 @@ TRACE_EVENT(cros_ec_sensorhub_filter,
 );
 
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #endif /* _CROS_EC_TRACE_H_ */
 
 /* this part must be outside header guard */

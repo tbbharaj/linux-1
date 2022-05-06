@@ -13,7 +13,7 @@ srctree := $(patsubst %/,%,$(dir $(srctree)))
 endif
 
 SUBCMD_SRCDIR		= $(srctree)/tools/lib/subcmd/
-LIBSUBCMD_OUTPUT	= $(if $(OUTPUT),$(OUTPUT),$(CURDIR)/)
+LIBSUBCMD_OUTPUT	= $(or $(OUTPUT),$(CURDIR)/)
 LIBSUBCMD		= $(LIBSUBCMD_OUTPUT)libsubcmd.a
 
 OBJTOOL    := $(OUTPUT)objtool
@@ -47,11 +47,14 @@ ifeq ($(SRCARCH),x86)
 	SUBCMD_ORC := y
 endif
 
+<<<<<<< HEAD
 ifeq ($(SRCARCH),arm64)
 	SUBCMD_CHECK := y
 	CFLAGS  += -Wno-nested-externs
 endif
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 export SUBCMD_CHECK SUBCMD_ORC
 export srctree OUTPUT CFLAGS SRCARCH AWK
 include $(srctree)/tools/build/Makefile.include

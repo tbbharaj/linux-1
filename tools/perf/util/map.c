@@ -1,31 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "symbol.h"
-#include <assert.h>
-#include <errno.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <uapi/linux/mman.h> /* To get things like MAP_HUGETLB even on older libc headers */
-#include "dso.h"
-#include "map.h"
-#include "map_symbol.h"
-#include "thread.h"
-#include "vdso.h"
-#include "build-id.h"
-#include "debug.h"
-#include "machine.h"
 #include <linux/string.h>
 #include <linux/zalloc.h>
-#include "srcline.h"
+#include <uapi/linux/mman.h> /* To get things like MAP_HUGETLB even on older libc headers */
+#include "debug.h"
+#include "dso.h"
+#include "map.h"
 #include "namespaces.h"
-#include "unwind.h"
-#include "srccode.h"
-#include "ui/ui.h"
-
-static void __maps__insert(struct maps *maps, struct map *map);
+#include "srcline.h"
+#include "symbol.h"
+#include "thread.h"
+#include "vdso.h"
 
 static inline int is_android_lib(const char *filename)
 {
@@ -129,8 +118,8 @@ void map__init(struct map *map, u64 start, u64 end, u64 pgoff, struct dso *dso)
 
 struct map *map__new(struct machine *machine, u64 start, u64 len,
 		     u64 pgoff, struct dso_id *id,
-		     u32 prot, u32 flags, char *filename,
-		     struct thread *thread)
+		     u32 prot, u32 flags, struct build_id *bid,
+		     char *filename, struct thread *thread)
 {
 	struct map *map = malloc(sizeof(*map));
 	struct nsinfo *nsi = NULL;
@@ -138,7 +127,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 
 	if (map != NULL) {
 		char newfilename[PATH_MAX];
-		struct dso *dso;
+		struct dso *dso, *header_bid_dso;
 		int anon, no_dso, vdso, android;
 
 		android = is_android_lib(filename);
@@ -151,7 +140,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 
 		if ((anon || no_dso) && nsi && (prot & PROT_EXEC)) {
 			snprintf(newfilename, sizeof(newfilename),
-				 "/tmp/perf-%d.map", nsi->pid);
+				 "/tmp/perf-%d.map", nsinfo__pid(nsi));
 			filename = newfilename;
 		}
 
@@ -168,7 +157,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 			nnsi = nsinfo__copy(nsi);
 			if (nnsi) {
 				nsinfo__put(nsi);
-				nnsi->need_setns = false;
+				nsinfo__clear_need_setns(nnsi);
 				nsi = nnsi;
 			}
 			pgoff = 0;
@@ -193,6 +182,24 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 				dso__set_loaded(dso);
 		}
 		dso->nsinfo = nsi;
+
+		if (build_id__is_defined(bid)) {
+			dso__set_build_id(dso, bid);
+		} else {
+			/*
+			 * If the mmap event had no build ID, search for an existing dso from the
+			 * build ID header by name. Otherwise only the dso loaded at the time of
+			 * reading the header will have the build ID set and all future mmaps will
+			 * have it missing.
+			 */
+			down_read(&machine->dsos.lock);
+			header_bid_dso = __dsos__find(&machine->dsos, filename, false);
+			up_read(&machine->dsos.lock);
+			if (header_bid_dso && header_bid_dso->header_build_id) {
+				dso__set_build_id(dso, &header_bid_dso->bid);
+				dso->header_build_id = 1;
+			}
+		}
 		dso__put(dso);
 	}
 	return map;
@@ -520,151 +527,14 @@ u64 map__objdump_2mem(struct map *map, u64 ip)
 	return ip + map->reloc;
 }
 
-void maps__init(struct maps *maps, struct machine *machine)
-{
-	maps->entries = RB_ROOT;
-	init_rwsem(&maps->lock);
-	maps->machine = machine;
-	maps->last_search_by_name = NULL;
-	maps->nr_maps = 0;
-	maps->maps_by_name = NULL;
-	refcount_set(&maps->refcnt, 1);
-}
-
-static void __maps__free_maps_by_name(struct maps *maps)
-{
-	/*
-	 * Free everything to try to do it from the rbtree in the next search
-	 */
-	zfree(&maps->maps_by_name);
-	maps->nr_maps_allocated = 0;
-}
-
-void maps__insert(struct maps *maps, struct map *map)
-{
-	down_write(&maps->lock);
-	__maps__insert(maps, map);
-	++maps->nr_maps;
-
-	if (map->dso && map->dso->kernel) {
-		struct kmap *kmap = map__kmap(map);
-
-		if (kmap)
-			kmap->kmaps = maps;
-		else
-			pr_err("Internal error: kernel dso with non kernel map\n");
-	}
-
-
-	/*
-	 * If we already performed some search by name, then we need to add the just
-	 * inserted map and resort.
-	 */
-	if (maps->maps_by_name) {
-		if (maps->nr_maps > maps->nr_maps_allocated) {
-			int nr_allocate = maps->nr_maps * 2;
-			struct map **maps_by_name = realloc(maps->maps_by_name, nr_allocate * sizeof(map));
-
-			if (maps_by_name == NULL) {
-				__maps__free_maps_by_name(maps);
-				up_write(&maps->lock);
-				return;
-			}
-
-			maps->maps_by_name = maps_by_name;
-			maps->nr_maps_allocated = nr_allocate;
-		}
-		maps->maps_by_name[maps->nr_maps - 1] = map;
-		__maps__sort_by_name(maps);
-	}
-	up_write(&maps->lock);
-}
-
-static void __maps__remove(struct maps *maps, struct map *map)
-{
-	rb_erase_init(&map->rb_node, &maps->entries);
-	map__put(map);
-}
-
-void maps__remove(struct maps *maps, struct map *map)
-{
-	down_write(&maps->lock);
-	if (maps->last_search_by_name == map)
-		maps->last_search_by_name = NULL;
-
-	__maps__remove(maps, map);
-	--maps->nr_maps;
-	if (maps->maps_by_name)
-		__maps__free_maps_by_name(maps);
-	up_write(&maps->lock);
-}
-
-static void __maps__purge(struct maps *maps)
-{
-	struct map *pos, *next;
-
-	maps__for_each_entry_safe(maps, pos, next) {
-		rb_erase_init(&pos->rb_node,  &maps->entries);
-		map__put(pos);
-	}
-}
-
-void maps__exit(struct maps *maps)
-{
-	down_write(&maps->lock);
-	__maps__purge(maps);
-	up_write(&maps->lock);
-}
-
-bool maps__empty(struct maps *maps)
-{
-	return !maps__first(maps);
-}
-
-struct maps *maps__new(struct machine *machine)
-{
-	struct maps *maps = zalloc(sizeof(*maps));
-
-	if (maps != NULL)
-		maps__init(maps, machine);
-
-	return maps;
-}
-
-void maps__delete(struct maps *maps)
-{
-	maps__exit(maps);
-	unwind__finish_access(maps);
-	free(maps);
-}
-
-void maps__put(struct maps *maps)
-{
-	if (maps && refcount_dec_and_test(&maps->refcnt))
-		maps__delete(maps);
-}
-
-struct symbol *maps__find_symbol(struct maps *maps, u64 addr, struct map **mapp)
-{
-	struct map *map = maps__find(maps, addr);
-
-	/* Ensure map is loaded before using map->map_ip */
-	if (map != NULL && map__load(map) >= 0) {
-		if (mapp != NULL)
-			*mapp = map;
-		return map__find_symbol(map, map->map_ip(map, addr));
-	}
-
-	return NULL;
-}
-
-static bool map__contains_symbol(struct map *map, struct symbol *sym)
+bool map__contains_symbol(const struct map *map, const struct symbol *sym)
 {
 	u64 ip = map->unmap_ip(map, sym->start);
 
 	return ip >= map->start && ip < map->end;
 }
 
+<<<<<<< HEAD
 struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name, struct map **mapp)
 {
 	struct symbol *sym;
@@ -917,6 +787,8 @@ struct map *maps__first(struct maps *maps)
 	return NULL;
 }
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 static struct map *__map__next(struct map *map)
 {
 	struct rb_node *next = rb_next(&map->rb_node);
@@ -956,4 +828,19 @@ struct maps *map__kmaps(struct map *map)
 		return NULL;
 	}
 	return kmap->kmaps;
+}
+
+u64 map__map_ip(const struct map *map, u64 ip)
+{
+	return ip - map->start + map->pgoff;
+}
+
+u64 map__unmap_ip(const struct map *map, u64 ip)
+{
+	return ip + map->start - map->pgoff;
+}
+
+u64 identity__map_ip(const struct map *map __maybe_unused, u64 ip)
+{
+	return ip;
 }

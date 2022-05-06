@@ -132,6 +132,11 @@ static const struct iio_info adc128_info = {
 	.read_raw = adc128_read_raw,
 };
 
+static void adc128_disable_regulator(void *reg)
+{
+	regulator_disable(reg);
+}
+
 static int adc128_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
@@ -151,8 +156,6 @@ static int adc128_probe(struct spi_device *spi)
 	adc = iio_priv(indio_dev);
 	adc->spi = spi;
 
-	spi_set_drvdata(spi, indio_dev);
-
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &adc128_info;
@@ -167,9 +170,14 @@ static int adc128_probe(struct spi_device *spi)
 	ret = regulator_enable(adc->reg);
 	if (ret < 0)
 		return ret;
+	ret = devm_add_action_or_reset(&spi->dev, adc128_disable_regulator,
+				       adc->reg);
+	if (ret)
+		return ret;
 
 	mutex_init(&adc->lock);
 
+<<<<<<< HEAD
 	ret = iio_device_register(indio_dev);
 	if (ret)
 		goto err_disable_regulator;
@@ -190,6 +198,9 @@ static int adc128_remove(struct spi_device *spi)
 	regulator_disable(adc->reg);
 
 	return 0;
+=======
+	return devm_iio_device_register(&spi->dev, indio_dev);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 }
 
 static const struct of_device_id adc128_of_match[] = {
@@ -231,7 +242,6 @@ static struct spi_driver adc128_driver = {
 		.acpi_match_table = ACPI_PTR(adc128_acpi_match),
 	},
 	.probe = adc128_probe,
-	.remove = adc128_remove,
 	.id_table = adc128_id,
 };
 module_spi_driver(adc128_driver);

@@ -295,6 +295,7 @@
 		};
 	};
 
+<<<<<<< HEAD
 	smb: bus@40000000 {
 		compatible = "simple-bus";
 
@@ -353,6 +354,8 @@
 				<0 0 42 &gic 0 42 4>;
 	};
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	site2: hsb@e0000000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;

@@ -58,11 +58,31 @@ struct static_call_site {
 	__raw_static_call(name);					\
 })
 
+<<<<<<< HEAD
+=======
+struct static_call_key {
+	void *func;
+	union {
+		/* bit 0: 0 = mods, 1 = sites */
+		unsigned long type;
+		struct static_call_mod *mods;
+		struct static_call_site *sites;
+	};
+};
+
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #else /* !CONFIG_HAVE_STATIC_CALL_INLINE */
 
 #define __STATIC_CALL_ADDRESSABLE(name)
 #define __static_call(name)	__raw_static_call(name)
 
+<<<<<<< HEAD
+=======
+struct static_call_key {
+	void *func;
+};
+
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #endif /* CONFIG_HAVE_STATIC_CALL_INLINE */
 
 #ifdef MODULE
@@ -77,6 +97,13 @@ struct static_call_site {
 
 #else
 
+<<<<<<< HEAD
+=======
+struct static_call_key {
+	void *func;
+};
+
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #define static_call(name)						\
 	((typeof(STATIC_CALL_TRAMP(name))*)(STATIC_CALL_KEY(name).func))
 

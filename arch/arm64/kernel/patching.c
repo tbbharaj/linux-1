@@ -8,7 +8,13 @@
 
 #include <asm/cacheflush.h>
 #include <asm/fixmap.h>
+<<<<<<< HEAD
 #include <asm/kprobes.h>
+=======
+#include <asm/insn.h>
+#include <asm/kprobes.h>
+#include <asm/patching.h>
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #include <asm/sections.h>
 
 static DEFINE_RAW_SPINLOCK(patch_lock);
@@ -97,7 +103,11 @@ int __kprobes aarch64_insn_patch_text_nosync(void *addr, u32 insn)
 
 	ret = aarch64_insn_write(tp, insn);
 	if (ret == 0)
+<<<<<<< HEAD
 		__flush_icache_range((uintptr_t)tp,
+=======
+		caches_clean_inval_pou((uintptr_t)tp,
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 				     (uintptr_t)tp + AARCH64_INSN_SIZE);
 
 	return ret;
@@ -115,8 +125,13 @@ static int __kprobes aarch64_insn_patch_text_cb(void *arg)
 	int i, ret = 0;
 	struct aarch64_insn_patch *pp = arg;
 
+<<<<<<< HEAD
 	/* The first CPU becomes master */
 	if (atomic_inc_return(&pp->cpu_count) == 1) {
+=======
+	/* The last CPU becomes master */
+	if (atomic_inc_return(&pp->cpu_count) == num_online_cpus()) {
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		for (i = 0; ret == 0 && i < pp->insn_cnt; i++)
 			ret = aarch64_insn_patch_text_nosync(pp->text_addrs[i],
 							     pp->new_insns[i]);

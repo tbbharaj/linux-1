@@ -8,6 +8,10 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
+<<<<<<< HEAD
+=======
+#include "i915_driver.h"
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #include "i915_drv.h"
 #include "i915_mitigations.h"
 

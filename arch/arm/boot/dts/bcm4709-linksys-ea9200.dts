@@ -20,6 +20,14 @@
 		device_type = "memory";
 		reg = <0x00000000 0x08000000>,
 		      <0x88000000 0x08000000>;
+<<<<<<< HEAD
+=======
+	};
+
+	nvram@1c080000 {
+		compatible = "brcm,nvram";
+		reg = <0x1c080000 0x180000>;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	};
 
 	gpio-keys {

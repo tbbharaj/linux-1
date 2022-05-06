@@ -3,6 +3,7 @@
 # Makefile for DCN21.
 
 DCN21 = dcn21_init.o dcn21_hubp.o dcn21_hubbub.o dcn21_resource.o \
+<<<<<<< HEAD
 	 dcn21_hwseq.o dcn21_link_encoder.o
 
 ifdef CONFIG_X86
@@ -29,6 +30,9 @@ else
 CFLAGS_$(AMDDALPATH)/dc/dcn21/dcn21_resource.o += -msse2
 endif
 endif
+=======
+	 dcn21_hwseq.o dcn21_link_encoder.o dcn21_dccg.o
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 AMD_DAL_DCN21 = $(addprefix $(AMDDALPATH)/dc/dcn21/,$(DCN21))
 

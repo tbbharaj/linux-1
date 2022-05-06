@@ -7,6 +7,10 @@
 
 #include "meson-gxbb.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+<<<<<<< HEAD
+=======
+#include <dt-bindings/leds/common.h>
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 / {
 	aliases {
@@ -26,8 +30,10 @@
 	leds {
 		compatible = "gpio-leds";
 
-		led-system {
-			label = "wetek-play:system-status";
+		led-power {
+			/* red in suspend or power-off */
+			color = <LED_COLOR_ID_BLUE>;
+			function = LED_FUNCTION_POWER;
 			gpios = <&gpio_ao GPIOAO_13 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 			panic-indicator;

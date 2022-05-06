@@ -19,6 +19,7 @@ void perf_regs_load(u64 *regs);
 #define PERF_REG_IP     PERF_REG_POWERPC_NIP
 #define PERF_REG_SP     PERF_REG_POWERPC_R1
 
+<<<<<<< HEAD
 static const char *reg_names[] = {
 	[PERF_REG_POWERPC_R0] = "r0",
 	[PERF_REG_POWERPC_R1] = "r1",
@@ -77,4 +78,6 @@ static inline const char *__perf_reg_name(int id)
 {
 	return reg_names[id];
 }
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #endif /* ARCH_PERF_REGS_H */

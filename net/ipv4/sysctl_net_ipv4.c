@@ -6,29 +6,22 @@
  * Added /proc/sys/net/ipv4 directory entry (empty =) ). [MS]
  */
 
-#include <linux/mm.h>
-#include <linux/module.h>
 #include <linux/sysctl.h>
-#include <linux/igmp.h>
-#include <linux/inetdevice.h>
 #include <linux/seqlock.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/nsproxy.h>
-#include <linux/swap.h>
-#include <net/snmp.h>
 #include <net/icmp.h>
 #include <net/ip.h>
-#include <net/route.h>
+#include <net/ip_fib.h>
 #include <net/tcp.h>
 #include <net/udp.h>
 #include <net/cipso_ipv4.h>
-#include <net/inet_frag.h>
 #include <net/ping.h>
 #include <net/protocol.h>
 #include <net/netevent.h>
 
 static int two = 2;
+static int three __maybe_unused = 3;
 static int four = 4;
 static int thousand = 1000;
 static int tcp_retr1_max = 255;
@@ -46,9 +39,10 @@ static int tcp_syn_retries_min = 1;
 static int tcp_syn_retries_max = MAX_TCP_SYNCNT;
 static int ip_ping_group_range_min[] = { 0, 0 };
 static int ip_ping_group_range_max[] = { GID_T_MAX, GID_T_MAX };
-static int comp_sack_nr_max = 255;
 static u32 u32_max_div_HZ = UINT_MAX / HZ;
 static int one_day_secs = 24 * 3600;
+static u32 fib_multipath_hash_fields_all_mask __maybe_unused =
+	FIB_MULTIPATH_HASH_FIELD_ALL_MASK;
 
 /* obsolete */
 static int sysctl_tcp_low_latency __read_mostly;
@@ -456,7 +450,23 @@ static int proc_fib_multipath_hash_policy(struct ctl_table *table, int write,
 	    ipv4.sysctl_fib_multipath_hash_policy);
 	int ret;
 
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	ret = proc_dou8vec_minmax(table, write, buffer, lenp, ppos);
+	if (write && ret == 0)
+		call_netevent_notifiers(NETEVENT_IPV4_MPATH_HASH_UPDATE, net);
+
+	return ret;
+}
+
+static int proc_fib_multipath_hash_fields(struct ctl_table *table, int write,
+					  void *buffer, size_t *lenp,
+					  loff_t *ppos)
+{
+	struct net *net;
+	int ret;
+
+	net = container_of(table->data, struct net,
+			   ipv4.sysctl_fib_multipath_hash_fields);
+	ret = proc_douintvec_minmax(table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
 		call_netevent_notifiers(NETEVENT_IPV4_MPATH_HASH_UPDATE, net);
 
@@ -575,28 +585,39 @@ static struct ctl_table ipv4_table[] = {
 		.extra1		= &sysctl_fib_sync_mem_min,
 		.extra2		= &sysctl_fib_sync_mem_max,
 	},
-	{
-		.procname	= "tcp_rx_skb_cache",
-		.data		= &tcp_rx_skb_cache_key.key,
-		.mode		= 0644,
-		.proc_handler	= proc_do_static_key,
-	},
-	{
-		.procname	= "tcp_tx_skb_cache",
-		.data		= &tcp_tx_skb_cache_key.key,
-		.mode		= 0644,
-		.proc_handler	= proc_do_static_key,
-	},
 	{ }
 };
 
 static struct ctl_table ipv4_net_table[] = {
+	/* tcp_max_tw_buckets must be first in this table. */
+	{
+<<<<<<< HEAD
+		.procname	= "icmp_echo_ignore_all",
+		.data		= &init_net.ipv4.sysctl_icmp_echo_ignore_all,
+		.maxlen		= sizeof(u8),
+=======
+		.procname	= "tcp_max_tw_buckets",
+/*		.data		= &init_net.ipv4.tcp_death_row.sysctl_max_tw_buckets, */
+		.maxlen		= sizeof(int),
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
+		.mode		= 0644,
+		.proc_handler	= proc_dou8vec_minmax,
+	},
 	{
 		.procname	= "icmp_echo_ignore_all",
 		.data		= &init_net.ipv4.sysctl_icmp_echo_ignore_all,
 		.maxlen		= sizeof(u8),
 		.mode		= 0644,
 		.proc_handler	= proc_dou8vec_minmax,
+	},
+	{
+		.procname	= "icmp_echo_enable_probe",
+		.data		= &init_net.ipv4.sysctl_icmp_echo_enable_probe,
+		.maxlen		= sizeof(u8),
+		.mode		= 0644,
+		.proc_handler	= proc_dou8vec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE
 	},
 	{
 		.procname	= "icmp_echo_ignore_broadcasts",
@@ -839,9 +860,9 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "igmp_link_local_mcast_reports",
 		.data		= &init_net.ipv4.sysctl_igmp_llm_reports,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_dou8vec_minmax,
 	},
 	{
 		.procname	= "igmp_max_memberships",
@@ -994,13 +1015,6 @@ static struct ctl_table ipv4_net_table[] = {
 		.extra2		= &two,
 	},
 	{
-		.procname	= "tcp_max_tw_buckets",
-		.data		= &init_net.ipv4.tcp_death_row.sysctl_max_tw_buckets,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{
 		.procname	= "tcp_max_syn_backlog",
 		.data		= &init_net.ipv4.sysctl_max_syn_backlog,
 		.maxlen		= sizeof(int),
@@ -1038,20 +1052,29 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "fib_multipath_use_neigh",
 		.data		= &init_net.ipv4.sysctl_fib_multipath_use_neigh,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_dou8vec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
 	{
 		.procname	= "fib_multipath_hash_policy",
 		.data		= &init_net.ipv4.sysctl_fib_multipath_hash_policy,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(u8),
 		.mode		= 0644,
 		.proc_handler	= proc_fib_multipath_hash_policy,
 		.extra1		= SYSCTL_ZERO,
-		.extra2		= &two,
+		.extra2		= &three,
+	},
+	{
+		.procname	= "fib_multipath_hash_fields",
+		.data		= &init_net.ipv4.sysctl_fib_multipath_hash_fields,
+		.maxlen		= sizeof(u32),
+		.mode		= 0644,
+		.proc_handler	= proc_fib_multipath_hash_fields,
+		.extra1		= SYSCTL_ONE,
+		.extra2		= &fib_multipath_hash_fields_all_mask,
 	},
 #endif
 	{
@@ -1065,9 +1088,9 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "udp_l3mdev_accept",
 		.data		= &init_net.ipv4.sysctl_udp_l3mdev_accept,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_dou8vec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
@@ -1253,6 +1276,16 @@ static struct ctl_table ipv4_net_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dou8vec_minmax,
 		.extra1		= SYSCTL_ONE,
+<<<<<<< HEAD
+=======
+	},
+	{
+		.procname	= "tcp_tso_rtt_log",
+		.data		= &init_net.ipv4.sysctl_tcp_tso_rtt_log,
+		.maxlen		= sizeof(u8),
+		.mode		= 0644,
+		.proc_handler	= proc_dou8vec_minmax,
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	},
 	{
 		.procname	= "tcp_min_rtt_wlen",
@@ -1330,11 +1363,10 @@ static struct ctl_table ipv4_net_table[] = {
 	{
 		.procname	= "tcp_comp_sack_nr",
 		.data		= &init_net.ipv4.sysctl_tcp_comp_sack_nr,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(u8),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_dou8vec_minmax,
 		.extra1		= SYSCTL_ZERO,
-		.extra2		= &comp_sack_nr_max,
 	},
 	{
 		.procname       = "tcp_reflect_tos",
@@ -1361,6 +1393,15 @@ static struct ctl_table ipv4_net_table[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ONE
 	},
+	{
+		.procname	= "fib_notify_on_flag_change",
+		.data		= &init_net.ipv4.sysctl_fib_notify_on_flag_change,
+		.maxlen		= sizeof(u8),
+		.mode		= 0644,
+		.proc_handler	= proc_dou8vec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= &two,
+	},
 	{ }
 };
 
@@ -1376,7 +1417,12 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 		if (!table)
 			goto err_alloc;
 
+<<<<<<< HEAD
 		for (i = 0; i < ARRAY_SIZE(ipv4_net_table) - 1; i++) {
+=======
+		/* skip first entry (sysctl_max_tw_buckets) */
+		for (i = 1; i < ARRAY_SIZE(ipv4_net_table) - 1; i++) {
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 			if (table[i].data) {
 				/* Update the variables to point into
 				 * the current struct net
@@ -1390,6 +1436,8 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 			}
 		}
 	}
+
+	table[0].data = &net->ipv4.tcp_death_row->sysctl_max_tw_buckets;
 
 	net->ipv4.ipv4_hdr = register_net_sysctl(net, "net/ipv4", table);
 	if (!net->ipv4.ipv4_hdr)

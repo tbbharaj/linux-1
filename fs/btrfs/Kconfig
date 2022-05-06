@@ -18,8 +18,12 @@ config BTRFS_FS
 	select RAID6_PQ
 	select XOR_BLOCKS
 	select SRCU
+<<<<<<< HEAD
 	depends on !PPC_256K_PAGES	# powerpc
 	depends on !PAGE_SIZE_256KB	# hexagon
+=======
+	depends on PAGE_SIZE_LESS_THAN_256KB
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	help
 	  Btrfs is a general purpose copy-on-write filesystem with extents,

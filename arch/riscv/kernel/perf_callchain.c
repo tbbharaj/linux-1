@@ -4,11 +4,7 @@
 #include <linux/perf_event.h>
 #include <linux/uaccess.h>
 
-/* Kernel callchain */
-struct stackframe {
-	unsigned long fp;
-	unsigned long ra;
-};
+#include <asm/stacktrace.h>
 
 /*
  * Get the return address for a single stackframe and return a pointer to the
@@ -19,8 +15,8 @@ static unsigned long user_backtrace(struct perf_callchain_entry_ctx *entry,
 {
 	struct stackframe buftail;
 	unsigned long ra = 0;
-	unsigned long *user_frame_tail =
-			(unsigned long *)(fp - sizeof(struct stackframe));
+	unsigned long __user *user_frame_tail =
+		(unsigned long __user *)(fp - sizeof(struct stackframe));
 
 	/* Check accessibility of one struct frame_tail beyond */
 	if (!access_ok(user_frame_tail, sizeof(buftail)))
@@ -63,10 +59,13 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 	struct perf_guest_info_callbacks *guest_cbs = perf_get_guest_cbs();
 	unsigned long fp = 0;
 
+<<<<<<< HEAD
 	/* RISC-V does not support perf in guest mode. */
 	if (guest_cbs && guest_cbs->is_in_guest())
 		return;
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	fp = regs->s0;
 	perf_callchain_store(entry, regs->epc);
 
@@ -75,16 +74,15 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 		fp = user_backtrace(entry, fp, 0);
 }
 
-bool fill_callchain(unsigned long pc, void *entry)
+static bool fill_callchain(void *entry, unsigned long pc)
 {
-	return perf_callchain_store(entry, pc);
+	return perf_callchain_store(entry, pc) == 0;
 }
 
-void notrace walk_stackframe(struct task_struct *task,
-	struct pt_regs *regs, bool (*fn)(unsigned long, void *), void *arg);
 void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 			   struct pt_regs *regs)
 {
+<<<<<<< HEAD
 	struct perf_guest_info_callbacks *guest_cbs = perf_get_guest_cbs();
 
 	/* RISC-V does not support perf in guest mode. */
@@ -93,5 +91,7 @@ void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 		return;
 	}
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	walk_stackframe(NULL, regs, fill_callchain, entry);
 }

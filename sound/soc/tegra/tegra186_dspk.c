@@ -59,6 +59,8 @@ static int tegra186_dspk_get_osr_val(struct snd_kcontrol *kcontrol,
 	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
 
 	ucontrol->value.enumerated.item[0] = dspk->osr_val;
+<<<<<<< HEAD
+=======
 
 	return 0;
 }
@@ -163,10 +165,118 @@ static int tegra186_dspk_get_stereo_to_mono(struct snd_kcontrol *kcontrol,
 	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
 
 	ucontrol->value.enumerated.item[0] = dspk->stereo_to_mono;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	return 0;
 }
 
+<<<<<<< HEAD
+static int tegra186_dspk_put_osr_val(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
+	unsigned int value = ucontrol->value.enumerated.item[0];
+
+	if (value == dspk->osr_val)
+		return 0;
+
+	dspk->osr_val = value;
+
+	return 1;
+}
+
+static int tegra186_dspk_get_pol_sel(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
+
+	ucontrol->value.enumerated.item[0] = dspk->lrsel;
+
+	return 0;
+}
+
+static int tegra186_dspk_put_pol_sel(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
+	unsigned int value = ucontrol->value.enumerated.item[0];
+
+	if (value == dspk->lrsel)
+		return 0;
+
+	dspk->lrsel = value;
+
+	return 1;
+}
+
+static int tegra186_dspk_get_ch_sel(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
+
+	ucontrol->value.enumerated.item[0] = dspk->ch_sel;
+
+	return 0;
+}
+
+static int tegra186_dspk_put_ch_sel(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
+	unsigned int value = ucontrol->value.enumerated.item[0];
+
+	if (value == dspk->ch_sel)
+		return 0;
+
+	dspk->ch_sel = value;
+
+	return 1;
+}
+
+static int tegra186_dspk_get_mono_to_stereo(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
+
+	ucontrol->value.enumerated.item[0] = dspk->mono_to_stereo;
+
+	return 0;
+}
+
+static int tegra186_dspk_put_mono_to_stereo(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
+	unsigned int value = ucontrol->value.enumerated.item[0];
+
+	if (value == dspk->mono_to_stereo)
+		return 0;
+
+	dspk->mono_to_stereo = value;
+
+	return 1;
+}
+
+static int tegra186_dspk_get_stereo_to_mono(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
+	struct tegra186_dspk *dspk = snd_soc_component_get_drvdata(codec);
+
+	ucontrol->value.enumerated.item[0] = dspk->stereo_to_mono;
+
+	return 0;
+}
+
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 static int tegra186_dspk_put_stereo_to_mono(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
@@ -328,7 +438,7 @@ static struct snd_soc_dai_driver tegra186_dspk_dais[] = {
 			   SNDRV_PCM_FMTBIT_S32_LE,
 	    },
 	    .ops = &tegra186_dspk_dai_ops,
-	    .symmetric_rates = 1,
+	    .symmetric_rate = 1,
 	},
 };
 
@@ -423,7 +533,7 @@ static bool tegra186_dspk_wr_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static bool tegra186_dspk_rd_reg(struct device *dev, unsigned int reg)
@@ -439,7 +549,7 @@ static bool tegra186_dspk_rd_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static bool tegra186_dspk_volatile_reg(struct device *dev, unsigned int reg)
@@ -452,7 +562,7 @@ static bool tegra186_dspk_volatile_reg(struct device *dev, unsigned int reg)
 		return true;
 	default:
 		return false;
-	};
+	}
 }
 
 static const struct regmap_config tegra186_dspk_regmap = {

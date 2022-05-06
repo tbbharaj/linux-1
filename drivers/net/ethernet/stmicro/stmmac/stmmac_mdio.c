@@ -397,6 +397,41 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 	return 0;
 }
 
+int stmmac_xpcs_setup(struct mii_bus *bus)
+{
+	struct net_device *ndev = bus->priv;
+	struct mdio_device *mdiodev;
+	struct stmmac_priv *priv;
+	struct dw_xpcs *xpcs;
+	int mode, addr;
+
+	priv = netdev_priv(ndev);
+	mode = priv->plat->phy_interface;
+
+	/* Try to probe the XPCS by scanning all addresses. */
+	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
+		mdiodev = mdio_device_create(bus, addr);
+		if (IS_ERR(mdiodev))
+			continue;
+
+		xpcs = xpcs_create(mdiodev, mode);
+		if (IS_ERR_OR_NULL(xpcs)) {
+			mdio_device_free(mdiodev);
+			continue;
+		}
+
+		priv->hw->xpcs = xpcs;
+		break;
+	}
+
+	if (!priv->hw->xpcs) {
+		dev_warn(priv->device, "No xPCS found\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 /**
  * stmmac_mdio_register
  * @ndev: net device structure
@@ -424,6 +459,9 @@ int stmmac_mdio_register(struct net_device *ndev)
 
 	new_bus->name = "stmmac";
 
+	if (priv->plat->has_gmac4)
+		new_bus->probe_capabilities = MDIOBUS_C22_C45;
+
 	if (priv->plat->has_xgmac) {
 		new_bus->read = &stmmac_xgmac2_mdio_read;
 		new_bus->write = &stmmac_xgmac2_mdio_write;
@@ -439,14 +477,6 @@ int stmmac_mdio_register(struct net_device *ndev)
 		new_bus->read = &stmmac_mdio_read;
 		new_bus->write = &stmmac_mdio_write;
 		max_addr = PHY_MAX_ADDR;
-	}
-
-	if (mdio_bus_data->has_xpcs) {
-		priv->hw->xpcs = mdio_xpcs_get_ops();
-		if (!priv->hw->xpcs) {
-			err = -ENODEV;
-			goto bus_register_fail;
-		}
 	}
 
 	if (mdio_bus_data->needs_reset)
@@ -504,6 +534,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 		dev_warn(dev, "No PHY found\n");
 		err = -ENODEV;
 		goto no_phy_found;
+<<<<<<< HEAD
 	}
 
 	/* Try to probe the XPCS by scanning all addresses. */
@@ -530,6 +561,8 @@ int stmmac_mdio_register(struct net_device *ndev)
 			err = -ENODEV;
 			goto no_xpcs_found;
 		}
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	}
 
 bus_register_done:
@@ -537,7 +570,10 @@ bus_register_done:
 
 	return 0;
 
+<<<<<<< HEAD
 no_xpcs_found:
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 no_phy_found:
 	mdiobus_unregister(new_bus);
 bus_register_fail:
@@ -556,6 +592,11 @@ int stmmac_mdio_unregister(struct net_device *ndev)
 
 	if (!priv->mii)
 		return 0;
+
+	if (priv->hw->xpcs) {
+		mdio_device_free(priv->hw->xpcs->mdiodev);
+		xpcs_destroy(priv->hw->xpcs);
+	}
 
 	mdiobus_unregister(priv->mii);
 	priv->mii->priv = NULL;

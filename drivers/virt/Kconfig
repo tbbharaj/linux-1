@@ -15,6 +15,7 @@ if VIRT_DRIVERS
 
 config VMGENID
 	tristate "Virtual Machine Generation ID driver"
+<<<<<<< HEAD
 	depends on ACPI && SYSGENID
 	help
 	  The driver uses the hypervisor provided Virtual Machine Generation ID
@@ -25,6 +26,16 @@ config VMGENID
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vmgenid.
+=======
+	default y
+	depends on ACPI
+	help
+	  Say Y here to use the hypervisor-provided Virtual Machine Generation ID
+	  to reseed the RNG when the VM is cloned. This is highly recommended if
+	  you intend to do any rollback / cloning / snapshotting of VMs.
+
+	  Prefer Y to M so that this protection is activated very early.
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 config FSL_HV_MANAGER
 	tristate "Freescale hypervisor management driver"
@@ -47,4 +58,6 @@ config FSL_HV_MANAGER
 source "drivers/virt/vboxguest/Kconfig"
 
 source "drivers/virt/nitro_enclaves/Kconfig"
+
+source "drivers/virt/acrn/Kconfig"
 endif

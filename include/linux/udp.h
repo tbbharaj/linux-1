@@ -23,11 +23,6 @@ static inline struct udphdr *udp_hdr(const struct sk_buff *skb)
 	return (struct udphdr *)skb_transport_header(skb);
 }
 
-static inline struct udphdr *inner_udp_hdr(const struct sk_buff *skb)
-{
-	return (struct udphdr *)skb_inner_transport_header(skb);
-}
-
 #define UDP_HTABLE_SIZE_MIN		(CONFIG_BASE_SMALL ? 128 : 256)
 
 static inline u32 udp_hashfn(const struct net *net, u32 num, u32 mask)
@@ -143,6 +138,15 @@ static inline bool udp_unexpected_gso(struct sock *sk, struct sk_buff *skb)
 		return true;
 
 	return false;
+<<<<<<< HEAD
+=======
+}
+
+static inline void udp_allow_gso(struct sock *sk)
+{
+	udp_sk(sk)->accept_udp_l4 = 1;
+	udp_sk(sk)->accept_udp_fraglist = 1;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 }
 
 #define udp_portaddr_for_each_entry(__sk, list) \

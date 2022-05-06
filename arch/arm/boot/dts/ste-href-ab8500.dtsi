@@ -9,7 +9,11 @@
 	soc {
 		prcmu@80157000 {
 			ab8500 {
+<<<<<<< HEAD
 				ab8500-gpiocontroller {
+=======
+				gpio {
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 					/* Hog a few default settings */
 					pinctrl-names = "default";
 					pinctrl-0 = <&gpio2_default_mode>,

@@ -33,6 +33,7 @@
 #include <generated/utsrelease.h>
 #include <asm/efi.h>
 
+<<<<<<< HEAD
 /* xen_cpuid_base/hypervisor_cpuid_base inlines */
 #include <asm/xen/hypervisor.h>
 
@@ -40,6 +41,8 @@
 #define STATIC
 #include <linux/decompress/mm.h>
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #define _SETUP
 #include <asm/setup.h>	/* For COMMAND_LINE_SIZE */
 #undef _SETUP
@@ -643,9 +646,9 @@ static bool process_mem_region(struct mem_vector *region,
 
 		if (slot_area_index == MAX_SLOT_AREA) {
 			debug_putstr("Aborted e820/efi memmap scan (slot_areas full)!\n");
-			return 1;
+			return true;
 		}
-		return 0;
+		return false;
 	}
 
 #if defined(CONFIG_MEMORY_HOTREMOVE) && defined(CONFIG_ACPI)
@@ -672,7 +675,7 @@ static bool process_mem_region(struct mem_vector *region,
 
 		if (slot_area_index == MAX_SLOT_AREA) {
 			debug_putstr("Aborted e820/efi memmap scan when walking immovable regions(slot_areas full)!\n");
-			return 1;
+			return true;
 		}
 	}
 #endif

@@ -47,6 +47,7 @@ static inline void hchacha_block(const u32 *state, u32 *out, int nrounds)
 		hchacha_block_generic(state, out, nrounds);
 }
 
+<<<<<<< HEAD
 static inline void chacha_init_consts(u32 *state)
 {
 	state[0]  = 0x61707865; /* "expa" */
@@ -58,6 +59,26 @@ static inline void chacha_init_consts(u32 *state)
 void chacha_init_arch(u32 *state, const u32 *key, const u8 *iv);
 static inline void chacha_init_generic(u32 *state, const u32 *key, const u8 *iv)
 {
+=======
+enum chacha_constants { /* expand 32-byte k */
+	CHACHA_CONSTANT_EXPA = 0x61707865U,
+	CHACHA_CONSTANT_ND_3 = 0x3320646eU,
+	CHACHA_CONSTANT_2_BY = 0x79622d32U,
+	CHACHA_CONSTANT_TE_K = 0x6b206574U
+};
+
+static inline void chacha_init_consts(u32 *state)
+{
+	state[0]  = CHACHA_CONSTANT_EXPA;
+	state[1]  = CHACHA_CONSTANT_ND_3;
+	state[2]  = CHACHA_CONSTANT_2_BY;
+	state[3]  = CHACHA_CONSTANT_TE_K;
+}
+
+void chacha_init_arch(u32 *state, const u32 *key, const u8 *iv);
+static inline void chacha_init_generic(u32 *state, const u32 *key, const u8 *iv)
+{
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	chacha_init_consts(state);
 	state[4]  = key[0];
 	state[5]  = key[1];

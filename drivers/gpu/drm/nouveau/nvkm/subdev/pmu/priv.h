@@ -41,6 +41,7 @@ int gt215_pmu_send(struct nvkm_pmu *, u32[2], u32, u32, u32, u32);
 
 bool gf100_pmu_enabled(struct nvkm_pmu *);
 void gf100_pmu_reset(struct nvkm_pmu *);
+void gp102_pmu_reset(struct nvkm_pmu *pmu);
 
 void gk110_pmu_pgob(struct nvkm_pmu *, bool);
 
@@ -64,8 +65,8 @@ int gf100_pmu_nofw(struct nvkm_pmu *, int, const struct nvkm_pmu_fwif *);
 int gm200_pmu_nofw(struct nvkm_pmu *, int, const struct nvkm_pmu_fwif *);
 int gm20b_pmu_load(struct nvkm_pmu *, int, const struct nvkm_pmu_fwif *);
 
-int nvkm_pmu_ctor(const struct nvkm_pmu_fwif *, struct nvkm_device *,
-		  int index, struct nvkm_pmu *);
-int nvkm_pmu_new_(const struct nvkm_pmu_fwif *, struct nvkm_device *,
-		  int index, struct nvkm_pmu **);
+int nvkm_pmu_ctor(const struct nvkm_pmu_fwif *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		  struct nvkm_pmu *);
+int nvkm_pmu_new_(const struct nvkm_pmu_fwif *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		  struct nvkm_pmu **);
 #endif

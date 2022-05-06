@@ -1,15 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/init.h>
 #include <linux/static_call.h>
-#include <linux/bug.h>
-#include <linux/smp.h>
-#include <linux/sort.h>
-#include <linux/slab.h>
-#include <linux/module.h>
-#include <linux/cpu.h>
-#include <linux/processor.h>
-#include <asm/sections.h>
 
+<<<<<<< HEAD
 extern struct static_call_site __start_static_call_sites[],
 			       __stop_static_call_sites[];
 extern struct static_call_tramp_key __start_static_call_tramp_key[],
@@ -63,20 +55,13 @@ static inline void static_call_set_init(struct static_call_site *site)
 }
 
 static int static_call_site_cmp(const void *_a, const void *_b)
+=======
+long __static_call_return0(void)
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 {
-	const struct static_call_site *a = _a;
-	const struct static_call_site *b = _b;
-	const struct static_call_key *key_a = static_call_key(a);
-	const struct static_call_key *key_b = static_call_key(b);
-
-	if (key_a < key_b)
-		return -1;
-
-	if (key_a > key_b)
-		return 1;
-
 	return 0;
 }
+<<<<<<< HEAD
 
 static void static_call_site_swap(void *_a, void *_b, int size)
 {
@@ -541,3 +526,6 @@ static int __init test_static_call_init(void)
 early_initcall(test_static_call_init);
 
 #endif /* CONFIG_STATIC_CALL_SELFTEST */
+=======
+EXPORT_SYMBOL_GPL(__static_call_return0);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a

@@ -40,6 +40,8 @@
 
 #include <linux/timex.h>
 
+int time_keeper_id __read_mostly;	/* CPU used for timekeeping. */
+
 static unsigned long clocktick __ro_after_init;	/* timer cycles per tick */
 
 /*
@@ -70,8 +72,6 @@ irqreturn_t __irq_entry timer_interrupt(int irq, void *dev_id)
 	/* gcc can optimize for "read-only" case with a local clocktick */
 	unsigned long cpt = clocktick;
 
-	profile_tick(CPU_PROFILING);
-
 	/* Initialize next_tick to the old expected tick time. */
 	next_tick = cpuinfo->it_value;
 
@@ -86,10 +86,9 @@ irqreturn_t __irq_entry timer_interrupt(int irq, void *dev_id)
 	cpuinfo->it_value = next_tick;
 
 	/* Go do system house keeping. */
-	if (cpu == 0)
-		xtime_update(ticks_elapsed);
-
-	update_process_times(user_mode(get_irq_regs()));
+	if (IS_ENABLED(CONFIG_SMP) && (cpu != time_keeper_id))
+		ticks_elapsed = 0;
+	legacy_timer_tick(ticks_elapsed);
 
 	/* Skip clockticks on purpose if we know we would miss those.
 	 * The new CR16 must be "later" than current CR16 otherwise
@@ -153,7 +152,7 @@ static struct clocksource clocksource_cr16 = {
 	.flags			= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-void __init start_cpu_itimer(void)
+void start_cpu_itimer(void)
 {
 	unsigned int cpu = smp_processor_id();
 	unsigned long next_tick = mfctl(16) + clocktick;
@@ -256,14 +255,20 @@ static int __init init_cr16_clocksource(void)
 	 * they share the same socket.
 	 */
 	if (num_online_cpus() > 1 && !running_on_qemu) {
+<<<<<<< HEAD
 		clocksource_cr16.name = "cr16_unstable";
 		clocksource_cr16.flags = CLOCK_SOURCE_UNSTABLE;
 		clocksource_cr16.rating = 0;
 	}
+=======
+		/* mark sched_clock unstable */
+		clear_sched_clock_stable();
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
-	/* XXX: We may want to mark sched_clock stable here if cr16 clocks are
-	 *	in sync:
-	 *	(clocksource_cr16.flags == CLOCK_SOURCE_IS_CONTINUOUS) */
+		clocksource_cr16.name = "cr16_unstable";
+		clocksource_cr16.flags = CLOCK_SOURCE_UNSTABLE;
+		clocksource_cr16.rating = 0;
+	}
 
 	/* register at clocksource framework */
 	clocksource_register_hz(&clocksource_cr16,

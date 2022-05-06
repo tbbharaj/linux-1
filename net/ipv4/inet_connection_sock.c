@@ -534,7 +534,8 @@ out:
 				   atomic_read(&newsk->sk_rmem_alloc));
 		mem_cgroup_sk_alloc(newsk);
 		if (newsk->sk_memcg && amt)
-			mem_cgroup_charge_skmem(newsk->sk_memcg, amt);
+			mem_cgroup_charge_skmem(newsk->sk_memcg, amt,
+						GFP_KERNEL | __GFP_NOFAIL);
 
 		release_sock(newsk);
 	}
@@ -610,7 +611,7 @@ struct dst_entry *inet_csk_route_req(const struct sock *sk,
 			   (opt && opt->opt.srr) ? opt->opt.faddr : ireq->ir_rmt_addr,
 			   ireq->ir_loc_addr, ireq->ir_rmt_port,
 			   htons(ireq->ir_num), sk->sk_uid);
-	security_req_classify_flow(req, flowi4_to_flowi(fl4));
+	security_req_classify_flow(req, flowi4_to_flowi_common(fl4));
 	rt = ip_route_output_flow(net, fl4, sk);
 	if (IS_ERR(rt))
 		goto no_route;
@@ -648,7 +649,7 @@ struct dst_entry *inet_csk_route_child_sock(const struct sock *sk,
 			   (opt && opt->opt.srr) ? opt->opt.faddr : ireq->ir_rmt_addr,
 			   ireq->ir_loc_addr, ireq->ir_rmt_port,
 			   htons(ireq->ir_num), sk->sk_uid);
-	security_req_classify_flow(req, flowi4_to_flowi(fl4));
+	security_req_classify_flow(req, flowi4_to_flowi_common(fl4));
 	rt = ip_route_output_flow(net, fl4, sk);
 	if (IS_ERR(rt))
 		goto no_route;
@@ -720,7 +721,11 @@ static struct request_sock *inet_reqsk_clone(struct request_sock *req,
 
 	sk_node_init(&nreq_sk->sk_node);
 	nreq_sk->sk_tx_queue_mapping = req_sk->sk_tx_queue_mapping;
+<<<<<<< HEAD
 #ifdef CONFIG_XPS
+=======
+#ifdef CONFIG_SOCK_RX_QUEUE_MAPPING
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	nreq_sk->sk_rx_queue_mapping = req_sk->sk_rx_queue_mapping;
 #endif
 	nreq_sk->sk_incoming_cpu = req_sk->sk_incoming_cpu;
@@ -808,11 +813,19 @@ static void reqsk_timer_handler(struct timer_list *t)
 		nsk = reuseport_migrate_sock(sk_listener, req_to_sk(req), NULL);
 		if (!nsk)
 			goto drop;
+<<<<<<< HEAD
 
 		nreq = inet_reqsk_clone(req, nsk);
 		if (!nreq)
 			goto drop;
 
+=======
+
+		nreq = inet_reqsk_clone(req, nsk);
+		if (!nreq)
+			goto drop;
+
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		/* The new timer for the cloned req can decrease the 2
 		 * by calling inet_csk_reqsk_queue_drop_and_put(), so
 		 * hold another count to prevent use-after-free and
@@ -865,12 +878,14 @@ static void reqsk_timer_handler(struct timer_list *t)
 	    (!resend ||
 	     !inet_rtx_syn_ack(sk_listener, req) ||
 	     inet_rsk(req)->acked)) {
-		unsigned long timeo;
-
 		if (req->num_timeout++ == 0)
 			atomic_dec(&queue->young);
+<<<<<<< HEAD
 		timeo = min(TCP_TIMEOUT_INIT << req->num_timeout, TCP_RTO_MAX);
 		mod_timer(&req->rsk_timer, jiffies + timeo);
+=======
+		mod_timer(&req->rsk_timer, jiffies + reqsk_timeout(req, TCP_RTO_MAX));
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 		if (!nreq)
 			return;
@@ -1034,7 +1049,7 @@ void inet_csk_prepare_forced_close(struct sock *sk)
 }
 EXPORT_SYMBOL(inet_csk_prepare_forced_close);
 
-int inet_csk_listen_start(struct sock *sk, int backlog)
+int inet_csk_listen_start(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct inet_sock *inet = inet_sk(sk);
@@ -1044,6 +1059,9 @@ int inet_csk_listen_start(struct sock *sk, int backlog)
 
 	sk->sk_ack_backlog = 0;
 	inet_csk_delack_init(sk);
+
+	if (sk->sk_txrehash == SOCK_TXREHASH_DEFAULT)
+		sk->sk_txrehash = READ_ONCE(sock_net(sk)->core.sysctl_txrehash);
 
 	/* There is race window here: we announce ourselves listening,
 	 * but this transition is still not validated by get_port().

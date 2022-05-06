@@ -77,6 +77,7 @@ static int init_display(struct fbtft_par *par)
 	return 0;
 }
 
+<<<<<<< HEAD
 static void reset(struct fbtft_par *par)
 {
 	if (!par->gpio.reset)
@@ -90,6 +91,8 @@ static void reset(struct fbtft_par *par)
 	mdelay(120);
 }
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 /* Check if all necessary GPIOS defined */
 static int verify_gpios(struct fbtft_par *par)
 {
@@ -439,7 +442,6 @@ static struct fbtft_display display = {
 		.set_addr_win = set_addr_win,
 		.verify_gpios = verify_gpios,
 		.request_gpios_match = request_gpios_match,
-		.reset = reset,
 		.write = write,
 		.write_register = write_reg8_bus8,
 		.write_vmem = write_vmem,

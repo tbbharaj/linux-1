@@ -7,9 +7,10 @@
  * Denis Ciocca <denis.ciocca@st.com>
  */
 
+#include <linux/acpi.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/slab.h>
+#include <linux/mod_devicetable.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 
@@ -101,6 +102,7 @@ static int st_press_i2c_probe(struct i2c_client *client,
 	ret = st_sensors_power_enable(indio_dev);
 	if (ret)
 		return ret;
+<<<<<<< HEAD
 
 	ret = st_press_common_probe(indio_dev);
 	if (ret < 0)
@@ -123,6 +125,10 @@ static int st_press_i2c_remove(struct i2c_client *client)
 	st_sensors_power_disable(indio_dev);
 
 	return 0;
+=======
+
+	return st_press_common_probe(indio_dev);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 }
 
 static struct i2c_driver st_press_driver = {
@@ -132,7 +138,6 @@ static struct i2c_driver st_press_driver = {
 		.acpi_match_table = ACPI_PTR(st_press_acpi_match),
 	},
 	.probe = st_press_i2c_probe,
-	.remove = st_press_i2c_remove,
 	.id_table = st_press_id_table,
 };
 module_i2c_driver(st_press_driver);
@@ -140,3 +145,4 @@ module_i2c_driver(st_press_driver);
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics pressures i2c driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_ST_SENSORS);

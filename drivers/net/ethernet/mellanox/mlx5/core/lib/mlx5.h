@@ -95,4 +95,16 @@ static inline struct net *mlx5_core_net(struct mlx5_core_dev *dev)
 	return devlink_net(priv_to_devlink(dev));
 }
 
+<<<<<<< HEAD
+=======
+static inline void mlx5_uplink_netdev_set(struct mlx5_core_dev *mdev, struct net_device *netdev)
+{
+	mdev->mlx5e_res.uplink_netdev = netdev;
+}
+
+static inline struct net_device *mlx5_uplink_netdev_get(struct mlx5_core_dev *mdev)
+{
+	return mdev->mlx5e_res.uplink_netdev;
+}
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #endif

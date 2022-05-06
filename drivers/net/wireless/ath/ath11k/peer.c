@@ -118,7 +118,7 @@ exit:
 }
 
 void ath11k_peer_map_event(struct ath11k_base *ab, u8 vdev_id, u16 peer_id,
-			   u8 *mac_addr, u16 ast_hash)
+			   u8 *mac_addr, u16 ast_hash, u16 hw_peer_id)
 {
 	struct ath11k_peer *peer;
 
@@ -132,6 +132,7 @@ void ath11k_peer_map_event(struct ath11k_base *ab, u8 vdev_id, u16 peer_id,
 		peer->vdev_id = vdev_id;
 		peer->peer_id = peer_id;
 		peer->ast_hash = ast_hash;
+		peer->hw_peer_id = hw_peer_id;
 		ether_addr_copy(peer->addr, mac_addr);
 		list_add(&peer->list, &ab->peers);
 		wake_up(&ab->peer_mapping_wq);
@@ -250,7 +251,8 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 		       struct ieee80211_sta *sta, struct peer_create_params *param)
 {
 	struct ath11k_peer *peer;
-	int ret;
+	struct ath11k_sta *arsta;
+	int ret, fbret;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
@@ -289,6 +291,7 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 		ath11k_warn(ar->ab, "failed to find peer %pM on vdev %i after creation\n",
 			    param->peer_addr, param->vdev_id);
 
+<<<<<<< HEAD
 		reinit_completion(&ar->peer_delete_done);
 
 		ret = ath11k_wmi_send_peer_delete_cmd(ar, param->peer_addr,
@@ -305,18 +308,56 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 			return ret;
 
 		return -ENOENT;
+=======
+		ret = -ENOENT;
+		goto cleanup;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	}
 
 	peer->pdev_idx = ar->pdev_idx;
 	peer->sta = sta;
-	arvif->ast_hash = peer->ast_hash;
+
+	if (arvif->vif->type == NL80211_IFTYPE_STATION) {
+		arvif->ast_hash = peer->ast_hash;
+		arvif->ast_idx = peer->hw_peer_id;
+	}
 
 	peer->sec_type = HAL_ENCRYPT_TYPE_OPEN;
 	peer->sec_type_grp = HAL_ENCRYPT_TYPE_OPEN;
+
+	if (sta) {
+		arsta = (struct ath11k_sta *)sta->drv_priv;
+		arsta->tcl_metadata |= FIELD_PREP(HTT_TCL_META_DATA_TYPE, 0) |
+				       FIELD_PREP(HTT_TCL_META_DATA_PEER_ID,
+						  peer->peer_id);
+
+		/* set HTT extension valid bit to 0 by default */
+		arsta->tcl_metadata &= ~HTT_TCL_META_DATA_VALID_HTT;
+	}
 
 	ar->num_peers++;
 
 	spin_unlock_bh(&ar->ab->base_lock);
 
 	return 0;
+
+cleanup:
+	reinit_completion(&ar->peer_delete_done);
+
+	fbret = ath11k_wmi_send_peer_delete_cmd(ar, param->peer_addr,
+						param->vdev_id);
+	if (fbret) {
+		ath11k_warn(ar->ab, "failed to delete peer vdev_id %d addr %pM\n",
+			    param->vdev_id, param->peer_addr);
+		goto exit;
+	}
+
+	fbret = ath11k_wait_for_peer_delete_done(ar, param->vdev_id,
+						 param->peer_addr);
+	if (fbret)
+		ath11k_warn(ar->ab, "failed wait for peer %pM delete done id %d fallback ret %d\n",
+			    param->peer_addr, param->vdev_id, fbret);
+
+exit:
+	return ret;
 }

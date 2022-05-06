@@ -23,14 +23,19 @@
 #define EX(a,b)							\
 9:	a,##b;							\
 	.section __ex_table,"a";				\
-	PTR	9b,fault;					\
+	PTR_WD	9b,fault;					\
 	.previous
 
 #define EX2(a,b)						\
 9:	a,##b;							\
 	.section __ex_table,"a";				\
+<<<<<<< HEAD
 	PTR	9b,fault;					\
 	PTR	9b+4,fault;					\
+=======
+	PTR_WD	9b,fault;					\
+	PTR_WD	9b+4,fault;					\
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	.previous
 
 	.set	mips1

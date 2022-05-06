@@ -56,8 +56,14 @@ if echo "$test" | grep -q '^#' ; then
 fi
 
 # If no expected output given, assume an Oops with back trace is success.
+repeat=1
 if [ -z "$expect" ]; then
 	expect="call trace:"
+else
+	if echo "$expect" | grep -q '^repeat:' ; then
+		repeat=$(echo "$expect" | cut -d' ' -f1 | cut -d: -f2)
+		expect=$(echo "$expect" | cut -d' ' -f2-)
+	fi
 fi
 
 # Prepare log for report checking
@@ -83,7 +89,13 @@ dmesg > "$DMESG"
 # the signal that killed the subprocess, we must ignore the failure and
 # continue. However we don't silence stderr since there might be other
 # useful details reported there in the case of other unexpected conditions.
+<<<<<<< HEAD
 echo "$test" | cat >"$TRIGGER" || true
+=======
+for i in $(seq 1 $repeat); do
+	echo "$test" | cat >"$TRIGGER" || true
+done
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 # Record and dump the results
 dmesg | comm --nocheck-order -13 "$DMESG" - > "$LOG" || true

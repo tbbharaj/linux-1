@@ -12,6 +12,10 @@
 struct masq_dev_work {
 	struct work_struct work;
 	struct net *net;
+<<<<<<< HEAD
+=======
+	netns_tracker ns_tracker;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	union nf_inet_addr addr;
 	int ifindex;
 	int (*iter)(struct nf_conn *i, void *data);
@@ -82,7 +86,11 @@ static void iterate_cleanup_work(struct work_struct *work)
 
 	nf_ct_iterate_cleanup_net(w->net, w->iter, (void *)w, 0, 0);
 
+<<<<<<< HEAD
 	put_net(w->net);
+=======
+	put_net_track(w->net, &w->ns_tracker);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	kfree(w);
 	atomic_dec(&masq_worker_count);
 	module_put(THIS_MODULE);
@@ -119,6 +127,10 @@ static void nf_nat_masq_schedule(struct net *net, union nf_inet_addr *addr,
 		INIT_WORK(&w->work, iterate_cleanup_work);
 		w->ifindex = ifindex;
 		w->net = net;
+<<<<<<< HEAD
+=======
+		netns_tracker_alloc(net, &w->ns_tracker, gfp_flags);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		w->iter = iter;
 		if (addr)
 			w->addr = *addr;
@@ -282,9 +294,15 @@ static int masq_inet6_event(struct notifier_block *this,
 		return NOTIFY_DONE;
 
 	dev = ifa->idev->dev;
+<<<<<<< HEAD
 
 	memset(&addr, 0, sizeof(addr));
 
+=======
+
+	memset(&addr, 0, sizeof(addr));
+
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	addr.in6 = ifa->addr;
 
 	nf_nat_masq_schedule(dev_net(dev), &addr, dev->ifindex, inet_cmp,

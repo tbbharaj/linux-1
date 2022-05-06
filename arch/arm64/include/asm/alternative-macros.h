@@ -3,6 +3,10 @@
 #define __ASM_ALTERNATIVE_MACROS_H
 
 #include <asm/cpucaps.h>
+<<<<<<< HEAD
+=======
+#include <asm/insn-def.h>
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 #define ARM64_CB_PATCH ARM64_NCAPS
 
@@ -94,9 +98,15 @@
 	.popsection
 	.subsection 1
 663:	\insn2
+<<<<<<< HEAD
 664:	.previous
 	.org	. - (664b-663b) + (662b-661b)
 	.org	. - (662b-661b) + (664b-663b)
+=======
+664:	.org	. - (664b-663b) + (662b-661b)
+	.org	. - (662b-661b) + (664b-663b)
+	.previous
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	.endif
 .endm
 
@@ -166,11 +176,19 @@
  */
 .macro alternative_endif
 664:
+<<<<<<< HEAD
 	.if .Lasm_alt_mode==0
 	.previous
 	.endif
 	.org	. - (664b-663b) + (662b-661b)
 	.org	. - (662b-661b) + (664b-663b)
+=======
+	.org	. - (664b-663b) + (662b-661b)
+	.org	. - (662b-661b) + (664b-663b)
+	.if .Lasm_alt_mode==0
+	.previous
+	.endif
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 .endm
 
 /*
@@ -194,11 +212,14 @@ alternative_endif
 #define _ALTERNATIVE_CFG(insn1, insn2, cap, cfg, ...)	\
 	alternative_insn insn1, insn2, cap, IS_ENABLED(cfg)
 
+<<<<<<< HEAD
 .macro user_alt, label, oldinstr, newinstr, cond
 9999:	alternative_insn "\oldinstr", "\newinstr", \cond
 	_asm_extable 9999b, \label
 .endm
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #endif  /*  __ASSEMBLY__  */
 
 /*

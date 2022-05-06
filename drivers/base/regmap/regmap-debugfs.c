@@ -368,7 +368,7 @@ static ssize_t regmap_reg_ranges_read_file(struct file *file,
 	char *buf;
 	char *entry;
 	int ret;
-	unsigned entry_len;
+	unsigned int entry_len;
 
 	if (*ppos < 0 || !count)
 		return -EINVAL;
@@ -598,7 +598,11 @@ void regmap_debugfs_init(struct regmap *map)
 		map->debugfs_name = kasprintf(GFP_KERNEL, "dummy%d",
 						dummy_index);
 		if (!map->debugfs_name)
+<<<<<<< HEAD
 				return;
+=======
+			return;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		name = map->debugfs_name;
 		dummy_index++;
 	}

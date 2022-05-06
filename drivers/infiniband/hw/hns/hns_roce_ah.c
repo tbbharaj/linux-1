@@ -30,7 +30,10 @@
  * SOFTWARE.
  */
 
+<<<<<<< HEAD
 #include <linux/platform_device.h>
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #include <linux/pci.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_cache.h>
@@ -60,6 +63,12 @@ int hns_roce_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibah->device);
 	struct hns_roce_ah *ah = to_hr_ah(ibah);
 	int ret = 0;
+<<<<<<< HEAD
+=======
+
+	if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP08 && udata)
+		return -EOPNOTSUPP;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	ah->av.port = rdma_ah_get_port_num(ah_attr);
 	ah->av.gid_index = grh->sgid_index;
@@ -77,7 +86,11 @@ int hns_roce_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 	memcpy(ah->av.mac, ah_attr->roce.dmac, ETH_ALEN);
 
 	/* HIP08 needs to record vlan info in Address Vector */
+<<<<<<< HEAD
 	if (hr_dev->pci_dev->revision <= PCI_REVISION_ID_HIP08) {
+=======
+	if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP08) {
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		ret = rdma_read_gid_l2_fields(ah_attr->grh.sgid_attr,
 					      &ah->av.vlan_id, NULL);
 		if (ret)

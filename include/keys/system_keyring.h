@@ -16,9 +16,16 @@ extern int restrict_link_by_builtin_trusted(struct key *keyring,
 					    const struct key_type *type,
 					    const union key_payload *payload,
 					    struct key *restriction_key);
+extern __init int load_module_cert(struct key *keyring);
 
 #else
 #define restrict_link_by_builtin_trusted restrict_link_reject
+
+static inline __init int load_module_cert(struct key *keyring)
+{
+	return 0;
+}
+
 #endif
 
 #ifdef CONFIG_SECONDARY_TRUSTED_KEYRING
@@ -31,6 +38,23 @@ extern int restrict_link_by_builtin_and_secondary_trusted(
 #define restrict_link_by_builtin_and_secondary_trusted restrict_link_by_builtin_trusted
 #endif
 
+<<<<<<< HEAD
+=======
+#ifdef CONFIG_INTEGRITY_MACHINE_KEYRING
+extern int restrict_link_by_builtin_secondary_and_machine(
+	struct key *dest_keyring,
+	const struct key_type *type,
+	const union key_payload *payload,
+	struct key *restrict_key);
+extern void __init set_machine_trusted_keys(struct key *keyring);
+#else
+#define restrict_link_by_builtin_secondary_and_machine restrict_link_by_builtin_trusted
+static inline void __init set_machine_trusted_keys(struct key *keyring)
+{
+}
+#endif
+
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 extern struct pkcs7_message *pkcs7;
 #ifdef CONFIG_SYSTEM_BLACKLIST_KEYRING
 extern int mark_hash_blacklisted(const char *hash);

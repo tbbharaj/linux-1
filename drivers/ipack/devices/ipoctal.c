@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
- * ipoctal.c
- *
+/*
  * driver for the GE IP-OCTAL boards
  *
  * Copyright (C) 2009-2012 CERN (www.cern.ch)
@@ -278,7 +276,11 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 {
 	int res;
 	int i;
+<<<<<<< HEAD
 	struct tty_driver *tty;
+=======
+	struct tty_driver *drv;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	struct ipoctal_channel *channel;
 	struct ipack_region *region;
 	void __iomem *addr;
@@ -361,12 +363,13 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	/* Register the TTY device */
 
 	/* Each IP-OCTAL channel is a TTY port */
-	tty = alloc_tty_driver(NR_CHANNELS);
-
-	if (!tty)
-		return -ENOMEM;
+	drv = tty_alloc_driver(NR_CHANNELS, TTY_DRIVER_REAL_RAW |
+			TTY_DRIVER_DYNAMIC_DEV);
+	if (IS_ERR(drv))
+		return PTR_ERR(drv);
 
 	/* Fill struct tty_driver with ipoctal data */
+<<<<<<< HEAD
 	tty->owner = THIS_MODULE;
 	tty->driver_name = KBUILD_MODNAME;
 	tty->name = kasprintf(GFP_KERNEL, KBUILD_MODNAME ".%d.%d.", bus_nr, slot);
@@ -387,13 +390,34 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 
 	tty_set_operations(tty, &ipoctal_fops);
 	res = tty_register_driver(tty);
+=======
+	drv->owner = THIS_MODULE;
+	drv->driver_name = KBUILD_MODNAME;
+	drv->name = kasprintf(GFP_KERNEL, KBUILD_MODNAME ".%d.%d.", bus_nr, slot);
+	if (!drv->name) {
+		res = -ENOMEM;
+		goto err_put_driver;
+	}
+	drv->major = 0;
+
+	drv->minor_start = 0;
+	drv->type = TTY_DRIVER_TYPE_SERIAL;
+	drv->subtype = SERIAL_TYPE_NORMAL;
+	drv->init_termios = tty_std_termios;
+	drv->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL | CLOCAL;
+	drv->init_termios.c_ispeed = 9600;
+	drv->init_termios.c_ospeed = 9600;
+
+	tty_set_operations(drv, &ipoctal_fops);
+	res = tty_register_driver(drv);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	if (res) {
 		dev_err(&ipoctal->dev->dev, "Can't register tty driver.\n");
 		goto err_free_name;
 	}
 
 	/* Save struct tty_driver for use it when uninstalling the device */
-	ipoctal->tty_drv = tty;
+	ipoctal->tty_drv = drv;
 
 	for (i = 0; i < NR_CHANNELS; i++) {
 		struct device *tty_dev;
@@ -410,7 +434,11 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 		spin_lock_init(&channel->lock);
 		channel->pointer_read = 0;
 		channel->pointer_write = 0;
+<<<<<<< HEAD
 		tty_dev = tty_port_register_device_attr(&channel->tty_port, tty,
+=======
+		tty_dev = tty_port_register_device_attr(&channel->tty_port, drv,
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 							i, NULL, channel, NULL);
 		if (IS_ERR(tty_dev)) {
 			dev_err(&ipoctal->dev->dev, "Failed to register tty device.\n");
@@ -432,9 +460,15 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 	return 0;
 
 err_free_name:
+<<<<<<< HEAD
 	kfree(tty->name);
 err_put_driver:
 	put_tty_driver(tty);
+=======
+	kfree(drv->name);
+err_put_driver:
+	tty_driver_kref_put(drv);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	return res;
 }
@@ -485,14 +519,14 @@ static int ipoctal_write_tty(struct tty_struct *tty,
 	return char_copied;
 }
 
-static int ipoctal_write_room(struct tty_struct *tty)
+static unsigned int ipoctal_write_room(struct tty_struct *tty)
 {
 	struct ipoctal_channel *channel = tty->driver_data;
 
 	return PAGE_SIZE - channel->nb_bytes;
 }
 
-static int ipoctal_chars_in_buffer(struct tty_struct *tty)
+static unsigned int ipoctal_chars_in_buffer(struct tty_struct *tty)
 {
 	struct ipoctal_channel *channel = tty->driver_data;
 
@@ -569,7 +603,6 @@ static void ipoctal_set_termios(struct tty_struct *tty,
 		break;
 	default:
 		return;
-		break;
 	}
 
 	baud = tty_get_baud_rate(tty);
@@ -731,7 +764,11 @@ static void __ipoctal_remove(struct ipoctal *ipoctal)
 
 	tty_unregister_driver(ipoctal->tty_drv);
 	kfree(ipoctal->tty_drv->name);
+<<<<<<< HEAD
 	put_tty_driver(ipoctal->tty_drv);
+=======
+	tty_driver_kref_put(ipoctal->tty_drv);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	kfree(ipoctal);
 }
 

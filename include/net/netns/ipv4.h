@@ -11,7 +11,6 @@
 #include <linux/rcupdate.h>
 #include <linux/siphash.h>
 
-struct tcpm_hash_bucket;
 struct ctl_table_header;
 struct ipv4_devconf;
 struct fib_rules_ops;
@@ -32,7 +31,7 @@ struct ping_group_range {
 struct inet_hashinfo;
 
 struct inet_timewait_death_row {
-	atomic_t		tw_count;
+	refcount_t		tw_refcount;
 
 	struct inet_hashinfo 	*hashinfo ____cacheline_aligned_in_smp;
 	int			sysctl_max_tw_buckets;
@@ -41,6 +40,8 @@ struct inet_timewait_death_row {
 struct tcp_fastopen_context;
 
 struct netns_ipv4 {
+	struct inet_timewait_death_row *tcp_death_row;
+
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*forw_hdr;
 	struct ctl_table_header	*frags_hdr;
@@ -54,42 +55,41 @@ struct netns_ipv4 {
 	struct mutex		ra_mutex;
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	struct fib_rules_ops	*rules_ops;
-	bool			fib_has_custom_rules;
-	unsigned int		fib_rules_require_fldissect;
 	struct fib_table __rcu	*fib_main;
 	struct fib_table __rcu	*fib_default;
+	unsigned int		fib_rules_require_fldissect;
+	bool			fib_has_custom_rules;
 #endif
 	bool			fib_has_custom_local_routes;
+	bool			fib_offload_disabled;
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	atomic_t		fib_num_tclassid_users;
 #endif
 	struct hlist_head	*fib_table_hash;
-	bool			fib_offload_disabled;
 	struct sock		*fibnl;
 
-	struct sock  * __percpu	*icmp_sk;
 	struct sock		*mc_autojoin_sk;
 
 	struct inet_peer_base	*peers;
-	struct sock  * __percpu	*tcp_sk;
 	struct fqdir		*fqdir;
-#ifdef CONFIG_NETFILTER
-	struct xt_table		*iptable_filter;
-	struct xt_table		*iptable_mangle;
-	struct xt_table		*iptable_raw;
-	struct xt_table		*arptable_filter;
-#ifdef CONFIG_SECURITY
-	struct xt_table		*iptable_security;
-#endif
-	struct xt_table		*nat_table;
-#endif
 
 	u8 sysctl_icmp_echo_ignore_all;
+<<<<<<< HEAD
+=======
+	u8 sysctl_icmp_echo_enable_probe;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	u8 sysctl_icmp_echo_ignore_broadcasts;
 	u8 sysctl_icmp_ignore_bogus_error_responses;
 	u8 sysctl_icmp_errors_use_inbound_ifaddr;
 	int sysctl_icmp_ratelimit;
 	int sysctl_icmp_ratemask;
+<<<<<<< HEAD
+=======
+
+	u32 ip_rt_min_pmtu;
+	int ip_rt_mtu_expires;
+	int ip_rt_min_advmss;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	struct local_ports ip_local_ports;
 
@@ -133,6 +133,10 @@ struct netns_ipv4 {
 	u8 sysctl_tcp_synack_retries;
 	u8 sysctl_tcp_syncookies;
 	u8 sysctl_tcp_migrate_req;
+<<<<<<< HEAD
+=======
+	u8 sysctl_tcp_comp_sack_nr;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	int sysctl_tcp_reordering;
 	u8 sysctl_tcp_retries1;
 	u8 sysctl_tcp_retries2;
@@ -166,6 +170,10 @@ struct netns_ipv4 {
 	int sysctl_tcp_challenge_ack_limit;
 	int sysctl_tcp_min_rtt_wlen;
 	u8 sysctl_tcp_min_tso_segs;
+<<<<<<< HEAD
+=======
+	u8 sysctl_tcp_tso_rtt_log;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	u8 sysctl_tcp_autocorking;
 	u8 sysctl_tcp_reflect_tos;
 	int sysctl_tcp_invalid_ratelimit;
@@ -173,15 +181,12 @@ struct netns_ipv4 {
 	int sysctl_tcp_pacing_ca_ratio;
 	int sysctl_tcp_wmem[3];
 	int sysctl_tcp_rmem[3];
-	int sysctl_tcp_comp_sack_nr;
 	unsigned long sysctl_tcp_comp_sack_delay_ns;
 	unsigned long sysctl_tcp_comp_sack_slack_ns;
-	struct inet_timewait_death_row tcp_death_row;
 	int sysctl_max_syn_backlog;
 	int sysctl_tcp_fastopen;
 	const struct tcp_congestion_ops __rcu  *tcp_congestion_control;
 	struct tcp_fastopen_context __rcu *tcp_fastopen_ctx;
-	spinlock_t tcp_fastopen_ctx_lock;
 	unsigned int sysctl_tcp_fastopen_blackhole_timeout;
 	atomic_t tfo_active_disable_times;
 	unsigned long tfo_active_disable_stamp;
@@ -189,13 +194,15 @@ struct netns_ipv4 {
 	int sysctl_udp_wmem_min;
 	int sysctl_udp_rmem_min;
 
+	u8 sysctl_fib_notify_on_flag_change;
+
 #ifdef CONFIG_NET_L3_MASTER_DEV
-	int sysctl_udp_l3mdev_accept;
+	u8 sysctl_udp_l3mdev_accept;
 #endif
 
+	u8 sysctl_igmp_llm_reports;
 	int sysctl_igmp_max_memberships;
 	int sysctl_igmp_max_msf;
-	int sysctl_igmp_llm_reports;
 	int sysctl_igmp_qrv;
 
 	struct ping_group_range ping_group_range;
@@ -216,8 +223,9 @@ struct netns_ipv4 {
 #endif
 #endif
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-	int sysctl_fib_multipath_use_neigh;
-	int sysctl_fib_multipath_hash_policy;
+	u32 sysctl_fib_multipath_hash_fields;
+	u8 sysctl_fib_multipath_use_neigh;
+	u8 sysctl_fib_multipath_hash_policy;
 #endif
 
 	struct fib_notifier_ops	*notifier_ops;

@@ -47,7 +47,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <asm/sections.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/irq.h>
 
 #ifdef CONFIG_PPC_PMAC
@@ -1705,9 +1705,17 @@ static int __init pmz_init_port(struct uart_pmac_port *uap)
 	struct resource *r_ports, *r_irq;
 
 	r_ports = platform_get_resource(uap->pdev, IORESOURCE_MEM, 0);
+<<<<<<< HEAD
 	r_irq = platform_get_resource(uap->pdev, IORESOURCE_IRQ, 0);
 	if (!r_ports || !r_irq)
+=======
+	if (!r_ports)
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		return -ENODEV;
+
+	irq = platform_get_irq(uap->pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	uap->port.mapbase  = r_ports->start;
 	uap->port.membase  = (unsigned char __iomem *) r_ports->start;
@@ -1940,7 +1948,7 @@ static void __exit exit_pmz(void)
 
 #ifdef CONFIG_SERIAL_PMACZILOG_CONSOLE
 
-static void pmz_console_putchar(struct uart_port *port, int ch)
+static void pmz_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	struct uart_pmac_port *uap =
 		container_of(port, struct uart_pmac_port, port);

@@ -11,12 +11,25 @@
 #include <linux/mutex.h>
 #include <linux/time64.h>
 #include <linux/types.h>
+<<<<<<< HEAD
+=======
+#include <linux/random.h>
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 /* Minimal region size.  Every damon_region is aligned by this. */
 #define DAMON_MIN_REGION	PAGE_SIZE
 /* Max priority score for DAMON-based operation schemes */
 #define DAMOS_MAX_SCORE		(99)
 
+<<<<<<< HEAD
+=======
+/* Get a random number in [l, r) */
+static inline unsigned long damon_rand(unsigned long l, unsigned long r)
+{
+	return l + prandom_u32_max(r - l);
+}
+
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 /**
  * struct damon_addr_range - Represents an address region of [@start, @end).
  * @start:	Start address of the region (inclusive).
@@ -53,19 +66,31 @@ struct damon_region {
 
 /**
  * struct damon_target - Represents a monitoring target.
+<<<<<<< HEAD
  * @id:			Unique identifier for this target.
+=======
+ * @pid:		The PID of the virtual address space to monitor.
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
  * @nr_regions:		Number of monitoring target regions of this target.
  * @regions_list:	Head of the monitoring target regions of this target.
  * @list:		List head for siblings.
  *
  * Each monitoring context could have multiple targets.  For example, a context
  * for virtual memory address spaces could have multiple target processes.  The
+<<<<<<< HEAD
  * @id of each target should be unique among the targets of the context.  For
  * example, in the virtual address monitoring context, it could be a pidfd or
  * an address of an mm_struct.
  */
 struct damon_target {
 	unsigned long id;
+=======
+ * @pid should be set for appropriate &struct damon_operations including the
+ * virtual address spaces monitoring operations.
+ */
+struct damon_target {
+	struct pid *pid;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	unsigned int nr_regions;
 	struct list_head regions_list;
 	struct list_head list;
@@ -81,6 +106,10 @@ struct damon_target {
  * @DAMOS_HUGEPAGE:	Call ``madvise()`` for the region with MADV_HUGEPAGE.
  * @DAMOS_NOHUGEPAGE:	Call ``madvise()`` for the region with MADV_NOHUGEPAGE.
  * @DAMOS_STAT:		Do nothing but count the stat.
+<<<<<<< HEAD
+=======
+ * @NR_DAMOS_ACTIONS:	Total number of DAMOS actions
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
  */
 enum damos_action {
 	DAMOS_WILLNEED,
@@ -89,6 +118,10 @@ enum damos_action {
 	DAMOS_HUGEPAGE,
 	DAMOS_NOHUGEPAGE,
 	DAMOS_STAT,		/* Do nothing but only record the stat */
+<<<<<<< HEAD
+=======
+	NR_DAMOS_ACTIONS,
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 };
 
 /**
@@ -114,9 +147,15 @@ enum damos_action {
  * uses smaller one as the effective quota.
  *
  * For selecting regions within the quota, DAMON prioritizes current scheme's
+<<<<<<< HEAD
  * target memory regions using the &struct damon_primitive->get_scheme_score.
  * You could customize the prioritization logic by setting &weight_sz,
  * &weight_nr_accesses, and &weight_age, because monitoring primitives are
+=======
+ * target memory regions using the &struct damon_operations->get_scheme_score.
+ * You could customize the prioritization logic by setting &weight_sz,
+ * &weight_nr_accesses, and &weight_age, because monitoring operations are
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
  * encouraged to respect those.
  */
 struct damos_quota {
@@ -151,10 +190,18 @@ struct damos_quota {
  *
  * @DAMOS_WMARK_NONE:		Ignore the watermarks of the given scheme.
  * @DAMOS_WMARK_FREE_MEM_RATE:	Free memory rate of the system in [0,1000].
+<<<<<<< HEAD
+=======
+ * @NR_DAMOS_WMARK_METRICS:	Total number of DAMOS watermark metrics
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
  */
 enum damos_wmark_metric {
 	DAMOS_WMARK_NONE,
 	DAMOS_WMARK_FREE_MEM_RATE,
+<<<<<<< HEAD
+=======
+	NR_DAMOS_WMARK_METRICS,
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 };
 
 /**
@@ -186,6 +233,25 @@ struct damos_watermarks {
 };
 
 /**
+<<<<<<< HEAD
+=======
+ * struct damos_stat - Statistics on a given scheme.
+ * @nr_tried:	Total number of regions that the scheme is tried to be applied.
+ * @sz_tried:	Total size of regions that the scheme is tried to be applied.
+ * @nr_applied:	Total number of regions that the scheme is applied.
+ * @sz_applied:	Total size of regions that the scheme is applied.
+ * @qt_exceeds: Total number of times the quota of the scheme has exceeded.
+ */
+struct damos_stat {
+	unsigned long nr_tried;
+	unsigned long sz_tried;
+	unsigned long nr_applied;
+	unsigned long sz_applied;
+	unsigned long qt_exceeds;
+};
+
+/**
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
  * struct damos - Represents a Data Access Monitoring-based Operation Scheme.
  * @min_sz_region:	Minimum size of target regions.
  * @max_sz_region:	Maximum size of target regions.
@@ -196,8 +262,12 @@ struct damos_watermarks {
  * @action:		&damo_action to be applied to the target regions.
  * @quota:		Control the aggressiveness of this scheme.
  * @wmarks:		Watermarks for automated (in)activation of this scheme.
+<<<<<<< HEAD
  * @stat_count:		Total number of regions that this scheme is applied.
  * @stat_sz:		Total size of regions that this scheme is applied.
+=======
+ * @stat:		Statistics of this scheme.
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
  * @list:		List head for siblings.
  *
  * For each aggregation interval, DAMON finds regions which fit in the
@@ -228,6 +298,7 @@ struct damos {
 	enum damos_action action;
 	struct damos_quota quota;
 	struct damos_watermarks wmarks;
+<<<<<<< HEAD
 	unsigned long stat_count;
 	unsigned long stat_sz;
 	struct list_head list;
@@ -240,6 +311,32 @@ struct damon_ctx;
  *
  * @init:			Initialize primitive-internal data structures.
  * @update:			Update primitive-internal data structures.
+=======
+	struct damos_stat stat;
+	struct list_head list;
+};
+
+/**
+ * enum damon_ops_id - Identifier for each monitoring operations implementation
+ *
+ * @DAMON_OPS_VADDR:	Monitoring operations for virtual address spaces
+ * @DAMON_OPS_PADDR:	Monitoring operations for the physical address space
+ */
+enum damon_ops_id {
+	DAMON_OPS_VADDR,
+	DAMON_OPS_PADDR,
+	NR_DAMON_OPS,
+};
+
+struct damon_ctx;
+
+/**
+ * struct damon_operations - Monitoring operations for given use cases.
+ *
+ * @id:				Identifier of this operations set.
+ * @init:			Initialize operations-related data structures.
+ * @update:			Update operations-related data structures.
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
  * @prepare_access_checks:	Prepare next access check of target regions.
  * @check_accesses:		Check the accesses to target regions.
  * @reset_aggregated:		Reset aggregated accesses monitoring results.
@@ -249,18 +346,34 @@ struct damon_ctx;
  * @cleanup:			Clean up the context.
  *
  * DAMON can be extended for various address spaces and usages.  For this,
+<<<<<<< HEAD
  * users should register the low level primitives for their target address
  * space and usecase via the &damon_ctx.primitive.  Then, the monitoring thread
  * (&damon_ctx.kdamond) calls @init and @prepare_access_checks before starting
  * the monitoring, @update after each &damon_ctx.primitive_update_interval, and
+=======
+ * users should register the low level operations for their target address
+ * space and usecase via the &damon_ctx.ops.  Then, the monitoring thread
+ * (&damon_ctx.kdamond) calls @init and @prepare_access_checks before starting
+ * the monitoring, @update after each &damon_ctx.ops_update_interval, and
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
  * @check_accesses, @target_valid and @prepare_access_checks after each
  * &damon_ctx.sample_interval.  Finally, @reset_aggregated is called after each
  * &damon_ctx.aggr_interval.
  *
+<<<<<<< HEAD
  * @init should initialize primitive-internal data structures.  For example,
  * this could be used to construct proper monitoring target regions and link
  * those to @damon_ctx.adaptive_targets.
  * @update should update the primitive-internal data structures.  For example,
+=======
+ * Each &struct damon_operations instance having valid @id can be registered
+ * via damon_register_ops() and selected by damon_select_ops() later.
+ * @init should initialize operations-related data structures.  For example,
+ * this could be used to construct proper monitoring target regions and link
+ * those to @damon_ctx.adaptive_targets.
+ * @update should update the operations-related data structures.  For example,
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
  * this could be used to update monitoring target regions for current status.
  * @prepare_access_checks should manipulate the monitoring regions to be
  * prepared for the next access check.
@@ -274,12 +387,22 @@ struct damon_ctx;
  * as an integer in [0, &DAMOS_MAX_SCORE].
  * @apply_scheme is called from @kdamond when a region for user provided
  * DAMON-based operation scheme is found.  It should apply the scheme's action
+<<<<<<< HEAD
  * to the region.  This is not used for &DAMON_ARBITRARY_TARGET case.
+=======
+ * to the region and return bytes of the region that the action is successfully
+ * applied.
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
  * @target_valid should check whether the target is still valid for the
  * monitoring.
  * @cleanup is called from @kdamond just before its termination.
  */
+<<<<<<< HEAD
 struct damon_primitive {
+=======
+struct damon_operations {
+	enum damon_ops_id id;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	void (*init)(struct damon_ctx *context);
 	void (*update)(struct damon_ctx *context);
 	void (*prepare_access_checks)(struct damon_ctx *context);
@@ -288,8 +411,14 @@ struct damon_primitive {
 	int (*get_scheme_score)(struct damon_ctx *context,
 			struct damon_target *t, struct damon_region *r,
 			struct damos *scheme);
+<<<<<<< HEAD
 	int (*apply_scheme)(struct damon_ctx *context, struct damon_target *t,
 			struct damon_region *r, struct damos *scheme);
+=======
+	unsigned long (*apply_scheme)(struct damon_ctx *context,
+			struct damon_target *t, struct damon_region *r,
+			struct damos *scheme);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	bool (*target_valid)(void *target);
 	void (*cleanup)(struct damon_ctx *context);
 };
@@ -332,15 +461,24 @@ struct damon_callback {
  *
  * @sample_interval:		The time between access samplings.
  * @aggr_interval:		The time between monitor results aggregations.
+<<<<<<< HEAD
  * @primitive_update_interval:	The time between monitoring primitive updates.
+=======
+ * @ops_update_interval:	The time between monitoring operations updates.
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
  *
  * For each @sample_interval, DAMON checks whether each region is accessed or
  * not.  It aggregates and keeps the access information (number of accesses to
  * each region) for @aggr_interval time.  DAMON also checks whether the target
  * memory regions need update (e.g., by ``mmap()`` calls from the application,
  * in case of virtual memory monitoring) and applies the changes for each
+<<<<<<< HEAD
  * @primitive_update_interval.  All time intervals are in micro-seconds.
  * Please refer to &struct damon_primitive and &struct damon_callback for more
+=======
+ * @ops_update_interval.  All time intervals are in micro-seconds.
+ * Please refer to &struct damon_operations and &struct damon_callback for more
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
  * detail.
  *
  * @kdamond:		Kernel thread who does the monitoring.
@@ -352,7 +490,11 @@ struct damon_callback {
  *
  * Once started, the monitoring thread runs until explicitly required to be
  * terminated or every monitoring target is invalid.  The validity of the
+<<<<<<< HEAD
  * targets is checked via the &damon_primitive.target_valid of @primitive.  The
+=======
+ * targets is checked via the &damon_operations.target_valid of @ops.  The
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
  * termination can also be explicitly requested by writing non-zero to
  * @kdamond_stop.  The thread sets @kdamond to NULL when it terminates.
  * Therefore, users can know whether the monitoring is ongoing or terminated by
@@ -362,7 +504,11 @@ struct damon_callback {
  * Note that the monitoring thread protects only @kdamond and @kdamond_stop via
  * @kdamond_lock.  Accesses to other fields must be protected by themselves.
  *
+<<<<<<< HEAD
  * @primitive:	Set of monitoring primitives for given use cases.
+=======
+ * @ops:	Set of monitoring operations for given use cases.
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
  * @callback:	Set of callbacks for monitoring events notifications.
  *
  * @min_nr_regions:	The minimum number of adaptive monitoring regions.
@@ -373,17 +519,29 @@ struct damon_callback {
 struct damon_ctx {
 	unsigned long sample_interval;
 	unsigned long aggr_interval;
+<<<<<<< HEAD
 	unsigned long primitive_update_interval;
 
 /* private: internal use only */
 	struct timespec64 last_aggregation;
 	struct timespec64 last_primitive_update;
+=======
+	unsigned long ops_update_interval;
+
+/* private: internal use only */
+	struct timespec64 last_aggregation;
+	struct timespec64 last_ops_update;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 /* public: */
 	struct task_struct *kdamond;
 	struct mutex kdamond_lock;
 
+<<<<<<< HEAD
 	struct damon_primitive primitive;
+=======
+	struct damon_operations ops;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	struct damon_callback callback;
 
 	unsigned long min_nr_regions;
@@ -392,6 +550,7 @@ struct damon_ctx {
 	struct list_head schemes;
 };
 
+<<<<<<< HEAD
 #define damon_next_region(r) \
 	(container_of(r->list.next, struct damon_region, list))
 
@@ -400,6 +559,22 @@ struct damon_ctx {
 
 #define damon_last_region(t) \
 	(list_last_entry(&t->regions_list, struct damon_region, list))
+=======
+static inline struct damon_region *damon_next_region(struct damon_region *r)
+{
+	return container_of(r->list.next, struct damon_region, list);
+}
+
+static inline struct damon_region *damon_prev_region(struct damon_region *r)
+{
+	return container_of(r->list.prev, struct damon_region, list);
+}
+
+static inline struct damon_region *damon_last_region(struct damon_target *t)
+{
+	return list_last_entry(&t->regions_list, struct damon_region, list);
+}
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 #define damon_for_each_region(r, t) \
 	list_for_each_entry(r, &t->regions_list, list)
@@ -422,9 +597,24 @@ struct damon_ctx {
 #ifdef CONFIG_DAMON
 
 struct damon_region *damon_new_region(unsigned long start, unsigned long end);
+<<<<<<< HEAD
 inline void damon_insert_region(struct damon_region *r,
 		struct damon_region *prev, struct damon_region *next,
 		struct damon_target *t);
+=======
+
+/*
+ * Add a region between two other regions
+ */
+static inline void damon_insert_region(struct damon_region *r,
+		struct damon_region *prev, struct damon_region *next,
+		struct damon_target *t)
+{
+	__list_add(&r->list, &prev->list, &next->list);
+	t->nr_regions++;
+}
+
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 void damon_add_region(struct damon_region *r, struct damon_target *t);
 void damon_destroy_region(struct damon_region *r, struct damon_target *t);
 
@@ -437,7 +627,11 @@ struct damos *damon_new_scheme(
 void damon_add_scheme(struct damon_ctx *ctx, struct damos *s);
 void damon_destroy_scheme(struct damos *s);
 
+<<<<<<< HEAD
 struct damon_target *damon_new_target(unsigned long id);
+=======
+struct damon_target *damon_new_target(void);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 void damon_add_target(struct damon_ctx *ctx, struct damon_target *t);
 bool damon_targets_empty(struct damon_ctx *ctx);
 void damon_free_target(struct damon_target *t);
@@ -446,20 +640,33 @@ unsigned int damon_nr_regions(struct damon_target *t);
 
 struct damon_ctx *damon_new_ctx(void);
 void damon_destroy_ctx(struct damon_ctx *ctx);
+<<<<<<< HEAD
 int damon_set_targets(struct damon_ctx *ctx,
 		unsigned long *ids, ssize_t nr_ids);
 int damon_set_attrs(struct damon_ctx *ctx, unsigned long sample_int,
 		unsigned long aggr_int, unsigned long primitive_upd_int,
+=======
+int damon_set_attrs(struct damon_ctx *ctx, unsigned long sample_int,
+		unsigned long aggr_int, unsigned long ops_upd_int,
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		unsigned long min_nr_reg, unsigned long max_nr_reg);
 int damon_set_schemes(struct damon_ctx *ctx,
 			struct damos **schemes, ssize_t nr_schemes);
 int damon_nr_running_ctxs(void);
+<<<<<<< HEAD
 
 int damon_start(struct damon_ctx **ctxs, int nr_ctxs);
+=======
+int damon_register_ops(struct damon_operations *ops);
+int damon_select_ops(struct damon_ctx *ctx, enum damon_ops_id id);
+
+int damon_start(struct damon_ctx **ctxs, int nr_ctxs, bool exclusive);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 int damon_stop(struct damon_ctx **ctxs, int nr_ctxs);
 
 #endif	/* CONFIG_DAMON */
 
+<<<<<<< HEAD
 #ifdef CONFIG_DAMON_VADDR
 
 /* Monitoring primitives for virtual memory address spaces */
@@ -491,4 +698,6 @@ void damon_pa_set_primitives(struct damon_ctx *ctx);
 
 #endif	/* CONFIG_DAMON_PADDR */
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #endif	/* _DAMON_H */

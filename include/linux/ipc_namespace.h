@@ -27,7 +27,6 @@ struct ipc_ids {
 };
 
 struct ipc_namespace {
-	refcount_t	count;
 	struct ipc_ids	ids[3];
 
 	int		sem_ctls[4];
@@ -128,14 +127,18 @@ extern struct ipc_namespace *copy_ipcs(unsigned long flags,
 static inline struct ipc_namespace *get_ipc_ns(struct ipc_namespace *ns)
 {
 	if (ns)
-		refcount_inc(&ns->count);
+		refcount_inc(&ns->ns.count);
 	return ns;
 }
 
 static inline struct ipc_namespace *get_ipc_ns_not_zero(struct ipc_namespace *ns)
 {
 	if (ns) {
+<<<<<<< HEAD
 		if (refcount_inc_not_zero(&ns->count))
+=======
+		if (refcount_inc_not_zero(&ns->ns.count))
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 			return ns;
 	}
 

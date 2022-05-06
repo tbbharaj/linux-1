@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /******************************************************************************
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
@@ -51,6 +52,13 @@
  *
  *****************************************************************************/
 
+=======
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright (C) 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018-2021 Intel Corporation
+ */
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #include "iwl-trans.h"
 #include "iwl-fh.h"
 #include "iwl-context-info.h"
@@ -243,7 +251,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 		rb_size = IWL_CTXT_INFO_RB_SIZE_8K;
 		break;
 	case IWL_AMSDU_12K:
-		rb_size = IWL_CTXT_INFO_RB_SIZE_12K;
+		rb_size = IWL_CTXT_INFO_RB_SIZE_16K;
 		break;
 	default:
 		WARN_ON(1);

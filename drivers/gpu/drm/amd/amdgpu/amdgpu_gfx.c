@@ -31,6 +31,8 @@
 /* delay 0.1 second to enable gfx off feature */
 #define GFX_OFF_DELAY_ENABLE         msecs_to_jiffies(100)
 
+#define GFX_OFF_NO_DELAY 0
+
 /*
  * GPU GFX IP block helpers function.
  */
@@ -193,6 +195,7 @@ static bool amdgpu_gfx_is_multipipe_capable(struct amdgpu_device *adev)
 }
 
 bool amdgpu_gfx_is_high_priority_compute_queue(struct amdgpu_device *adev,
+<<<<<<< HEAD
 					       int pipe, int queue)
 {
 	bool multipipe_policy = amdgpu_gfx_is_multipipe_capable(adev);
@@ -201,7 +204,18 @@ bool amdgpu_gfx_is_high_priority_compute_queue(struct amdgpu_device *adev,
 	cond = multipipe_policy ? pipe : queue;
 
 	return ((cond % 2) != 0);
+=======
+					       struct amdgpu_ring *ring)
+{
+	/* Policy: use 1st queue as high priority compute queue if we
+	 * have more than one compute queue.
+	 */
+	if (adev->gfx.num_compute_rings > 1 &&
+	    ring == &adev->gfx.compute_ring[0])
+		return true;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
+	return false;
 }
 
 void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
@@ -263,7 +277,7 @@ static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
 		    * adev->gfx.mec.num_pipe_per_mec
 		    * adev->gfx.mec.num_queue_per_pipe;
 
-	while (queue_bit-- >= 0) {
+	while (--queue_bit >= 0) {
 		if (test_bit(queue_bit, adev->gfx.mec.queue_bitmap))
 			continue;
 
@@ -309,9 +323,8 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 	ring->eop_gpu_addr = kiq->eop_gpu_addr;
 	ring->no_scheduler = true;
 	sprintf(ring->name, "kiq_%d.%d.%d", ring->me, ring->pipe, ring->queue);
-	r = amdgpu_ring_init(adev, ring, 1024,
-			     irq, AMDGPU_CP_KIQ_IRQ_DRIVER0,
-			     AMDGPU_RING_PRIO_DEFAULT);
+	r = amdgpu_ring_init(adev, ring, 1024, irq, AMDGPU_CP_KIQ_IRQ_DRIVER0,
+			     AMDGPU_RING_PRIO_DEFAULT, NULL);
 	if (r)
 		dev_warn(adev->dev, "(%d) failed to init kiq ring\n", r);
 
@@ -462,20 +475,25 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev)
 {
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
 	struct amdgpu_ring *kiq_ring = &kiq->ring;
-	int i;
+	int i, r;
 
 	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
 		return -EINVAL;
 
+	spin_lock(&adev->gfx.kiq.ring_lock);
 	if (amdgpu_ring_alloc(kiq_ring, kiq->pmf->unmap_queues_size *
-					adev->gfx.num_compute_rings))
+					adev->gfx.num_compute_rings)) {
+		spin_unlock(&adev->gfx.kiq.ring_lock);
 		return -ENOMEM;
+	}
 
 	for (i = 0; i < adev->gfx.num_compute_rings; i++)
 		kiq->pmf->kiq_unmap_queues(kiq_ring, &adev->gfx.compute_ring[i],
 					   RESET_QUEUES, 0, 0);
+	r = amdgpu_ring_test_helper(kiq_ring);
+	spin_unlock(&adev->gfx.kiq.ring_lock);
 
-	return amdgpu_ring_test_helper(kiq_ring);
+	return r;
 }
 
 int amdgpu_queue_mask_bit_to_set_resource_bit(struct amdgpu_device *adev,
@@ -518,12 +536,13 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
 
 	DRM_INFO("kiq ring mec %d pipe %d q %d\n", kiq_ring->me, kiq_ring->pipe,
 							kiq_ring->queue);
-
+	spin_lock(&adev->gfx.kiq.ring_lock);
 	r = amdgpu_ring_alloc(kiq_ring, kiq->pmf->map_queues_size *
 					adev->gfx.num_compute_rings +
 					kiq->pmf->set_resources_size);
 	if (r) {
 		DRM_ERROR("Failed to lock KIQ (%d).\n", r);
+		spin_unlock(&adev->gfx.kiq.ring_lock);
 		return r;
 	}
 
@@ -532,6 +551,7 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
 		kiq->pmf->kiq_map_queues(kiq_ring, &adev->gfx.compute_ring[i]);
 
 	r = amdgpu_ring_test_helper(kiq_ring);
+	spin_unlock(&adev->gfx.kiq.ring_lock);
 	if (r)
 		DRM_ERROR("KCQ enable failed\n");
 
@@ -551,6 +571,8 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
 
 void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 {
+	unsigned long delay = GFX_OFF_DELAY_ENABLE;
+
 	if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 		return;
 
@@ -566,8 +588,19 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 
 		adev->gfx.gfx_off_req_count--;
 
+<<<<<<< HEAD
 		if (adev->gfx.gfx_off_req_count == 0 && !adev->gfx.gfx_off_state)
 			schedule_delayed_work(&adev->gfx.gfx_off_delay_work, GFX_OFF_DELAY_ENABLE);
+=======
+		if (adev->gfx.gfx_off_req_count == 0 &&
+		    !adev->gfx.gfx_off_state) {
+			/* If going to s2idle, no need to wait */
+			if (adev->in_s0ix)
+				delay = GFX_OFF_NO_DELAY;
+			schedule_delayed_work(&adev->gfx.gfx_off_delay_work,
+					      delay);
+		}
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	} else {
 		if (adev->gfx.gfx_off_req_count == 0) {
 			cancel_delayed_work_sync(&adev->gfx.gfx_off_delay_work);
@@ -598,71 +631,33 @@ int amdgpu_get_gfx_off_status(struct amdgpu_device *adev, uint32_t *value)
 
 	mutex_lock(&adev->gfx.gfx_off_mutex);
 
-	r = smu_get_status_gfxoff(adev, value);
+	r = amdgpu_dpm_get_status_gfxoff(adev, value);
 
 	mutex_unlock(&adev->gfx.gfx_off_mutex);
 
 	return r;
 }
 
-int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev)
+int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
 {
 	int r;
-	struct ras_fs_if fs_info = {
-		.sysfs_name = "gfx_err_count",
-	};
-	struct ras_ih_if ih_info = {
-		.cb = amdgpu_gfx_process_ras_data_cb,
-	};
-
-	if (!adev->gfx.ras_if) {
-		adev->gfx.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
-		if (!adev->gfx.ras_if)
-			return -ENOMEM;
-		adev->gfx.ras_if->block = AMDGPU_RAS_BLOCK__GFX;
-		adev->gfx.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
-		adev->gfx.ras_if->sub_block_index = 0;
-		strcpy(adev->gfx.ras_if->name, "gfx");
-	}
-	fs_info.head = ih_info.head = *adev->gfx.ras_if;
-
-	r = amdgpu_ras_late_init(adev, adev->gfx.ras_if,
-				 &fs_info, &ih_info);
+	r = amdgpu_ras_block_late_init(adev, ras_block);
 	if (r)
-		goto free;
+		return r;
 
-	if (amdgpu_ras_is_supported(adev, adev->gfx.ras_if->block)) {
+	if (amdgpu_ras_is_supported(adev, ras_block->block)) {
+		if (!amdgpu_persistent_edc_harvesting_supported(adev))
+			amdgpu_ras_reset_error_status(adev, AMDGPU_RAS_BLOCK__GFX);
+
 		r = amdgpu_irq_get(adev, &adev->gfx.cp_ecc_error_irq, 0);
 		if (r)
 			goto late_fini;
-	} else {
-		/* free gfx ras_if if ras is not supported */
-		r = 0;
-		goto free;
 	}
 
 	return 0;
 late_fini:
-	amdgpu_ras_late_fini(adev, adev->gfx.ras_if, &ih_info);
-free:
-	kfree(adev->gfx.ras_if);
-	adev->gfx.ras_if = NULL;
+	amdgpu_ras_block_late_fini(adev, ras_block);
 	return r;
-}
-
-void amdgpu_gfx_ras_fini(struct amdgpu_device *adev)
-{
-	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX) &&
-			adev->gfx.ras_if) {
-		struct ras_common_if *ras_if = adev->gfx.ras_if;
-		struct ras_ih_if ih_info = {
-			.head = *ras_if,
-			.cb = amdgpu_gfx_process_ras_data_cb,
-		};
-
-		amdgpu_ras_late_fini(adev, ras_if, &ih_info);
-		kfree(ras_if);
-	}
 }
 
 int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,
@@ -677,8 +672,9 @@ int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,
 	 */
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX)) {
 		kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
-		if (adev->gfx.funcs->query_ras_error_count)
-			adev->gfx.funcs->query_ras_error_count(adev, err_data);
+		if (adev->gfx.ras && adev->gfx.ras->ras_block.hw_ops &&
+		    adev->gfx.ras->ras_block.hw_ops->query_ras_error_count)
+			adev->gfx.ras->ras_block.hw_ops->query_ras_error_count(adev, err_data);
 		amdgpu_ras_reset_gpu(adev);
 	}
 	return AMDGPU_RAS_SUCCESS;
@@ -711,7 +707,7 @@ uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg)
 	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
 	struct amdgpu_ring *ring = &kiq->ring;
 
-	if (adev->in_pci_err_recovery)
+	if (amdgpu_device_skip_hw_access(adev))
 		return 0;
 
 	BUG_ON(!ring->funcs->emit_rreg);
@@ -778,7 +774,7 @@ void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
 
 	BUG_ON(!ring->funcs->emit_wreg);
 
-	if (adev->in_pci_err_recovery)
+	if (amdgpu_device_skip_hw_access(adev))
 		return;
 
 	spin_lock_irqsave(&kiq->ring_lock, flags);
@@ -821,4 +817,15 @@ failed_undo:
 	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 failed_kiq_write:
 	dev_err(adev->dev, "failed to write reg:%x\n", reg);
+}
+
+int amdgpu_gfx_get_num_kcq(struct amdgpu_device *adev)
+{
+	if (amdgpu_num_kcq == -1) {
+		return 8;
+	} else if (amdgpu_num_kcq > 8 || amdgpu_num_kcq < 0) {
+		dev_warn(adev->dev, "set kernel compute queue number to 8 due to invalid parameter provided by user\n");
+		return 8;
+	}
+	return amdgpu_num_kcq;
 }

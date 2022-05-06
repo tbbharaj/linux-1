@@ -20,6 +20,9 @@ struct page_reporting_dev_info {
 
 	/* Current state of page reporting */
 	atomic_t state;
+
+	/* Minimal order of page reporting */
+	unsigned int order;
 };
 
 void page_report_offline(unsigned long start_pfn, unsigned int nr_pages);

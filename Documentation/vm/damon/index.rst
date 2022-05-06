@@ -27,4 +27,7 @@ workloads and systems.
    faq
    design
    api
+<<<<<<< HEAD
    plans
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a

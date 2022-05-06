@@ -57,8 +57,13 @@
 			};
 
 			spi0: spi@f0004000 {
+<<<<<<< HEAD
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_spi0_cs>;
+=======
+				pinctrl-names = "default", "cs";
+				pinctrl-1 = <&pinctrl_spi0_cs>;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 				cs-gpios = <&pioD 13 0>, <0>, <0>, <&pioD 16 0>;
 				status = "okay";
 			};
@@ -171,8 +176,13 @@
 			};
 
 			spi1: spi@f8008000 {
+<<<<<<< HEAD
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_spi1_cs>;
+=======
+				pinctrl-names = "default", "cs";
+				pinctrl-1 = <&pinctrl_spi1_cs>;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 				cs-gpios = <&pioC 25 0>;
 				status = "okay";
 			};
@@ -399,7 +409,7 @@
 		};
 
 		d3 {
-			label = "d3";
+			label = "d3"; /* Conflict with EBI CS0, USART2 CTS. */
 			gpios = <&pioE 24 GPIO_ACTIVE_HIGH>;
 		};
 	};

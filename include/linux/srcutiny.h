@@ -61,7 +61,11 @@ static inline int __srcu_read_lock(struct srcu_struct *ssp)
 	int idx;
 
 	idx = ((READ_ONCE(ssp->srcu_idx) + 1) & 0x2) >> 1;
+<<<<<<< HEAD
 	WRITE_ONCE(ssp->srcu_lock_nesting[idx], ssp->srcu_lock_nesting[idx] + 1);
+=======
+	WRITE_ONCE(ssp->srcu_lock_nesting[idx], READ_ONCE(ssp->srcu_lock_nesting[idx]) + 1);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	return idx;
 }
 
@@ -81,11 +85,15 @@ static inline void srcu_torture_stats_print(struct srcu_struct *ssp,
 {
 	int idx;
 
+<<<<<<< HEAD
 	idx = ((READ_ONCE(ssp->srcu_idx) + 1) & 0x2) >> 1;
+=======
+	idx = ((data_race(READ_ONCE(ssp->srcu_idx)) + 1) & 0x2) >> 1;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	pr_alert("%s%s Tiny SRCU per-CPU(idx=%d): (%hd,%hd)\n",
 		 tt, tf, idx,
-		 READ_ONCE(ssp->srcu_lock_nesting[!idx]),
-		 READ_ONCE(ssp->srcu_lock_nesting[idx]));
+		 data_race(READ_ONCE(ssp->srcu_lock_nesting[!idx])),
+		 data_race(READ_ONCE(ssp->srcu_lock_nesting[idx])));
 }
 
 #endif

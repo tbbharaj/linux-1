@@ -56,14 +56,22 @@ enum arm64_bp_harden_el1_vectors {
 DECLARE_PER_CPU_READ_MOSTLY(const char *, this_cpu_vector);
 
 #ifndef CONFIG_UNMAP_KERNEL_AT_EL0
+<<<<<<< HEAD
 #define TRAMP_VALIAS	0
+=======
+#define TRAMP_VALIAS	0ul
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #endif
 
 static inline const char *
 arm64_get_bp_hardening_vector(enum arm64_bp_harden_el1_vectors slot)
 {
 	if (arm64_kernel_unmapped_at_el0())
+<<<<<<< HEAD
 		return (char *)TRAMP_VALIAS + SZ_2K * slot;
+=======
+		return (char *)(TRAMP_VALIAS + SZ_2K * slot);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	WARN_ON_ONCE(slot == EL1_VECTOR_KPTI);
 

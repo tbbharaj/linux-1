@@ -20,7 +20,12 @@
 #include <objtool/objtool.h>
 
 bool no_fp, no_unreachable, retpoline, module, backtrace, uaccess, stats,
+<<<<<<< HEAD
      validate_dup, vmlinux, mcount, noinstr, backup;
+=======
+     lto, vmlinux, mcount, noinstr, backup, sls, dryrun,
+     ibt;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 static const char * const check_usage[] = {
 	"objtool check [<options>] file.o",
@@ -40,11 +45,21 @@ const struct option check_options[] = {
 	OPT_BOOLEAN('b', "backtrace", &backtrace, "unwind on error"),
 	OPT_BOOLEAN('a', "uaccess", &uaccess, "enable uaccess checking"),
 	OPT_BOOLEAN('s', "stats", &stats, "print statistics"),
+<<<<<<< HEAD
 	OPT_BOOLEAN('d', "duplicate", &validate_dup, "duplicate validation for vmlinux.o"),
+=======
+	OPT_BOOLEAN(0, "lto", &lto, "whole-archive like runs"),
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	OPT_BOOLEAN('n', "noinstr", &noinstr, "noinstr validation for vmlinux.o"),
 	OPT_BOOLEAN('l', "vmlinux", &vmlinux, "vmlinux.o validation"),
 	OPT_BOOLEAN('M', "mcount", &mcount, "generate __mcount_loc"),
 	OPT_BOOLEAN('B', "backup", &backup, "create .orig files before modification"),
+<<<<<<< HEAD
+=======
+	OPT_BOOLEAN('S', "sls", &sls, "validate straight-line-speculation"),
+	OPT_BOOLEAN(0, "dry-run", &dryrun, "don't write the modifications"),
+	OPT_BOOLEAN(0, "ibt", &ibt, "validate ENDBR placement"),
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	OPT_END(),
 };
 

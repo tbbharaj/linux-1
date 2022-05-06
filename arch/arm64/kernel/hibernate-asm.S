@@ -17,26 +17,6 @@
 #include <asm/virt.h>
 
 /*
- * To prevent the possibility of old and new partial table walks being visible
- * in the tlb, switch the ttbr to a zero page when we invalidate the old
- * records. D4.7.1 'General TLB maintenance requirements' in ARM DDI 0487A.i
- * Even switching to our copied tables will cause a changed output address at
- * each stage of the walk.
- */
-.macro break_before_make_ttbr_switch zero_page, page_table, tmp, tmp2
-	phys_to_ttbr \tmp, \zero_page
-	msr	ttbr1_el1, \tmp
-	isb
-	tlbi	vmalle1
-	dsb	nsh
-	phys_to_ttbr \tmp, \page_table
-	offset_ttbr1 \tmp, \tmp2
-	msr	ttbr1_el1, \tmp
-	isb
-.endm
-
-
-/*
  * Resume from hibernate
  *
  * Loads temporary page tables then restores the memory image.
@@ -46,7 +26,7 @@
  * Because this code has to be copied to a 'safe' page, it can't call out to
  * other functions by PC-relative address. Also remember that it may be
  * mid-way through over-writing other functions. For this reason it contains
- * code from flush_icache_range() and uses the copy_page() macro.
+ * code from caches_clean_inval_pou() and uses the copy_page() macro.
  *
  * This 'safe' page is mapped via ttbr0, and executed from there. This function
  * switches to a copy of the linear map in ttbr1, performs the restore, then
@@ -89,11 +69,12 @@ SYM_CODE_START(swsusp_arch_suspend_exit)
 	copy_page	x0, x1, x2, x3, x4, x5, x6, x7, x8, x9
 
 	add	x1, x10, #PAGE_SIZE
-	/* Clean the copied page to PoU - based on flush_icache_range() */
+	/* Clean the copied page to PoU - based on caches_clean_inval_pou() */
 	raw_dcache_line_size x2, x3
 	sub	x3, x2, #1
 	bic	x4, x10, x3
-2:	dc	cvau, x4	/* clean D line / unified line */
+2:	/* clean D line / unified line */
+alternative_insn "dc cvau, x4",  "dc civac, x4",  ARM64_WORKAROUND_CLEAN_CACHE
 	add	x4, x4, x2
 	cmp	x4, x1
 	b.lo	2b
@@ -113,6 +94,7 @@ SYM_CODE_START(swsusp_arch_suspend_exit)
 	hvc	#0
 3:	ret
 SYM_CODE_END(swsusp_arch_suspend_exit)
+<<<<<<< HEAD
 
 /*
  * Restore the hyp stub.
@@ -167,4 +149,6 @@ SYM_CODE_START(hibernate_el2_vectors)
 	ventry	el1_error_invalid		// Error 32-bit EL1
 SYM_CODE_END(hibernate_el2_vectors)
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 .popsection

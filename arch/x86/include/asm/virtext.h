@@ -41,12 +41,22 @@ static inline int cpu_has_vmx(void)
  * faults are guaranteed to be due to the !post-VMXON check unless the CPU is
  * magically in RM, VM86, compat mode, or at CPL>0.
  */
-static inline void cpu_vmxoff(void)
+static inline int cpu_vmxoff(void)
 {
 	asm_volatile_goto("1: vmxoff\n\t"
+<<<<<<< HEAD
 			  _ASM_EXTABLE(1b, %l[fault]) :::: fault);
+=======
+			  _ASM_EXTABLE(1b, %l[fault])
+			  ::: "cc", "memory" : fault);
+
+	cr4_clear_bits(X86_CR4_VMXE);
+	return 0;
+
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 fault:
 	cr4_clear_bits(X86_CR4_VMXE);
+	return -EIO;
 }
 
 static inline int cpu_vmx_enabled(void)

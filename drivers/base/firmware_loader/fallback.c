@@ -127,7 +127,7 @@ static ssize_t timeout_show(struct class *class, struct class_attribute *attr,
 }
 
 /**
- * firmware_timeout_store() - set number of seconds to wait for firmware
+ * timeout_store() - set number of seconds to wait for firmware
  * @class: device class pointer
  * @attr: device attribute pointer
  * @buf: buffer to scan for timeout value
@@ -199,11 +199,16 @@ static struct class firmware_class = {
 
 int register_sysfs_loader(void)
 {
-	return class_register(&firmware_class);
+	int ret = class_register(&firmware_class);
+
+	if (ret != 0)
+		return ret;
+	return register_firmware_config_sysctl();
 }
 
 void unregister_sysfs_loader(void)
 {
+	unregister_firmware_config_sysctl();
 	class_unregister(&firmware_class);
 }
 

@@ -470,18 +470,19 @@ void intel_clear_lmce(void)
 	wrmsrl(MSR_IA32_MCG_EXT_CTL, val);
 }
 
-static void intel_ppin_init(struct cpuinfo_x86 *c)
+/*
+ * Enable additional error logs from the integrated
+ * memory controller on processors that support this.
+ */
+static void intel_imc_init(struct cpuinfo_x86 *c)
 {
-	unsigned long long val;
+	u64 error_control;
 
-	/*
-	 * Even if testing the presence of the MSR would be enough, we don't
-	 * want to risk the situation where other models reuse this MSR for
-	 * other purposes.
-	 */
 	switch (c->x86_model) {
+	case INTEL_FAM6_SANDYBRIDGE_X:
 	case INTEL_FAM6_IVYBRIDGE_X:
 	case INTEL_FAM6_HASWELL_X:
+<<<<<<< HEAD
 	case INTEL_FAM6_BROADWELL_D:
 	case INTEL_FAM6_BROADWELL_X:
 	case INTEL_FAM6_SKYLAKE_X:
@@ -496,27 +497,21 @@ static void intel_ppin_init(struct cpuinfo_x86 *c)
 
 		if ((val & 3UL) == 1UL) {
 			/* PPIN locked in disabled mode */
+=======
+		if (rdmsrl_safe(MSR_ERROR_CONTROL, &error_control))
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 			return;
-		}
-
-		/* If PPIN is disabled, try to enable */
-		if (!(val & 2UL)) {
-			wrmsrl_safe(MSR_PPIN_CTL,  val | 2UL);
-			rdmsrl_safe(MSR_PPIN_CTL, &val);
-		}
-
-		/* Is the enable bit set? */
-		if (val & 2UL)
-			set_cpu_cap(c, X86_FEATURE_INTEL_PPIN);
+		error_control |= 2;
+		wrmsrl_safe(MSR_ERROR_CONTROL, error_control);
+		break;
 	}
 }
 
 void mce_intel_feature_init(struct cpuinfo_x86 *c)
 {
-	intel_init_thermal(c);
 	intel_init_cmci();
 	intel_init_lmce();
-	intel_ppin_init(c);
+	intel_imc_init(c);
 }
 
 void mce_intel_feature_clear(struct cpuinfo_x86 *c)

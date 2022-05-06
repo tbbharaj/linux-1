@@ -105,7 +105,11 @@
 		BPF_EXIT_INSN(),
 	},
 	.errstr_unpriv = "R1 has pointer with unsupported alu operation",
+<<<<<<< HEAD
 	.errstr = "dereference of modified ctx ptr",
+=======
+	.errstr = "negative offset ctx ptr R1 off=-1 disallowed",
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	.result = REJECT,
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },

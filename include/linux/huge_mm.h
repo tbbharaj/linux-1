@@ -11,7 +11,11 @@ vm_fault_t do_huge_pmd_anonymous_page(struct vm_fault *vmf);
 int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		  pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long addr,
 		  struct vm_area_struct *dst_vma, struct vm_area_struct *src_vma);
+<<<<<<< HEAD
 void huge_pmd_set_accessed(struct vm_fault *vmf, pmd_t orig_pmd);
+=======
+void huge_pmd_set_accessed(struct vm_fault *vmf);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 int copy_huge_pud(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		  pud_t *dst_pud, pud_t *src_pud, unsigned long addr,
 		  struct vm_area_struct *vma);
@@ -24,7 +28,11 @@ static inline void huge_pud_set_accessed(struct vm_fault *vmf, pud_t orig_pud)
 }
 #endif
 
+<<<<<<< HEAD
 vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd);
+=======
+vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
 				   unsigned long addr, pmd_t *pmd,
 				   unsigned int flags);
@@ -87,9 +95,6 @@ enum transparent_hugepage_flag {
 	TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
 	TRANSPARENT_HUGEPAGE_DEFRAG_KHUGEPAGED_FLAG,
 	TRANSPARENT_HUGEPAGE_USE_ZERO_PAGE_FLAG,
-#ifdef CONFIG_DEBUG_VM
-	TRANSPARENT_HUGEPAGE_DEBUG_COW_FLAG,
-#endif
 };
 
 struct kobject;
@@ -186,9 +191,12 @@ unsigned long thp_get_unmapped_area(struct file *filp, unsigned long addr,
 
 void prep_transhuge_page(struct page *page);
 void free_transhuge_page(struct page *page);
+<<<<<<< HEAD
 bool is_transparent_hugepage(struct page *page);
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
-bool can_split_huge_page(struct page *page, int *pextra_pins);
+bool can_split_folio(struct folio *folio, int *pextra_pins);
 int split_huge_page_to_list(struct page *page, struct list_head *list);
 static inline int split_huge_page(struct page *page)
 {
@@ -197,7 +205,7 @@ static inline int split_huge_page(struct page *page)
 void deferred_split_huge_page(struct page *page);
 
 void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-		unsigned long address, bool freeze, struct page *page);
+		unsigned long address, bool freeze, struct folio *folio);
 
 #define split_huge_pmd(__vma, __pmd, __address)				\
 	do {								\
@@ -210,7 +218,7 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 
 
 void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
-		bool freeze, struct page *page);
+		bool freeze, struct folio *folio);
 
 void __split_huge_pud(struct vm_area_struct *vma, pud_t *pud,
 		unsigned long address);
@@ -254,36 +262,12 @@ static inline spinlock_t *pud_trans_huge_lock(pud_t *pud,
 }
 
 /**
- * thp_head - Head page of a transparent huge page.
- * @page: Any page (tail, head or regular) found in the page cache.
+ * folio_test_pmd_mappable - Can we map this folio with a PMD?
+ * @folio: The folio to test
  */
-static inline struct page *thp_head(struct page *page)
+static inline bool folio_test_pmd_mappable(struct folio *folio)
 {
-	return compound_head(page);
-}
-
-/**
- * thp_order - Order of a transparent huge page.
- * @page: Head page of a transparent huge page.
- */
-static inline unsigned int thp_order(struct page *page)
-{
-	VM_BUG_ON_PGFLAGS(PageTail(page), page);
-	if (PageHead(page))
-		return HPAGE_PMD_ORDER;
-	return 0;
-}
-
-/**
- * thp_nr_pages - The number of regular pages in this huge page.
- * @page: The head page of a huge page.
- */
-static inline int thp_nr_pages(struct page *page)
-{
-	VM_BUG_ON_PGFLAGS(PageTail(page), page);
-	if (PageHead(page))
-		return HPAGE_PMD_NR;
-	return 1;
+	return folio_order(folio) >= HPAGE_PMD_ORDER;
 }
 
 struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
@@ -291,7 +275,11 @@ struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
 struct page *follow_devmap_pud(struct vm_area_struct *vma, unsigned long addr,
 		pud_t *pud, int flags, struct dev_pagemap **pgmap);
 
+<<<<<<< HEAD
 vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t orig_pmd);
+=======
+vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 extern struct page *huge_zero_page;
 extern unsigned long huge_zero_pfn;
@@ -339,22 +327,9 @@ static inline struct list_head *page_deferred_list(struct page *page)
 #define HPAGE_PUD_MASK ({ BUILD_BUG(); 0; })
 #define HPAGE_PUD_SIZE ({ BUILD_BUG(); 0; })
 
-static inline struct page *thp_head(struct page *page)
+static inline bool folio_test_pmd_mappable(struct folio *folio)
 {
-	VM_BUG_ON_PGFLAGS(PageTail(page), page);
-	return page;
-}
-
-static inline unsigned int thp_order(struct page *page)
-{
-	VM_BUG_ON_PGFLAGS(PageTail(page), page);
-	return 0;
-}
-
-static inline int thp_nr_pages(struct page *page)
-{
-	VM_BUG_ON_PGFLAGS(PageTail(page), page);
-	return 1;
+	return false;
 }
 
 static inline bool __transparent_hugepage_enabled(struct vm_area_struct *vma)
@@ -375,6 +350,7 @@ static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
 
 static inline bool transhuge_vma_enabled(struct vm_area_struct *vma,
 					  unsigned long vm_flags)
+<<<<<<< HEAD
 {
 	return false;
 }
@@ -382,16 +358,20 @@ static inline bool transhuge_vma_enabled(struct vm_area_struct *vma,
 static inline void prep_transhuge_page(struct page *page) {}
 
 static inline bool is_transparent_hugepage(struct page *page)
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 {
 	return false;
 }
+
+static inline void prep_transhuge_page(struct page *page) {}
 
 #define transparent_hugepage_flags 0UL
 
 #define thp_get_unmapped_area	NULL
 
 static inline bool
-can_split_huge_page(struct page *page, int *pextra_pins)
+can_split_folio(struct folio *folio, int *pextra_pins)
 {
 	BUILD_BUG();
 	return false;
@@ -410,9 +390,9 @@ static inline void deferred_split_huge_page(struct page *page) {}
 	do { } while (0)
 
 static inline void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-		unsigned long address, bool freeze, struct page *page) {}
+		unsigned long address, bool freeze, struct folio *folio) {}
 static inline void split_huge_pmd_address(struct vm_area_struct *vma,
-		unsigned long address, bool freeze, struct page *page) {}
+		unsigned long address, bool freeze, struct folio *folio) {}
 
 #define split_huge_pud(__vma, __pmd, __address)	\
 	do { } while (0)
@@ -444,8 +424,7 @@ static inline spinlock_t *pud_trans_huge_lock(pud_t *pud,
 	return NULL;
 }
 
-static inline vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf,
-		pmd_t orig_pmd)
+static inline vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf)
 {
 	return 0;
 }
@@ -488,15 +467,10 @@ static inline bool thp_migration_supported(void)
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
-/**
- * thp_size - Size of a transparent huge page.
- * @page: Head page of a transparent huge page.
- *
- * Return: Number of bytes in this page.
- */
-static inline unsigned long thp_size(struct page *page)
+static inline int split_folio_to_list(struct folio *folio,
+		struct list_head *list)
 {
-	return PAGE_SIZE << thp_order(page);
+	return split_huge_page_to_list(&folio->page, list);
 }
 
 #endif /* _LINUX_HUGE_MM_H */

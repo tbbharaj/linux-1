@@ -67,9 +67,12 @@ static int vlan_group_prealloc_vid(struct vlan_group *vg,
 		return 0;
 
 	size = sizeof(struct net_device *) * VLAN_GROUP_ARRAY_PART_LEN;
-	array = kzalloc(size, GFP_KERNEL);
+	array = kzalloc(size, GFP_KERNEL_ACCOUNT);
 	if (array == NULL)
 		return -ENOBUFS;
+
+	/* paired with smp_rmb() in __vlan_group_get_device() */
+	smp_wmb();
 
 	vg->vlan_devices_arrays[pidx][vidx] = array;
 	return 0;
@@ -278,9 +281,13 @@ static int register_vlan_device(struct net_device *real_dev, u16 vlan_id)
 	return 0;
 
 out_free_newdev:
+<<<<<<< HEAD
 	if (new_dev->reg_state == NETREG_UNINITIALIZED ||
 	    new_dev->reg_state == NETREG_UNREGISTERED)
 		free_netdev(new_dev);
+=======
+	free_netdev(new_dev);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	return err;
 }
 
@@ -318,8 +325,8 @@ static void vlan_transfer_features(struct net_device *dev,
 {
 	struct vlan_dev_priv *vlan = vlan_dev_priv(vlandev);
 
-	vlandev->gso_max_size = dev->gso_max_size;
-	vlandev->gso_max_segs = dev->gso_max_segs;
+	netif_set_gso_max_size(vlandev, dev->gso_max_size);
+	netif_set_gso_max_segs(vlandev, dev->gso_max_segs);
 
 	if (vlan_hw_offload_capable(dev->features, vlan->vlan_proto))
 		vlandev->hard_header_len = dev->hard_header_len;
@@ -631,7 +638,8 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 
 	case GET_VLAN_REALDEV_NAME_CMD:
 		err = 0;
-		vlan_dev_get_realdev_name(dev, args.u.device2);
+		vlan_dev_get_realdev_name(dev, args.u.device2,
+					  sizeof(args.u.device2));
 		if (copy_to_user(arg, &args,
 				 sizeof(struct vlan_ioctl_args)))
 			err = -EFAULT;

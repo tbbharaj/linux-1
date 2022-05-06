@@ -30,7 +30,6 @@
 #include <bpf/bpf.h>
 
 #include "test_progs.h"
-#include "bpf_rlimit.h"
 #include "bpf_util.h"
 #include "cgroup_helpers.h"
 #include "network_helpers.h"
@@ -480,7 +479,7 @@ static struct bpf_link *attach_lookup_prog(struct bpf_program *prog)
 	}
 
 	link = bpf_program__attach_netns(prog, net_fd);
-	if (CHECK(IS_ERR(link), "bpf_program__attach_netns", "failed\n")) {
+	if (!ASSERT_OK_PTR(link, "bpf_program__attach_netns")) {
 		errno = -PTR_ERR(link);
 		log_err("failed to attach program '%s' to netns",
 			bpf_program__name(prog));
@@ -937,6 +936,37 @@ static void test_drop_on_lookup(struct test_sk_lookup *skel)
 			.connect_to	= { EXT_IP6, EXT_PORT },
 			.listen_at	= { EXT_IP6, INT_PORT },
 		},
+		/* The program will drop on success, meaning that the ifindex
+		 * was 1.
+		 */
+		{
+			.desc		= "TCP IPv4 drop on valid ifindex",
+			.lookup_prog	= skel->progs.check_ifindex,
+			.sotype		= SOCK_STREAM,
+			.connect_to	= { EXT_IP4, EXT_PORT },
+			.listen_at	= { EXT_IP4, EXT_PORT },
+		},
+		{
+			.desc		= "TCP IPv6 drop on valid ifindex",
+			.lookup_prog	= skel->progs.check_ifindex,
+			.sotype		= SOCK_STREAM,
+			.connect_to	= { EXT_IP6, EXT_PORT },
+			.listen_at	= { EXT_IP6, EXT_PORT },
+		},
+		{
+			.desc		= "UDP IPv4 drop on valid ifindex",
+			.lookup_prog	= skel->progs.check_ifindex,
+			.sotype		= SOCK_DGRAM,
+			.connect_to	= { EXT_IP4, EXT_PORT },
+			.listen_at	= { EXT_IP4, EXT_PORT },
+		},
+		{
+			.desc		= "UDP IPv6 drop on valid ifindex",
+			.lookup_prog	= skel->progs.check_ifindex,
+			.sotype		= SOCK_DGRAM,
+			.connect_to	= { EXT_IP6, EXT_PORT },
+			.listen_at	= { EXT_IP6, EXT_PORT },
+		},
 	};
 	const struct test *t;
 
@@ -1087,11 +1117,19 @@ static void run_sk_assign(struct test_sk_lookup *skel,
 
 	err = bpf_prog_test_run_opts(bpf_program__fd(lookup_prog), &opts);
 	if (CHECK(err, "test_run", "failed with error %d\n", errno))
+<<<<<<< HEAD
 		goto close_servers;
 
 	if (CHECK(ctx.cookie == 0, "ctx.cookie", "no socket selected\n"))
 		goto close_servers;
 
+=======
+		goto close_servers;
+
+	if (CHECK(ctx.cookie == 0, "ctx.cookie", "no socket selected\n"))
+		goto close_servers;
+
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	CHECK(ctx.cookie != server_cookie, "ctx.cookie",
 	      "selected sk %llu instead of %llu\n", ctx.cookie, server_cookie);
 

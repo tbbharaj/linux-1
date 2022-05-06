@@ -20,6 +20,14 @@
 		device_type = "memory";
 		reg = <0x00000000 0x08000000>,
 		      <0x88000000 0x08000000>;
+<<<<<<< HEAD
+=======
+	};
+
+	nvram@1eff0000 {
+		compatible = "brcm,nvram";
+		reg = <0x1eff0000 0x10000>;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	};
 
 	leds {
@@ -108,9 +116,6 @@
 	status = "okay";
 
 	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		port@0 {
 			reg = <0>;
 			label = "lan4";

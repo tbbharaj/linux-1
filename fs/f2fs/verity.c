@@ -136,7 +136,7 @@ static int f2fs_begin_enable_verity(struct file *filp)
 	 * here and not rely on ->open() doing it.  This must be done before
 	 * evicting the inline data.
 	 */
-	err = dquot_initialize(inode);
+	err = f2fs_dquot_initialize(inode);
 	if (err)
 		return err;
 
@@ -208,7 +208,11 @@ cleanup:
 	 * from re-instantiating cached pages we are truncating (since unlike
 	 * normal file accesses, garbage collection isn't limited by i_size).
 	 */
+<<<<<<< HEAD
 	down_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
+=======
+	f2fs_down_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	truncate_inode_pages(inode->i_mapping, inode->i_size);
 	err2 = f2fs_truncate(inode);
 	if (err2) {
@@ -216,7 +220,11 @@ cleanup:
 			 err2);
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
 	}
+<<<<<<< HEAD
 	up_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
+=======
+	f2fs_up_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	clear_inode_flag(inode, FI_VERITY_IN_PROGRESS);
 	return err ?: err2;
 }
@@ -261,7 +269,7 @@ static struct page *f2fs_read_merkle_tree_page(struct inode *inode,
 					       pgoff_t index,
 					       unsigned long num_ra_pages)
 {
-	DEFINE_READAHEAD(ractl, NULL, inode->i_mapping, index);
+	DEFINE_READAHEAD(ractl, NULL, NULL, inode->i_mapping, index);
 	struct page *page;
 
 	index += f2fs_verity_metadata_pos(inode) >> PAGE_SHIFT;

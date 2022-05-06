@@ -800,7 +800,6 @@ static int rga_probe(struct platform_device *pdev)
 {
 	struct rockchip_rga *rga;
 	struct video_device *vfd;
-	struct resource *res;
 	int ret = 0;
 	int irq;
 
@@ -821,9 +820,7 @@ static int rga_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(rga->dev);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	rga->regs = devm_ioremap_resource(rga->dev, res);
+	rga->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rga->regs)) {
 		ret = PTR_ERR(rga->regs);
 		goto err_put_clk;
@@ -895,7 +892,11 @@ static int rga_probe(struct platform_device *pdev)
 	}
 	rga->dst_mmu_pages =
 		(unsigned int *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 3);
+<<<<<<< HEAD
 	if (rga->dst_mmu_pages) {
+=======
+	if (!rga->dst_mmu_pages) {
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		ret = -ENOMEM;
 		goto free_src_pages;
 	}

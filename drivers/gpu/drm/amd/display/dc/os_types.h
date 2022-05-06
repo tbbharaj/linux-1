@@ -31,10 +31,12 @@
 #include <linux/kref.h>
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 
 #include <asm/byteorder.h>
 
 #include <drm/drm_print.h>
+#include <drm/dp/drm_dp_helper.h>
 
 #include "cgs_common.h"
 
@@ -51,6 +53,7 @@
 #define dm_error(fmt, ...) DRM_ERROR(fmt, ##__VA_ARGS__)
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
+<<<<<<< HEAD
 #if defined(CONFIG_X86)
 #include <asm/fpu/api.h>
 #define DC_FP_START() kernel_fpu_begin()
@@ -83,6 +86,11 @@
 	} \
 }
 #endif
+=======
+#include "amdgpu_dm/dc_fpu.h"
+#define DC_FP_START() dc_fpu_begin(__func__, __LINE__)
+#define DC_FP_END() dc_fpu_end(__func__, __LINE__)
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #endif
 
 /*

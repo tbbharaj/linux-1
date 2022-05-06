@@ -165,9 +165,12 @@ static int add_munmap(unsigned long addr, unsigned long len,
 	struct host_vm_op *last;
 	int ret = 0;
 
+<<<<<<< HEAD
 	if (addr + len > STUB_START && addr < STUB_END)
 		return -EINVAL;
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	if (hvc->index != 0) {
 		last = &hvc->ops[hvc->index - 1];
 		if ((last->type == MUNMAP) &&
@@ -232,9 +235,6 @@ static inline int update_pte_range(pmd_t *pmd, unsigned long addr,
 
 	pte = pte_offset_kernel(pmd, addr);
 	do {
-		if ((addr >= STUB_START) && (addr < STUB_END))
-			continue;
-
 		r = pte_read(*pte);
 		w = pte_write(*pte);
 		x = pte_exec(*pte);
@@ -478,9 +478,12 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long address)
 
 	address &= PAGE_MASK;
 
+<<<<<<< HEAD
 	if (address >= STUB_START && address < STUB_END)
 		goto kill;
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	pgd = pgd_offset(mm, address);
 	if (!pgd_present(*pgd))
 		goto kill;

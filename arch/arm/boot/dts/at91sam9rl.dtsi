@@ -266,8 +266,6 @@
 			};
 
 			adc0: adc@fffd0000 {
-				#address-cells = <1>;
-				#size-cells = <0>;
 				compatible = "atmel,at91sam9rl-adc";
 				reg = <0xfffd0000 0x100>;
 				interrupts = <20 IRQ_TYPE_LEVEL_HIGH 0>;
@@ -277,6 +275,7 @@
 				atmel,adc-channels-used = <0x3f>;
 				atmel,adc-vref = <3300>;
 				atmel,adc-startup-time = <40>;
+<<<<<<< HEAD
 				atmel,adc-res = <8 10>;
 				atmel,adc-res-names = "lowres", "highres";
 				atmel,adc-use-res = "highres";
@@ -303,6 +302,8 @@
 					trigger-name = "continuous";
 					trigger-value = <0x6>;
 				};
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 			};
 
 			usb0: gadget@fffd4000 {

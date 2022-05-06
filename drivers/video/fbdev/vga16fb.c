@@ -1351,7 +1351,12 @@ static int vga16fb_probe(struct platform_device *dev)
 	printk(KERN_INFO "vga16fb: mapped to 0x%p\n", info->screen_base);
 	par = info->par;
 
+#if defined(CONFIG_X86)
+	par->isVGA = screen_info.orig_video_isVGA == VIDEO_TYPE_VGAC;
+#else
+	/* non-x86 architectures treat orig_video_isVGA as a boolean flag */
 	par->isVGA = screen_info.orig_video_isVGA;
+#endif
 	par->palette_blanked = 0;
 	par->vesa_blanked = 0;
 
@@ -1475,13 +1480,3 @@ MODULE_DESCRIPTION("Legacy VGA framebuffer device driver");
 MODULE_LICENSE("GPL");
 module_init(vga16fb_init);
 module_exit(vga16fb_exit);
-
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
-

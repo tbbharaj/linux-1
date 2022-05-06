@@ -41,8 +41,6 @@
 #include "mls.h"
 #include "services.h"
 
-#define _DEBUG_HASHES
-
 #ifdef DEBUG_HASHES
 static const char *symtab_name[SYM_NUM] = {
 	"common prefixes",
@@ -704,7 +702,7 @@ static void symtab_hash_eval(struct symtab *s)
 }
 
 #else
-static inline void hash_eval(struct hashtab *h, char *hash_name)
+static inline void hash_eval(struct hashtab *h, const char *hash_name)
 {
 }
 #endif
@@ -2587,7 +2585,6 @@ int policydb_read(struct policydb *p, void *fp)
 		if (rc)
 			goto bad;
 
-		rc = -EINVAL;
 		rtk->role = le32_to_cpu(buf[0]);
 		rtk->type = le32_to_cpu(buf[1]);
 		rtd->new_role = le32_to_cpu(buf[2]);

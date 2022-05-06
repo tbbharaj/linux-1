@@ -3,10 +3,14 @@
 #define __ASM_ASM_UACCESS_H
 
 #include <asm/alternative-macros.h>
+<<<<<<< HEAD
+=======
+#include <asm/asm-extable.h>
+#include <asm/assembler.h>
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #include <asm/kernel-pgtable.h>
 #include <asm/mmu.h>
 #include <asm/sysreg.h>
-#include <asm/assembler.h>
 
 /*
  * User access enabling/disabling macros.
@@ -15,10 +19,17 @@
 	.macro	__uaccess_ttbr0_disable, tmp1
 	mrs	\tmp1, ttbr1_el1			// swapper_pg_dir
 	bic	\tmp1, \tmp1, #TTBR_ASID_MASK
+<<<<<<< HEAD
 	sub	\tmp1, \tmp1, #PAGE_SIZE		// reserved_pg_dir just before swapper_pg_dir
 	msr	ttbr0_el1, \tmp1			// set reserved TTBR0_EL1
 	isb
 	add	\tmp1, \tmp1, #PAGE_SIZE
+=======
+	sub	\tmp1, \tmp1, #RESERVED_SWAPPER_OFFSET	// reserved_pg_dir
+	msr	ttbr0_el1, \tmp1			// set reserved TTBR0_EL1
+	isb
+	add	\tmp1, \tmp1, #RESERVED_SWAPPER_OFFSET
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	msr	ttbr1_el1, \tmp1		// set reserved ASID
 	isb
 	.endm
@@ -58,6 +69,7 @@ alternative_else_nop_endif
 	.endm
 #endif
 
+<<<<<<< HEAD
 /*
  * Generate the assembly for UAO alternatives with exception table entries.
  * This is complicated as there is no post-increment or pair versions of the
@@ -74,11 +86,27 @@ alternative_else_nop_endif
 			ldtr	\reg2, [\addr, #8];
 			add	\addr, \addr, \post_inc;
 		alternative_endif
+=======
+#define USER(l, x...)				\
+9999:	x;					\
+	_asm_extable	9999b, l
+
+/*
+ * Generate the assembly for LDTR/STTR with exception table entries.
+ * This is complicated as there is no post-increment or pair versions of the
+ * unprivileged instructions, and USER() only works for single instructions.
+ */
+	.macro user_ldp l, reg1, reg2, addr, post_inc
+8888:		ldtr	\reg1, [\addr];
+8889:		ldtr	\reg2, [\addr, #8];
+		add	\addr, \addr, \post_inc;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 		_asm_extable	8888b,\l;
 		_asm_extable	8889b,\l;
 	.endm
 
+<<<<<<< HEAD
 	.macro uao_stp l, reg1, reg2, addr, post_inc
 		alternative_if_not ARM64_HAS_UAO
 8888:			stp	\reg1, \reg2, [\addr], \post_inc;
@@ -89,11 +117,18 @@ alternative_else_nop_endif
 			sttr	\reg2, [\addr, #8];
 			add	\addr, \addr, \post_inc;
 		alternative_endif
+=======
+	.macro user_stp l, reg1, reg2, addr, post_inc
+8888:		sttr	\reg1, [\addr];
+8889:		sttr	\reg2, [\addr, #8];
+		add	\addr, \addr, \post_inc;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 		_asm_extable	8888b,\l;
 		_asm_extable	8889b,\l;
 	.endm
 
+<<<<<<< HEAD
 	.macro uao_user_alternative l, inst, alt_inst, reg, addr, post_inc
 		alternative_if_not ARM64_HAS_UAO
 8888:			\inst	\reg, [\addr], \post_inc;
@@ -117,4 +152,12 @@ alternative_else_nop_endif
 	.endm
 #endif
 
+=======
+	.macro user_ldst l, inst, reg, addr, post_inc
+8888:		\inst		\reg, [\addr];
+		add		\addr, \addr, \post_inc;
+
+		_asm_extable	8888b,\l;
+	.endm
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #endif

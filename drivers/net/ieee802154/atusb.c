@@ -74,6 +74,7 @@ struct atusb_chip_data {
 	int (*set_txpower)(struct ieee802154_hw*, s32);
 };
 
+<<<<<<< HEAD
 /* ----- USB commands without data ----------------------------------------- */
 
 /* To reduce the number of error checks in the code, we record the first error
@@ -149,6 +150,8 @@ static int atusb_read_reg(struct atusb *atusb, u8 reg)
 	}
 }
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 static int atusb_write_subreg(struct atusb *atusb, u8 reg, u8 mask,
 			      u8 shift, u8 value)
 {
@@ -158,7 +161,10 @@ static int atusb_write_subreg(struct atusb *atusb, u8 reg, u8 mask,
 
 	dev_dbg(&usb_dev->dev, "%s: 0x%02x <- 0x%02x\n", __func__, reg, value);
 
-	orig = atusb_read_reg(atusb, reg);
+	ret = usb_control_msg_recv(usb_dev, 0, ATUSB_REG_READ, ATUSB_REQ_FROM_DEV,
+				   0, reg, &orig, 1, 1000, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
 
 	/* Write the value only into that part of the register which is allowed
 	 * by the mask. All other bits stay as before.
@@ -167,7 +173,8 @@ static int atusb_write_subreg(struct atusb *atusb, u8 reg, u8 mask,
 	tmp |= (value << shift) & mask;
 
 	if (tmp != orig)
-		ret = atusb_write_reg(atusb, reg, tmp);
+		ret = usb_control_msg_send(usb_dev, 0, ATUSB_REG_WRITE, ATUSB_REQ_TO_DEV,
+					   tmp, reg, NULL, 0, 1000, GFP_KERNEL);
 
 	return ret;
 }
@@ -176,12 +183,16 @@ static int atusb_read_subreg(struct atusb *lp,
 			     unsigned int addr, unsigned int mask,
 			     unsigned int shift)
 {
-	int rc;
+	int reg, ret;
 
-	rc = atusb_read_reg(lp, addr);
-	rc = (rc & mask) >> shift;
+	ret = usb_control_msg_recv(lp->usb_dev, 0, ATUSB_REG_READ, ATUSB_REQ_FROM_DEV,
+				   0, addr, &reg, 1, 1000, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
 
-	return rc;
+	reg = (reg & mask) >> shift;
+
+	return reg;
 }
 
 static int atusb_get_and_clear_error(struct atusb *atusb)
@@ -419,16 +430,22 @@ static int atusb_set_hw_addr_filt(struct ieee802154_hw *hw,
 		u16 addr = le16_to_cpu(filt->short_addr);
 
 		dev_vdbg(dev, "%s called for saddr\n", __func__);
-		atusb_write_reg(atusb, RG_SHORT_ADDR_0, addr);
-		atusb_write_reg(atusb, RG_SHORT_ADDR_1, addr >> 8);
+		usb_control_msg_send(atusb->usb_dev, 0, ATUSB_REG_WRITE, ATUSB_REQ_TO_DEV,
+				     addr, RG_SHORT_ADDR_0, NULL, 0, 1000, GFP_KERNEL);
+
+		usb_control_msg_send(atusb->usb_dev, 0, ATUSB_REG_WRITE, ATUSB_REQ_TO_DEV,
+				     addr >> 8, RG_SHORT_ADDR_1, NULL, 0, 1000, GFP_KERNEL);
 	}
 
 	if (changed & IEEE802154_AFILT_PANID_CHANGED) {
 		u16 pan = le16_to_cpu(filt->pan_id);
 
 		dev_vdbg(dev, "%s called for pan id\n", __func__);
-		atusb_write_reg(atusb, RG_PAN_ID_0, pan);
-		atusb_write_reg(atusb, RG_PAN_ID_1, pan >> 8);
+		usb_control_msg_send(atusb->usb_dev, 0, ATUSB_REG_WRITE, ATUSB_REQ_TO_DEV,
+				     pan, RG_PAN_ID_0, NULL, 0, 1000, GFP_KERNEL);
+
+		usb_control_msg_send(atusb->usb_dev, 0, ATUSB_REG_WRITE, ATUSB_REQ_TO_DEV,
+				     pan >> 8, RG_PAN_ID_1, NULL, 0, 1000, GFP_KERNEL);
 	}
 
 	if (changed & IEEE802154_AFILT_IEEEADDR_CHANGED) {
@@ -437,7 +454,9 @@ static int atusb_set_hw_addr_filt(struct ieee802154_hw *hw,
 		memcpy(addr, &filt->ieee_addr, IEEE802154_EXTENDED_ADDR_LEN);
 		dev_vdbg(dev, "%s called for IEEE addr\n", __func__);
 		for (i = 0; i < 8; i++)
-			atusb_write_reg(atusb, RG_IEEE_ADDR_0 + i, addr[i]);
+			usb_control_msg_send(atusb->usb_dev, 0, ATUSB_REG_WRITE, ATUSB_REQ_TO_DEV,
+					     addr[i], RG_IEEE_ADDR_0 + i, NULL, 0,
+					     1000, GFP_KERNEL);
 	}
 
 	if (changed & IEEE802154_AFILT_PANC_CHANGED) {
@@ -459,7 +478,8 @@ static int atusb_start(struct ieee802154_hw *hw)
 
 	dev_dbg(&usb_dev->dev, "%s\n", __func__);
 	schedule_delayed_work(&atusb->work, 0);
-	atusb_command(atusb, ATUSB_RX_MODE, 1);
+	usb_control_msg_send(atusb->usb_dev, 0, ATUSB_RX_MODE, ATUSB_REQ_TO_DEV, 1, 0,
+			     NULL, 0, 1000, GFP_KERNEL);
 	ret = atusb_get_and_clear_error(atusb);
 	if (ret < 0)
 		usb_kill_anchored_urbs(&atusb->idle_urbs);
@@ -473,7 +493,8 @@ static void atusb_stop(struct ieee802154_hw *hw)
 
 	dev_dbg(&usb_dev->dev, "%s\n", __func__);
 	usb_kill_anchored_urbs(&atusb->idle_urbs);
-	atusb_command(atusb, ATUSB_RX_MODE, 0);
+	usb_control_msg_send(atusb->usb_dev, 0, ATUSB_RX_MODE, ATUSB_REQ_TO_DEV, 0, 0,
+			     NULL, 0, 1000, GFP_KERNEL);
 	atusb_get_and_clear_error(atusb);
 }
 
@@ -580,9 +601,11 @@ atusb_set_cca_mode(struct ieee802154_hw *hw, const struct wpan_phy_cca *cca)
 
 static int hulusb_set_cca_ed_level(struct atusb *lp, int rssi_base_val)
 {
-	unsigned int cca_ed_thres;
+	int cca_ed_thres;
 
 	cca_ed_thres = atusb_read_subreg(lp, SR_CCA_ED_THRES);
+	if (cca_ed_thres < 0)
+		return cca_ed_thres;
 
 	switch (rssi_base_val) {
 	case -98:
@@ -799,18 +822,13 @@ static int atusb_get_and_show_revision(struct atusb *atusb)
 {
 	struct usb_device *usb_dev = atusb->usb_dev;
 	char *hw_name;
-	unsigned char *buffer;
+	unsigned char buffer[3];
 	int ret;
 
-	buffer = kmalloc(3, GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
-
 	/* Get a couple of the ATMega Firmware values */
-	ret = atusb_control_msg(atusb, usb_rcvctrlpipe(usb_dev, 0),
-				ATUSB_ID, ATUSB_REQ_FROM_DEV, 0, 0,
-				buffer, 3, 1000);
-	if (ret >= 0) {
+	ret = usb_control_msg_recv(atusb->usb_dev, 0, ATUSB_ID, ATUSB_REQ_FROM_DEV, 0, 0,
+				   buffer, 3, 1000, GFP_KERNEL);
+	if (!ret) {
 		atusb->fw_ver_maj = buffer[0];
 		atusb->fw_ver_min = buffer[1];
 		atusb->fw_hw_type = buffer[2];
@@ -849,7 +867,6 @@ static int atusb_get_and_show_revision(struct atusb *atusb)
 		dev_info(&usb_dev->dev, "Please update to version 0.2 or newer");
 	}
 
-	kfree(buffer);
 	return ret;
 }
 
@@ -863,7 +880,10 @@ static int atusb_get_and_show_build(struct atusb *atusb)
 	if (!build)
 		return -ENOMEM;
 
+<<<<<<< HEAD
 	/* We cannot call atusb_control_msg() here, since this request may read various length data */
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	ret = usb_control_msg(atusb->usb_dev, usb_rcvctrlpipe(usb_dev, 0), ATUSB_BUILD,
 			      ATUSB_REQ_FROM_DEV, 0, 0, build, ATUSB_BUILD_SIZE, 1000);
 	if (ret >= 0) {
@@ -881,14 +901,27 @@ static int atusb_get_and_conf_chip(struct atusb *atusb)
 	u8 man_id_0, man_id_1, part_num, version_num;
 	const char *chip;
 	struct ieee802154_hw *hw = atusb->hw;
+	int ret;
 
-	man_id_0 = atusb_read_reg(atusb, RG_MAN_ID_0);
-	man_id_1 = atusb_read_reg(atusb, RG_MAN_ID_1);
-	part_num = atusb_read_reg(atusb, RG_PART_NUM);
-	version_num = atusb_read_reg(atusb, RG_VERSION_NUM);
+	ret = usb_control_msg_recv(usb_dev, 0, ATUSB_REG_READ, ATUSB_REQ_FROM_DEV,
+				   0, RG_MAN_ID_0, &man_id_0, 1, 1000, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
 
-	if (atusb->err)
-		return atusb->err;
+	ret = usb_control_msg_recv(usb_dev, 0, ATUSB_REG_READ, ATUSB_REQ_FROM_DEV,
+				   0, RG_MAN_ID_1, &man_id_1, 1, 1000, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
+
+	ret = usb_control_msg_recv(usb_dev, 0, ATUSB_REG_READ, ATUSB_REQ_FROM_DEV,
+				   0, RG_PART_NUM, &part_num, 1, 1000, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
+
+	ret = usb_control_msg_recv(usb_dev, 0, ATUSB_REG_READ, ATUSB_REQ_FROM_DEV,
+				   0, RG_VERSION_NUM, &version_num, 1, 1000, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
 
 	hw->flags = IEEE802154_HW_TX_OMIT_CKSUM | IEEE802154_HW_AFILT |
 		    IEEE802154_HW_PROMISCUOUS | IEEE802154_HW_CSMA_PARAMS;
@@ -969,7 +1002,7 @@ fail:
 static int atusb_set_extended_addr(struct atusb *atusb)
 {
 	struct usb_device *usb_dev = atusb->usb_dev;
-	unsigned char *buffer;
+	unsigned char buffer[IEEE802154_EXTENDED_ADDR_LEN];
 	__le64 extended_addr;
 	u64 addr;
 	int ret;
@@ -982,18 +1015,12 @@ static int atusb_set_extended_addr(struct atusb *atusb)
 		return 0;
 	}
 
-	buffer = kmalloc(IEEE802154_EXTENDED_ADDR_LEN, GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
-
 	/* Firmware is new enough so we fetch the address from EEPROM */
-	ret = atusb_control_msg(atusb, usb_rcvctrlpipe(usb_dev, 0),
-				ATUSB_EUI64_READ, ATUSB_REQ_FROM_DEV, 0, 0,
-				buffer, IEEE802154_EXTENDED_ADDR_LEN, 1000);
+	ret = usb_control_msg_recv(atusb->usb_dev, 0, ATUSB_EUI64_READ, ATUSB_REQ_FROM_DEV, 0, 0,
+				   buffer, IEEE802154_EXTENDED_ADDR_LEN, 1000, GFP_KERNEL);
 	if (ret < 0) {
 		dev_err(&usb_dev->dev, "failed to fetch extended address, random address set\n");
 		ieee802154_random_extended_addr(&atusb->hw->phy->perm_extended_addr);
-		kfree(buffer);
 		return ret;
 	}
 
@@ -1009,7 +1036,6 @@ static int atusb_set_extended_addr(struct atusb *atusb)
 			 &addr);
 	}
 
-	kfree(buffer);
 	return ret;
 }
 
@@ -1051,7 +1077,8 @@ static int atusb_probe(struct usb_interface *interface,
 
 	hw->parent = &usb_dev->dev;
 
-	atusb_command(atusb, ATUSB_RF_RESET, 0);
+	usb_control_msg_send(atusb->usb_dev, 0, ATUSB_RF_RESET, ATUSB_REQ_TO_DEV, 0, 0,
+			     NULL, 0, 1000, GFP_KERNEL);
 	atusb_get_and_conf_chip(atusb);
 	atusb_get_and_show_revision(atusb);
 	atusb_get_and_show_build(atusb);
@@ -1076,7 +1103,9 @@ static int atusb_probe(struct usb_interface *interface,
 	 * explicitly. Any resets after that will send us straight to TRX_OFF,
 	 * making the command below redundant.
 	 */
-	atusb_write_reg(atusb, RG_TRX_STATE, STATE_FORCE_TRX_OFF);
+	usb_control_msg_send(atusb->usb_dev, 0, ATUSB_REG_WRITE, ATUSB_REQ_TO_DEV,
+			     STATE_FORCE_TRX_OFF, RG_TRX_STATE, NULL, 0, 1000, GFP_KERNEL);
+
 	msleep(1);	/* reset => TRX_OFF, tTR13 = 37 us */
 
 #if 0
@@ -1104,7 +1133,8 @@ static int atusb_probe(struct usb_interface *interface,
 
 	atusb_write_subreg(atusb, SR_RX_SAFE_MODE, 1);
 #endif
-	atusb_write_reg(atusb, RG_IRQ_MASK, 0xff);
+	usb_control_msg_send(atusb->usb_dev, 0, ATUSB_REG_WRITE, ATUSB_REQ_TO_DEV,
+			     0xff, RG_IRQ_MASK, NULL, 0, 1000, GFP_KERNEL);
 
 	ret = atusb_get_and_clear_error(atusb);
 	if (!ret)

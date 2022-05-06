@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for the ebisu board
+ * Device Tree Source for the Ebisu board with R-Car E3
  *
  * Copyright (C) 2018 Renesas Electronics Corp.
  */
 
 /dts-v1/;
 #include "r8a77990.dtsi"
-#include <dt-bindings/gpio/gpio.h>
+#include "ebisu.dtsi"
 
 / {
 	model = "Renesas Ebisu board based on r8a77990";
 	compatible = "renesas,ebisu", "renesas,r8a77990";
+<<<<<<< HEAD
 
 	aliases {
 		serial0 = &scif2;
@@ -750,4 +751,6 @@
 	pinctrl-names = "default";
 
 	status = "okay";
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 };

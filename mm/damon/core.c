@@ -11,7 +11,10 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/mm.h>
+<<<<<<< HEAD
 #include <linux/random.h>
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 #include <linux/slab.h>
 #include <linux/string.h>
 
@@ -23,11 +26,83 @@
 #define DAMON_MIN_REGION 1
 #endif
 
+<<<<<<< HEAD
 /* Get a random number in [l, r) */
 #define damon_rand(l, r) (l + prandom_u32_max(r - l))
 
 static DEFINE_MUTEX(damon_lock);
 static int nr_running_ctxs;
+=======
+static DEFINE_MUTEX(damon_lock);
+static int nr_running_ctxs;
+static bool running_exclusive_ctxs;
+
+static DEFINE_MUTEX(damon_ops_lock);
+static struct damon_operations damon_registered_ops[NR_DAMON_OPS];
+
+/* Should be called under damon_ops_lock with id smaller than NR_DAMON_OPS */
+static bool damon_registered_ops_id(enum damon_ops_id id)
+{
+	struct damon_operations empty_ops = {};
+
+	if (!memcmp(&empty_ops, &damon_registered_ops[id], sizeof(empty_ops)))
+		return false;
+	return true;
+}
+
+/**
+ * damon_register_ops() - Register a monitoring operations set to DAMON.
+ * @ops:	monitoring operations set to register.
+ *
+ * This function registers a monitoring operations set of valid &struct
+ * damon_operations->id so that others can find and use them later.
+ *
+ * Return: 0 on success, negative error code otherwise.
+ */
+int damon_register_ops(struct damon_operations *ops)
+{
+	int err = 0;
+
+	if (ops->id >= NR_DAMON_OPS)
+		return -EINVAL;
+	mutex_lock(&damon_ops_lock);
+	/* Fail for already registered ops */
+	if (damon_registered_ops_id(ops->id)) {
+		err = -EINVAL;
+		goto out;
+	}
+	damon_registered_ops[ops->id] = *ops;
+out:
+	mutex_unlock(&damon_ops_lock);
+	return err;
+}
+
+/**
+ * damon_select_ops() - Select a monitoring operations to use with the context.
+ * @ctx:	monitoring context to use the operations.
+ * @id:		id of the registered monitoring operations to select.
+ *
+ * This function finds registered monitoring operations set of @id and make
+ * @ctx to use it.
+ *
+ * Return: 0 on success, negative error code otherwise.
+ */
+int damon_select_ops(struct damon_ctx *ctx, enum damon_ops_id id)
+{
+	int err = 0;
+
+	if (id >= NR_DAMON_OPS)
+		return -EINVAL;
+
+	mutex_lock(&damon_ops_lock);
+	if (!damon_registered_ops_id(id))
+		err = -EINVAL;
+	else
+		ctx->ops = damon_registered_ops[id];
+	mutex_unlock(&damon_ops_lock);
+	return err;
+}
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 /*
  * Construct a damon_region struct
@@ -53,6 +128,7 @@ struct damon_region *damon_new_region(unsigned long start, unsigned long end)
 	return region;
 }
 
+<<<<<<< HEAD
 /*
  * Add a region between two other regions
  */
@@ -64,6 +140,8 @@ inline void damon_insert_region(struct damon_region *r,
 	t->nr_regions++;
 }
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 void damon_add_region(struct damon_region *r, struct damon_target *t)
 {
 	list_add_tail(&r->list, &t->regions_list);
@@ -106,8 +184,12 @@ struct damos *damon_new_scheme(
 	scheme->min_age_region = min_age_region;
 	scheme->max_age_region = max_age_region;
 	scheme->action = action;
+<<<<<<< HEAD
 	scheme->stat_count = 0;
 	scheme->stat_sz = 0;
+=======
+	scheme->stat = (struct damos_stat){};
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	INIT_LIST_HEAD(&scheme->list);
 
 	scheme->quota.ms = quota->ms;
@@ -160,7 +242,11 @@ void damon_destroy_scheme(struct damos *s)
  *
  * Returns the pointer to the new struct if success, or NULL otherwise
  */
+<<<<<<< HEAD
 struct damon_target *damon_new_target(unsigned long id)
+=======
+struct damon_target *damon_new_target(void)
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 {
 	struct damon_target *t;
 
@@ -168,7 +254,11 @@ struct damon_target *damon_new_target(unsigned long id)
 	if (!t)
 		return NULL;
 
+<<<<<<< HEAD
 	t->id = id;
+=======
+	t->pid = NULL;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	t->nr_regions = 0;
 	INIT_LIST_HEAD(&t->regions_list);
 
@@ -220,10 +310,17 @@ struct damon_ctx *damon_new_ctx(void)
 
 	ctx->sample_interval = 5 * 1000;
 	ctx->aggr_interval = 100 * 1000;
+<<<<<<< HEAD
 	ctx->primitive_update_interval = 60 * 1000 * 1000;
 
 	ktime_get_coarse_ts64(&ctx->last_aggregation);
 	ctx->last_primitive_update = ctx->last_aggregation;
+=======
+	ctx->ops_update_interval = 60 * 1000 * 1000;
+
+	ktime_get_coarse_ts64(&ctx->last_aggregation);
+	ctx->last_ops_update = ctx->last_aggregation;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	mutex_init(&ctx->kdamond_lock);
 
@@ -240,8 +337,13 @@ static void damon_destroy_targets(struct damon_ctx *ctx)
 {
 	struct damon_target *t, *next_t;
 
+<<<<<<< HEAD
 	if (ctx->primitive.cleanup) {
 		ctx->primitive.cleanup(ctx);
+=======
+	if (ctx->ops.cleanup) {
+		ctx->ops.cleanup(ctx);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		return;
 	}
 
@@ -262,6 +364,7 @@ void damon_destroy_ctx(struct damon_ctx *ctx)
 }
 
 /**
+<<<<<<< HEAD
  * damon_set_targets() - Set monitoring targets.
  * @ctx:	monitoring context
  * @ids:	array of target ids
@@ -294,11 +397,17 @@ int damon_set_targets(struct damon_ctx *ctx,
 }
 
 /**
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
  * damon_set_attrs() - Set attributes for the monitoring.
  * @ctx:		monitoring context
  * @sample_int:		time interval between samplings
  * @aggr_int:		time interval between aggregations
+<<<<<<< HEAD
  * @primitive_upd_int:	time interval between monitoring primitive updates
+=======
+ * @ops_upd_int:	time interval between monitoring operations updates
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
  * @min_nr_reg:		minimal number of regions
  * @max_nr_reg:		maximum number of regions
  *
@@ -308,7 +417,11 @@ int damon_set_targets(struct damon_ctx *ctx,
  * Return: 0 on success, negative error code otherwise.
  */
 int damon_set_attrs(struct damon_ctx *ctx, unsigned long sample_int,
+<<<<<<< HEAD
 		    unsigned long aggr_int, unsigned long primitive_upd_int,
+=======
+		    unsigned long aggr_int, unsigned long ops_upd_int,
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		    unsigned long min_nr_reg, unsigned long max_nr_reg)
 {
 	if (min_nr_reg < 3)
@@ -318,7 +431,11 @@ int damon_set_attrs(struct damon_ctx *ctx, unsigned long sample_int,
 
 	ctx->sample_interval = sample_int;
 	ctx->aggr_interval = aggr_int;
+<<<<<<< HEAD
 	ctx->primitive_update_interval = primitive_upd_int;
+=======
+	ctx->ops_update_interval = ops_upd_int;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	ctx->min_nr_regions = min_nr_reg;
 	ctx->max_nr_regions = max_nr_reg;
 
@@ -416,6 +533,7 @@ static int __damon_start(struct damon_ctx *ctx)
  * damon_start() - Starts the monitorings for a given group of contexts.
  * @ctxs:	an array of the pointers for contexts to start monitoring
  * @nr_ctxs:	size of @ctxs
+<<<<<<< HEAD
  *
  * This function starts a group of monitoring threads for a group of monitoring
  * contexts.  One thread per each context is created and run in parallel.  The
@@ -426,12 +544,31 @@ static int __damon_start(struct damon_ctx *ctx)
  * Return: 0 on success, negative error code otherwise.
  */
 int damon_start(struct damon_ctx **ctxs, int nr_ctxs)
+=======
+ * @exclusive:	exclusiveness of this contexts group
+ *
+ * This function starts a group of monitoring threads for a group of monitoring
+ * contexts.  One thread per each context is created and run in parallel.  The
+ * caller should handle synchronization between the threads by itself.  If
+ * @exclusive is true and a group of threads that created by other
+ * 'damon_start()' call is currently running, this function does nothing but
+ * returns -EBUSY.
+ *
+ * Return: 0 on success, negative error code otherwise.
+ */
+int damon_start(struct damon_ctx **ctxs, int nr_ctxs, bool exclusive)
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 {
 	int i;
 	int err = 0;
 
 	mutex_lock(&damon_lock);
+<<<<<<< HEAD
 	if (nr_running_ctxs) {
+=======
+	if ((exclusive && nr_running_ctxs) ||
+			(!exclusive && running_exclusive_ctxs)) {
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		mutex_unlock(&damon_lock);
 		return -EBUSY;
 	}
@@ -442,13 +579,22 @@ int damon_start(struct damon_ctx **ctxs, int nr_ctxs)
 			break;
 		nr_running_ctxs++;
 	}
+<<<<<<< HEAD
+=======
+	if (exclusive && nr_running_ctxs)
+		running_exclusive_ctxs = true;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	mutex_unlock(&damon_lock);
 
 	return err;
 }
 
 /*
+<<<<<<< HEAD
  * __damon_stop() - Stops monitoring of given context.
+=======
+ * __damon_stop() - Stops monitoring of a given context.
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
  * @ctx:	monitoring context
  *
  * Return: 0 on success, negative error code otherwise.
@@ -486,9 +632,14 @@ int damon_stop(struct damon_ctx **ctxs, int nr_ctxs)
 		/* nr_running_ctxs is decremented in kdamond_fn */
 		err = __damon_stop(ctxs[i]);
 		if (err)
+<<<<<<< HEAD
 			return err;
 	}
 
+=======
+			break;
+	}
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	return err;
 }
 
@@ -530,15 +681,27 @@ static bool kdamond_aggregate_interval_passed(struct damon_ctx *ctx)
 static void kdamond_reset_aggregated(struct damon_ctx *c)
 {
 	struct damon_target *t;
+<<<<<<< HEAD
+=======
+	unsigned int ti = 0;	/* target's index */
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	damon_for_each_target(t, c) {
 		struct damon_region *r;
 
 		damon_for_each_region(r, t) {
+<<<<<<< HEAD
 			trace_damon_aggregated(t, r, damon_nr_regions(t));
 			r->last_nr_accesses = r->nr_accesses;
 			r->nr_accesses = 0;
 		}
+=======
+			trace_damon_aggregated(t, ti, r, damon_nr_regions(t));
+			r->last_nr_accesses = r->nr_accesses;
+			r->nr_accesses = 0;
+		}
+		ti++;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	}
 }
 
@@ -562,10 +725,17 @@ static bool damos_valid_target(struct damon_ctx *c, struct damon_target *t,
 {
 	bool ret = __damos_valid_target(r, s);
 
+<<<<<<< HEAD
 	if (!ret || !s->quota.esz || !c->primitive.get_scheme_score)
 		return ret;
 
 	return c->primitive.get_scheme_score(c, t, r, s) >= s->quota.min_score;
+=======
+	if (!ret || !s->quota.esz || !c->ops.get_scheme_score)
+		return ret;
+
+	return c->ops.get_scheme_score(c, t, r, s) >= s->quota.min_score;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 }
 
 static void damon_do_apply_schemes(struct damon_ctx *c,
@@ -578,6 +748,10 @@ static void damon_do_apply_schemes(struct damon_ctx *c,
 		struct damos_quota *quota = &s->quota;
 		unsigned long sz = r->ar.end - r->ar.start;
 		struct timespec64 begin, end;
+<<<<<<< HEAD
+=======
+		unsigned long sz_applied = 0;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 		if (!s->wmarks.activated)
 			continue;
@@ -621,7 +795,11 @@ static void damon_do_apply_schemes(struct damon_ctx *c,
 			continue;
 
 		/* Apply the scheme */
+<<<<<<< HEAD
 		if (c->primitive.apply_scheme) {
+=======
+		if (c->ops.apply_scheme) {
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 			if (quota->esz &&
 					quota->charged_sz + sz > quota->esz) {
 				sz = ALIGN_DOWN(quota->esz - quota->charged_sz,
@@ -631,7 +809,11 @@ static void damon_do_apply_schemes(struct damon_ctx *c,
 				damon_split_region_at(c, t, r, sz);
 			}
 			ktime_get_coarse_ts64(&begin);
+<<<<<<< HEAD
 			c->primitive.apply_scheme(c, t, r, s);
+=======
+			sz_applied = c->ops.apply_scheme(c, t, r, s);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 			ktime_get_coarse_ts64(&end);
 			quota->total_charged_ns += timespec64_to_ns(&end) -
 				timespec64_to_ns(&begin);
@@ -645,8 +827,16 @@ static void damon_do_apply_schemes(struct damon_ctx *c,
 			r->age = 0;
 
 update_stat:
+<<<<<<< HEAD
 		s->stat_count++;
 		s->stat_sz += sz;
+=======
+		s->stat.nr_tried++;
+		s->stat.sz_tried += sz;
+		if (sz_applied)
+			s->stat.nr_applied++;
+		s->stat.sz_applied += sz_applied;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	}
 }
 
@@ -694,13 +884,22 @@ static void kdamond_apply_schemes(struct damon_ctx *c)
 		if (time_after_eq(jiffies, quota->charged_from +
 					msecs_to_jiffies(
 						quota->reset_interval))) {
+<<<<<<< HEAD
+=======
+			if (quota->esz && quota->charged_sz >= quota->esz)
+				s->stat.qt_exceeds++;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 			quota->total_charged_sz += quota->charged_sz;
 			quota->charged_from = jiffies;
 			quota->charged_sz = 0;
 			damos_set_effective_quota(quota);
 		}
 
+<<<<<<< HEAD
 		if (!c->primitive.get_scheme_score)
+=======
+		if (!c->ops.get_scheme_score)
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 			continue;
 
 		/* Fill up the score histogram */
@@ -709,7 +908,11 @@ static void kdamond_apply_schemes(struct damon_ctx *c)
 			damon_for_each_region(r, t) {
 				if (!__damos_valid_target(r, s))
 					continue;
+<<<<<<< HEAD
 				score = c->primitive.get_scheme_score(
+=======
+				score = c->ops.get_scheme_score(
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 						c, t, r, s);
 				quota->histogram[score] +=
 					r->ar.end - r->ar.start;
@@ -733,7 +936,14 @@ static void kdamond_apply_schemes(struct damon_ctx *c)
 	}
 }
 
+<<<<<<< HEAD
 #define sz_damon_region(r) (r->ar.end - r->ar.start)
+=======
+static inline unsigned long sz_damon_region(struct damon_region *r)
+{
+	return r->ar.end - r->ar.start;
+}
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 /*
  * Merge two adjacent regions into one region
@@ -750,8 +960,11 @@ static void damon_merge_two_regions(struct damon_target *t,
 	damon_destroy_region(r, t);
 }
 
+<<<<<<< HEAD
 #define diff_of(a, b) (a > b ? a - b : b - a)
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 /*
  * Merge adjacent regions having similar access frequencies
  *
@@ -765,13 +978,21 @@ static void damon_merge_regions_of(struct damon_target *t, unsigned int thres,
 	struct damon_region *r, *prev = NULL, *next;
 
 	damon_for_each_region_safe(r, next, t) {
+<<<<<<< HEAD
 		if (diff_of(r->nr_accesses, r->last_nr_accesses) > thres)
+=======
+		if (abs(r->nr_accesses - r->last_nr_accesses) > thres)
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 			r->age = 0;
 		else
 			r->age++;
 
 		if (prev && prev->ar.end == r->ar.start &&
+<<<<<<< HEAD
 		    diff_of(prev->nr_accesses, r->nr_accesses) <= thres &&
+=======
+		    abs(prev->nr_accesses - r->nr_accesses) <= thres &&
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		    sz_damon_region(prev) + sz_damon_region(r) <= sz_limit)
 			damon_merge_two_regions(t, prev, r);
 		else
@@ -887,6 +1108,7 @@ static void kdamond_split_regions(struct damon_ctx *ctx)
 }
 
 /*
+<<<<<<< HEAD
  * Check whether it is time to check and apply the target monitoring regions
  *
  * Returns true if it is.
@@ -895,6 +1117,17 @@ static bool kdamond_need_update_primitive(struct damon_ctx *ctx)
 {
 	return damon_check_reset_time_interval(&ctx->last_primitive_update,
 			ctx->primitive_update_interval);
+=======
+ * Check whether it is time to check and apply the operations-related data
+ * structures.
+ *
+ * Returns true if it is.
+ */
+static bool kdamond_need_update_operations(struct damon_ctx *ctx)
+{
+	return damon_check_reset_time_interval(&ctx->last_ops_update,
+			ctx->ops_update_interval);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 }
 
 /*
@@ -912,11 +1145,19 @@ static bool kdamond_need_stop(struct damon_ctx *ctx)
 	if (kthread_should_stop())
 		return true;
 
+<<<<<<< HEAD
 	if (!ctx->primitive.target_valid)
 		return false;
 
 	damon_for_each_target(t, ctx) {
 		if (ctx->primitive.target_valid(t))
+=======
+	if (!ctx->ops.target_valid)
+		return false;
+
+	damon_for_each_target(t, ctx) {
+		if (ctx->ops.target_valid(t))
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 			return false;
 	}
 
@@ -986,12 +1227,23 @@ static int kdamond_wait_activation(struct damon_ctx *ctx)
 	struct damos *s;
 	unsigned long wait_time;
 	unsigned long min_wait_time = 0;
+<<<<<<< HEAD
+=======
+	bool init_wait_time = false;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	while (!kdamond_need_stop(ctx)) {
 		damon_for_each_scheme(s, ctx) {
 			wait_time = damos_wmark_wait_us(s);
+<<<<<<< HEAD
 			if (!min_wait_time || wait_time < min_wait_time)
 				min_wait_time = wait_time;
+=======
+			if (!init_wait_time || wait_time < min_wait_time) {
+				init_wait_time = true;
+				min_wait_time = wait_time;
+			}
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		}
 		if (!min_wait_time)
 			return 0;
@@ -1015,8 +1267,13 @@ static int kdamond_fn(void *data)
 
 	pr_debug("kdamond (%d) starts\n", current->pid);
 
+<<<<<<< HEAD
 	if (ctx->primitive.init)
 		ctx->primitive.init(ctx);
+=======
+	if (ctx->ops.init)
+		ctx->ops.init(ctx);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	if (ctx->callback.before_start && ctx->callback.before_start(ctx))
 		done = true;
 
@@ -1026,16 +1283,26 @@ static int kdamond_fn(void *data)
 		if (kdamond_wait_activation(ctx))
 			continue;
 
+<<<<<<< HEAD
 		if (ctx->primitive.prepare_access_checks)
 			ctx->primitive.prepare_access_checks(ctx);
+=======
+		if (ctx->ops.prepare_access_checks)
+			ctx->ops.prepare_access_checks(ctx);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		if (ctx->callback.after_sampling &&
 				ctx->callback.after_sampling(ctx))
 			done = true;
 
 		kdamond_usleep(ctx->sample_interval);
 
+<<<<<<< HEAD
 		if (ctx->primitive.check_accesses)
 			max_nr_accesses = ctx->primitive.check_accesses(ctx);
+=======
+		if (ctx->ops.check_accesses)
+			max_nr_accesses = ctx->ops.check_accesses(ctx);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 		if (kdamond_aggregate_interval_passed(ctx)) {
 			kdamond_merge_regions(ctx,
@@ -1047,6 +1314,7 @@ static int kdamond_fn(void *data)
 			kdamond_apply_schemes(ctx);
 			kdamond_reset_aggregated(ctx);
 			kdamond_split_regions(ctx);
+<<<<<<< HEAD
 			if (ctx->primitive.reset_aggregated)
 				ctx->primitive.reset_aggregated(ctx);
 		}
@@ -1054,6 +1322,15 @@ static int kdamond_fn(void *data)
 		if (kdamond_need_update_primitive(ctx)) {
 			if (ctx->primitive.update)
 				ctx->primitive.update(ctx);
+=======
+			if (ctx->ops.reset_aggregated)
+				ctx->ops.reset_aggregated(ctx);
+		}
+
+		if (kdamond_need_update_operations(ctx)) {
+			if (ctx->ops.update)
+				ctx->ops.update(ctx);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 			sz_limit = damon_region_sz_limit(ctx);
 		}
 	}
@@ -1064,8 +1341,13 @@ static int kdamond_fn(void *data)
 
 	if (ctx->callback.before_terminate)
 		ctx->callback.before_terminate(ctx);
+<<<<<<< HEAD
 	if (ctx->primitive.cleanup)
 		ctx->primitive.cleanup(ctx);
+=======
+	if (ctx->ops.cleanup)
+		ctx->ops.cleanup(ctx);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	pr_debug("kdamond (%d) finishes\n", current->pid);
 	mutex_lock(&ctx->kdamond_lock);
@@ -1074,6 +1356,11 @@ static int kdamond_fn(void *data)
 
 	mutex_lock(&damon_lock);
 	nr_running_ctxs--;
+<<<<<<< HEAD
+=======
+	if (!nr_running_ctxs && running_exclusive_ctxs)
+		running_exclusive_ctxs = false;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	mutex_unlock(&damon_lock);
 
 	return 0;

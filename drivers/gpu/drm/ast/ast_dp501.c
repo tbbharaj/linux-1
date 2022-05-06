@@ -272,6 +272,7 @@ static bool ast_launch_m68k(struct drm_device *dev)
 	return true;
 }
 
+<<<<<<< HEAD
 u8 ast_get_dp501_max_clk(struct drm_device *dev)
 {
 	struct ast_private *ast = to_ast_private(dev);
@@ -330,6 +331,8 @@ u8 ast_get_dp501_max_clk(struct drm_device *dev)
 	return maxclk;
 }
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata)
 {
 	struct ast_private *ast = to_ast_private(dev);

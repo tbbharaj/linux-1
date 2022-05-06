@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 #!/usr/bin/env python
+=======
+#!/usr/bin/env python3
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 # SPDX-License-Identifier: GPL-2.0
 #
 # Usage: unwcheck.py FILE

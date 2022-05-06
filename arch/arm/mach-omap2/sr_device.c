@@ -152,6 +152,10 @@ exit:
 	return 0;
 }
 
+<<<<<<< HEAD
+=======
+#ifdef CONFIG_OMAP_HWMOD
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 static int __init sr_dev_init(struct omap_hwmod *oh, void *user)
 {
 	struct omap_smartreflex_dev_attr *sr_dev_attr;
@@ -165,6 +169,15 @@ static int __init sr_dev_init(struct omap_hwmod *oh, void *user)
 
 	return sr_init_by_name(oh->name, sr_dev_attr->sensor_voltdm_name);
 }
+<<<<<<< HEAD
+=======
+#else
+static int __init sr_dev_init(struct omap_hwmod *oh, void *user)
+{
+	return -EINVAL;
+}
+#endif
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 /*
  * API to be called from board files to enable smartreflex

@@ -85,8 +85,14 @@ static void bt_host_release(struct device *dev)
 	struct hci_dev *hdev = to_hci_dev(dev);
 
 	if (hci_dev_test_flag(hdev, HCI_UNREGISTER))
+<<<<<<< HEAD
 		hci_cleanup_dev(hdev);
 	kfree(hdev);
+=======
+		hci_release_dev(hdev);
+	else
+		kfree(hdev);
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	module_put(THIS_MODULE);
 }
 

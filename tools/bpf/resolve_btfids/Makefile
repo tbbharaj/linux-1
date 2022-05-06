@@ -23,6 +23,12 @@ CC       = $(HOSTCC)
 LD       = $(HOSTLD)
 ARCH     = $(HOSTARCH)
 RM      ?= rm
+<<<<<<< HEAD
+=======
+CROSS_COMPILE =
+CFLAGS  := $(KBUILD_HOSTCFLAGS)
+LDFLAGS := $(KBUILD_HOSTLDFLAGS)
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 OUTPUT ?= $(srctree)/tools/bpf/resolve_btfids/
 
@@ -30,27 +36,46 @@ LIBBPF_SRC := $(srctree)/tools/lib/bpf/
 SUBCMD_SRC := $(srctree)/tools/lib/subcmd/
 
 BPFOBJ     := $(OUTPUT)/libbpf/libbpf.a
+<<<<<<< HEAD
 SUBCMDOBJ  := $(OUTPUT)/libsubcmd/libsubcmd.a
+=======
+LIBBPF_OUT := $(abspath $(dir $(BPFOBJ)))/
+SUBCMDOBJ  := $(OUTPUT)/libsubcmd/libsubcmd.a
+
+LIBBPF_DESTDIR := $(LIBBPF_OUT)
+LIBBPF_INCLUDE := $(LIBBPF_DESTDIR)include
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 BINARY     := $(OUTPUT)/resolve_btfids
 BINARY_IN  := $(BINARY)-in.o
 
 all: $(BINARY)
 
+<<<<<<< HEAD
 $(OUTPUT) $(OUTPUT)/libbpf $(OUTPUT)/libsubcmd:
+=======
+$(OUTPUT) $(OUTPUT)/libsubcmd $(LIBBPF_OUT):
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	$(call msg,MKDIR,,$@)
 	$(Q)mkdir -p $(@)
 
 $(SUBCMDOBJ): fixdep FORCE | $(OUTPUT)/libsubcmd
 	$(Q)$(MAKE) -C $(SUBCMD_SRC) OUTPUT=$(abspath $(dir $@))/ $(abspath $@)
 
+<<<<<<< HEAD
 $(BPFOBJ): $(wildcard $(LIBBPF_SRC)/*.[ch] $(LIBBPF_SRC)/Makefile) | $(OUTPUT)/libbpf
 	$(Q)$(MAKE) $(submake_extras) -C $(LIBBPF_SRC)  OUTPUT=$(abspath $(dir $@))/ $(abspath $@)
+=======
+$(BPFOBJ): $(wildcard $(LIBBPF_SRC)/*.[ch] $(LIBBPF_SRC)/Makefile) | $(LIBBPF_OUT)
+	$(Q)$(MAKE) $(submake_extras) -C $(LIBBPF_SRC) OUTPUT=$(LIBBPF_OUT)    \
+		    DESTDIR=$(LIBBPF_DESTDIR) prefix= EXTRA_CFLAGS="$(CFLAGS)" \
+		    $(abspath $@) install_headers
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
-CFLAGS := -g \
+CFLAGS += -g \
           -I$(srctree)/tools/include \
           -I$(srctree)/tools/include/uapi \
-          -I$(LIBBPF_SRC) \
+          -I$(LIBBPF_INCLUDE) \
           -I$(SUBCMD_SRC)
 
 LIBS = -lelf -lz
@@ -58,7 +83,11 @@ LIBS = -lelf -lz
 export srctree OUTPUT CFLAGS Q
 include $(srctree)/tools/build/Makefile.include
 
+<<<<<<< HEAD
 $(BINARY_IN): fixdep FORCE | $(OUTPUT)
+=======
+$(BINARY_IN): $(BPFOBJ) fixdep FORCE | $(OUTPUT)
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	$(Q)$(MAKE) $(build)=resolve_btfids
 
 $(BINARY): $(BPFOBJ) $(SUBCMDOBJ) $(BINARY_IN)
@@ -68,7 +97,12 @@ $(BINARY): $(BPFOBJ) $(SUBCMDOBJ) $(BINARY_IN)
 clean_objects := $(wildcard $(OUTPUT)/*.o                \
                             $(OUTPUT)/.*.o.cmd           \
                             $(OUTPUT)/.*.o.d             \
+<<<<<<< HEAD
                             $(OUTPUT)/libbpf             \
+=======
+                            $(LIBBPF_OUT)                \
+                            $(LIBBPF_DESTDIR)            \
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
                             $(OUTPUT)/libsubcmd          \
                             $(OUTPUT)/resolve_btfids)
 

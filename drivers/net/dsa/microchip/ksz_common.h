@@ -22,11 +22,16 @@ struct ksz_port_mib {
 	struct mutex cnt_mutex;		/* structure access */
 	u8 cnt_ptr;
 	u64 *counters;
+	struct rtnl_link_stats64 stats64;
+	struct spinlock stats64_lock;
 };
 
 struct ksz_port {
+<<<<<<< HEAD
 	u16 member;
 	u16 vid_member;
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	bool remove_tag;		/* Remove Tag flag set, for ksz8795 only */
 	int stp_state;
 	struct phy_device phydev;
@@ -41,6 +46,7 @@ struct ksz_port {
 
 	struct ksz_port_mib mib;
 	phy_interface_t interface;
+	u16 max_frame;
 };
 
 struct ksz_device {
@@ -70,22 +76,21 @@ struct ksz_device {
 	int cpu_ports;			/* port bitmap can be cpu port */
 	int phy_port_cnt;
 	int port_cnt;
-	int reg_mib_cnt;
+	u8 reg_mib_cnt;
 	int mib_cnt;
-	int mib_port_cnt;
-	int last_port;			/* ports after that not used */
+	const struct mib_names *mib_names;
 	phy_interface_t compat_interface;
 	u32 regs_size;
 	bool phy_errata_9477;
+	bool ksz87xx_eee_link_erratum;
 	bool synclko_125;
+	bool synclko_disable;
 
 	struct vlan_table *vlan_cache;
 
 	struct ksz_port *ports;
 	struct delayed_work mib_read;
 	unsigned long mib_read_interval;
-	u16 br_member;
-	u16 member;
 	u16 mirror_rx;
 	u16 mirror_tx;
 	u32 features;			/* chip specific features */
@@ -132,6 +137,7 @@ struct ksz_dev_ops {
 			  u64 *cnt);
 	void (*r_mib_pkt)(struct ksz_device *dev, int port, u16 addr,
 			  u64 *dropped, u64 *cnt);
+	void (*r_mib_stat64)(struct ksz_device *dev, int port);
 	void (*freeze_mib)(struct ksz_device *dev, int port, bool freeze);
 	void (*port_init_cnt)(struct ksz_device *dev, int port);
 	int (*shutdown)(struct ksz_device *dev);
@@ -145,7 +151,7 @@ int ksz_switch_register(struct ksz_device *dev,
 			const struct ksz_dev_ops *ops);
 void ksz_switch_remove(struct ksz_device *dev);
 
-int ksz8795_switch_register(struct ksz_device *dev);
+int ksz8_switch_register(struct ksz_device *dev);
 int ksz9477_switch_register(struct ksz_device *dev);
 
 void ksz_update_port_member(struct ksz_device *dev, int port);
@@ -160,20 +166,19 @@ void ksz_mac_link_down(struct dsa_switch *ds, int port, unsigned int mode,
 int ksz_sset_count(struct dsa_switch *ds, int port, int sset);
 void ksz_get_ethtool_stats(struct dsa_switch *ds, int port, uint64_t *buf);
 int ksz_port_bridge_join(struct dsa_switch *ds, int port,
-			 struct net_device *br);
+			 struct dsa_bridge bridge, bool *tx_fwd_offload,
+			 struct netlink_ext_ack *extack);
 void ksz_port_bridge_leave(struct dsa_switch *ds, int port,
-			   struct net_device *br);
+			   struct dsa_bridge bridge);
 void ksz_port_fast_age(struct dsa_switch *ds, int port);
-int ksz_port_vlan_prepare(struct dsa_switch *ds, int port,
-			  const struct switchdev_obj_port_vlan *vlan);
 int ksz_port_fdb_dump(struct dsa_switch *ds, int port, dsa_fdb_dump_cb_t *cb,
 		      void *data);
-int ksz_port_mdb_prepare(struct dsa_switch *ds, int port,
-			 const struct switchdev_obj_port_mdb *mdb);
-void ksz_port_mdb_add(struct dsa_switch *ds, int port,
-		      const struct switchdev_obj_port_mdb *mdb);
+int ksz_port_mdb_add(struct dsa_switch *ds, int port,
+		     const struct switchdev_obj_port_mdb *mdb,
+		     struct dsa_db db);
 int ksz_port_mdb_del(struct dsa_switch *ds, int port,
-		     const struct switchdev_obj_port_mdb *mdb);
+		     const struct switchdev_obj_port_mdb *mdb,
+		     struct dsa_db db);
 int ksz_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy);
 
 /* Common register access functions */

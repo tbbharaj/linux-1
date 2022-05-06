@@ -11,6 +11,7 @@
 
 #include <xen/xen.h>
 #include <xen/interface/memory.h>
+#include <xen/grant_table.h>
 #include <xen/page.h>
 #include <xen/swiotlb-xen.h>
 
@@ -109,7 +110,11 @@ int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 		map_ops[i].status = GNTST_general_error;
 		unmap.host_addr = map_ops[i].host_addr,
 		unmap.handle = map_ops[i].handle;
+<<<<<<< HEAD
 		map_ops[i].handle = ~0;
+=======
+		map_ops[i].handle = INVALID_GRANT_HANDLE;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		if (map_ops[i].flags & GNTMAP_device_map)
 			unmap.dev_bus_addr = map_ops[i].dev_bus_addr;
 		else
@@ -130,7 +135,6 @@ int set_foreign_p2m_mapping(struct gnttab_map_grant_ref *map_ops,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(set_foreign_p2m_mapping);
 
 int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 			      struct gnttab_unmap_grant_ref *kunmap_ops,
@@ -145,7 +149,6 @@ int clear_foreign_p2m_mapping(struct gnttab_unmap_grant_ref *unmap_ops,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(clear_foreign_p2m_mapping);
 
 bool __set_phys_to_machine_multi(unsigned long pfn,
 		unsigned long mfn, unsigned long nr_pages)

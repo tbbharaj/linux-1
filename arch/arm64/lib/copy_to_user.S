@@ -24,7 +24,7 @@
 	.endm
 
 	.macro strb1 reg, ptr, val
-	uao_user_alternative 9998f, strb, sttrb, \reg, \ptr, \val
+	user_ldst 9998f, sttrb, \reg, \ptr, \val
 	.endm
 
 	.macro ldrh1 reg, ptr, val
@@ -32,7 +32,11 @@
 	.endm
 
 	.macro strh1 reg, ptr, val
+<<<<<<< HEAD
 	uao_user_alternative 9997f, strh, sttrh, \reg, \ptr, \val
+=======
+	user_ldst 9997f, sttrh, \reg, \ptr, \val
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	.endm
 
 	.macro ldr1 reg, ptr, val
@@ -40,7 +44,11 @@
 	.endm
 
 	.macro str1 reg, ptr, val
+<<<<<<< HEAD
 	uao_user_alternative 9997f, str, sttr, \reg, \ptr, \val
+=======
+	user_ldst 9997f, sttr, \reg, \ptr, \val
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	.endm
 
 	.macro ldp1 reg1, reg2, ptr, val
@@ -48,7 +56,11 @@
 	.endm
 
 	.macro stp1 reg1, reg2, ptr, val
+<<<<<<< HEAD
 	uao_stp 9997f, \reg1, \reg2, \ptr, \val
+=======
+	user_stp 9997f, \reg1, \reg2, \ptr, \val
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	.endm
 
 end	.req	x5
@@ -59,11 +71,13 @@ SYM_FUNC_START(__arch_copy_to_user)
 #include "copy_template.S"
 	mov	x0, #0
 	ret
-SYM_FUNC_END(__arch_copy_to_user)
-EXPORT_SYMBOL(__arch_copy_to_user)
 
+<<<<<<< HEAD
 	.section .fixup,"ax"
 	.align	2
+=======
+	// Exception fixups
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 9997:	cmp	dst, dstin
 	b.ne	9998f
 	// Before being absolutely sure we couldn't copy anything, try harder
@@ -72,4 +86,5 @@ USER(9998f, sttrb tmp1w, [dst])
 	add	dst, dst, #1
 9998:	sub	x0, end, dst			// bytes not copied
 	ret
-	.previous
+SYM_FUNC_END(__arch_copy_to_user)
+EXPORT_SYMBOL(__arch_copy_to_user)

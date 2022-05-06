@@ -53,12 +53,19 @@ static inline unsigned long find_zero(unsigned long mask)
  */
 static inline unsigned long load_unaligned_zeropad(const void *addr)
 {
+<<<<<<< HEAD
 	unsigned long ret, tmp;
+=======
+	unsigned long ret;
+
+	__uaccess_enable_tco_async();
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 
 	/* Load word from unaligned pointer addr */
 	asm(
-	"1:	ldr	%0, %3\n"
+	"1:	ldr	%0, %2\n"
 	"2:\n"
+<<<<<<< HEAD
 	"	.pushsection .fixup,\"ax\"\n"
 	"	.align 2\n"
 	"3:	bic	%1, %2, #0x7\n"
@@ -74,7 +81,13 @@ static inline unsigned long load_unaligned_zeropad(const void *addr)
 	"	.popsection\n"
 	_ASM_EXTABLE(1b, 3b)
 	: "=&r" (ret), "=&r" (tmp)
+=======
+	_ASM_EXTABLE_LOAD_UNALIGNED_ZEROPAD(1b, 2b, %0, %1)
+	: "=&r" (ret)
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	: "r" (addr), "Q" (*(unsigned long *)addr));
+
+	__uaccess_disable_tco_async();
 
 	return ret;
 }

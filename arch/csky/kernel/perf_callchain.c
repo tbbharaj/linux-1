@@ -49,7 +49,7 @@ static unsigned long user_backtrace(struct perf_callchain_entry_ctx *entry,
 {
 	struct stackframe buftail;
 	unsigned long lr = 0;
-	unsigned long *user_frame_tail = (unsigned long *)fp;
+	unsigned long __user *user_frame_tail = (unsigned long __user *)fp;
 
 	/* Check accessibility of one struct frame_tail beyond */
 	if (!access_ok(user_frame_tail, sizeof(buftail)))
@@ -89,10 +89,13 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 	struct perf_guest_info_callbacks *guest_cbs = perf_get_guest_cbs();
 	unsigned long fp = 0;
 
+<<<<<<< HEAD
 	/* C-SKY does not support virtualization. */
 	if (guest_cbs && guest_cbs->is_in_guest())
 		return;
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	fp = regs->regs[4];
 	perf_callchain_store(entry, regs->pc);
 
@@ -114,12 +117,15 @@ void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 	struct perf_guest_info_callbacks *guest_cbs = perf_get_guest_cbs();
 	struct stackframe fr;
 
+<<<<<<< HEAD
 	/* C-SKY does not support virtualization. */
 	if (guest_cbs && guest_cbs->is_in_guest()) {
 		pr_warn("C-SKY does not support perf in guest mode!");
 		return;
 	}
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 	fr.fp = regs->regs[4];
 	fr.lr = regs->lr;
 	walk_stackframe(&fr, entry);

@@ -12,6 +12,8 @@
 	aliases: aliases {
 		ethernet1 = &eth1;
 		ethernet2 = &eth2;
+		mmc0 = &usdhc3;
+		mmc1 = &usdhc4;
 	};
 
 	backlight: backlight {
@@ -293,6 +295,7 @@
 			max-cur = /bits/ 8 <0x60>;
 			reg = <2>;
 			color = <LED_COLOR_ID_BLUE>;
+<<<<<<< HEAD
 		};
 
 		chan@3 {
@@ -301,6 +304,8 @@
 			max-cur = /bits/ 8 <0x0>;
 			reg = <3>;
 			color = <LED_COLOR_ID_WHITE>;
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 		};
 	};
 
@@ -350,6 +355,7 @@
 		solomon,height = <64>;
 		solomon,width = <128>;
 		solomon,page-offset = <0>;
+		solomon,col-offset = <4>;
 		solomon,prechargep2 = <15>;
 		reset-gpios = <&gpio_oled 1 GPIO_ACTIVE_LOW>;
 		vbat-supply = <&sw2_reg>;

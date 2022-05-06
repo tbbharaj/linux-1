@@ -39,6 +39,12 @@
 /* This version can't take the spinlock, because it never returns */
 static int rtas_stop_self_token = RTAS_UNKNOWN_SERVICE;
 
+/*
+ * Record the CPU ids used on each nodes.
+ * Protected by cpu_add_remove_lock.
+ */
+static cpumask_var_t node_recorded_ids_map[MAX_NUMNODES];
+
 static void rtas_stop_self(void)
 {
 	static struct rtas_args args;
@@ -131,80 +137,151 @@ static void pseries_cpu_die(unsigned int cpu)
 			cpu, pcpu);
 	}
 
-	/* Isolation and deallocation are definitely done by
-	 * drslot_chrp_cpu.  If they were not they would be
-	 * done here.  Change isolate state to Isolate and
-	 * change allocation-state to Unusable.
-	 */
 	paca_ptrs[cpu]->cpu_start = 0;
+}
+
+/**
+ * find_cpu_id_range - found a linear ranger of @nthreads free CPU ids.
+ * @nthreads : the number of threads (cpu ids)
+ * @assigned_node : the node it belongs to or NUMA_NO_NODE if free ids from any
+ *                  node can be peek.
+ * @cpu_mask: the returned CPU mask.
+ *
+ * Returns 0 on success.
+ */
+static int find_cpu_id_range(unsigned int nthreads, int assigned_node,
+			     cpumask_var_t *cpu_mask)
+{
+	cpumask_var_t candidate_mask;
+	unsigned int cpu, node;
+	int rc = -ENOSPC;
+
+	if (!zalloc_cpumask_var(&candidate_mask, GFP_KERNEL))
+		return -ENOMEM;
+
+	cpumask_clear(*cpu_mask);
+	for (cpu = 0; cpu < nthreads; cpu++)
+		cpumask_set_cpu(cpu, *cpu_mask);
+
+	BUG_ON(!cpumask_subset(cpu_present_mask, cpu_possible_mask));
+
+	/* Get a bitmap of unoccupied slots. */
+	cpumask_xor(candidate_mask, cpu_possible_mask, cpu_present_mask);
+
+	if (assigned_node != NUMA_NO_NODE) {
+		/*
+		 * Remove free ids previously assigned on the other nodes. We
+		 * can walk only online nodes because once a node became online
+		 * it is not turned offlined back.
+		 */
+		for_each_online_node(node) {
+			if (node == assigned_node)
+				continue;
+			cpumask_andnot(candidate_mask, candidate_mask,
+				       node_recorded_ids_map[node]);
+		}
+	}
+
+	if (cpumask_empty(candidate_mask))
+		goto out;
+
+	while (!cpumask_empty(*cpu_mask)) {
+		if (cpumask_subset(*cpu_mask, candidate_mask))
+			/* Found a range where we can insert the new cpu(s) */
+			break;
+		cpumask_shift_left(*cpu_mask, *cpu_mask, nthreads);
+	}
+
+	if (!cpumask_empty(*cpu_mask))
+		rc = 0;
+
+out:
+	free_cpumask_var(candidate_mask);
+	return rc;
 }
 
 /*
  * Update cpu_present_mask and paca(s) for a new cpu node.  The wrinkle
- * here is that a cpu device node may represent up to two logical cpus
+ * here is that a cpu device node may represent multiple logical cpus
  * in the SMT case.  We must honor the assumption in other code that
  * the logical ids for sibling SMT threads x and y are adjacent, such
  * that x^1 == y and y^1 == x.
  */
 static int pseries_add_processor(struct device_node *np)
 {
-	unsigned int cpu;
-	cpumask_var_t candidate_mask, tmp;
-	int err = -ENOSPC, len, nthreads, i;
+	int len, nthreads, node, cpu, assigned_node;
+	int rc = 0;
+	cpumask_var_t cpu_mask;
 	const __be32 *intserv;
 
 	intserv = of_get_property(np, "ibm,ppc-interrupt-server#s", &len);
 	if (!intserv)
 		return 0;
 
-	zalloc_cpumask_var(&candidate_mask, GFP_KERNEL);
-	zalloc_cpumask_var(&tmp, GFP_KERNEL);
-
 	nthreads = len / sizeof(u32);
-	for (i = 0; i < nthreads; i++)
-		cpumask_set_cpu(i, tmp);
+
+	if (!alloc_cpumask_var(&cpu_mask, GFP_KERNEL))
+		return -ENOMEM;
+
+	/*
+	 * Fetch from the DT nodes read by dlpar_configure_connector() the NUMA
+	 * node id the added CPU belongs to.
+	 */
+	node = of_node_to_nid(np);
+	if (node < 0 || !node_possible(node))
+		node = first_online_node;
+
+	BUG_ON(node == NUMA_NO_NODE);
+	assigned_node = node;
 
 	cpu_maps_update_begin();
 
-	BUG_ON(!cpumask_subset(cpu_present_mask, cpu_possible_mask));
-
-	/* Get a bitmap of unoccupied slots. */
-	cpumask_xor(candidate_mask, cpu_possible_mask, cpu_present_mask);
-	if (cpumask_empty(candidate_mask)) {
-		/* If we get here, it most likely means that NR_CPUS is
-		 * less than the partition's max processors setting.
+	rc = find_cpu_id_range(nthreads, node, &cpu_mask);
+	if (rc && nr_node_ids > 1) {
+		/*
+		 * Try again, considering the free CPU ids from the other node.
 		 */
-		printk(KERN_ERR "Cannot add cpu %pOF; this system configuration"
-		       " supports %d logical cpus.\n", np,
-		       num_possible_cpus());
-		goto out_unlock;
+		node = NUMA_NO_NODE;
+		rc = find_cpu_id_range(nthreads, NUMA_NO_NODE, &cpu_mask);
 	}
 
-	while (!cpumask_empty(tmp))
-		if (cpumask_subset(tmp, candidate_mask))
-			/* Found a range where we can insert the new cpu(s) */
-			break;
-		else
-			cpumask_shift_left(tmp, tmp, nthreads);
-
-	if (cpumask_empty(tmp)) {
-		printk(KERN_ERR "Unable to find space in cpu_present_mask for"
-		       " processor %pOFn with %d thread(s)\n", np,
-		       nthreads);
-		goto out_unlock;
+	if (rc) {
+		pr_err("Cannot add cpu %pOF; this system configuration"
+		       " supports %d logical cpus.\n", np, num_possible_cpus());
+		goto out;
 	}
 
-	for_each_cpu(cpu, tmp) {
+	for_each_cpu(cpu, cpu_mask) {
 		BUG_ON(cpu_present(cpu));
 		set_cpu_present(cpu, true);
 		set_hard_smp_processor_id(cpu, be32_to_cpu(*intserv++));
 	}
-	err = 0;
-out_unlock:
+
+	/* Record the newly used CPU ids for the associate node. */
+	cpumask_or(node_recorded_ids_map[assigned_node],
+		   node_recorded_ids_map[assigned_node], cpu_mask);
+
+	/*
+	 * If node is set to NUMA_NO_NODE, CPU ids have be reused from
+	 * another node, remove them from its mask.
+	 */
+	if (node == NUMA_NO_NODE) {
+		cpu = cpumask_first(cpu_mask);
+		pr_warn("Reusing free CPU ids %d-%d from another node\n",
+			cpu, cpu + nthreads - 1);
+		for_each_online_node(node) {
+			if (node == assigned_node)
+				continue;
+			cpumask_andnot(node_recorded_ids_map[node],
+				       node_recorded_ids_map[node],
+				       cpu_mask);
+		}
+	}
+
+out:
 	cpu_maps_update_done();
-	free_cpumask_var(candidate_mask);
-	free_cpumask_var(tmp);
-	return err;
+	free_cpumask_var(cpu_mask);
+	return rc;
 }
 
 /*
@@ -268,6 +345,19 @@ static int dlpar_offline_cpu(struct device_node *dn)
 			if (!cpu_online(cpu))
 				break;
 
+			/*
+			 * device_offline() will return -EBUSY (via cpu_down()) if there
+			 * is only one CPU left. Check it here to fail earlier and with a
+			 * more informative error message, while also retaining the
+			 * cpu_add_remove_lock to be sure that no CPUs are being
+			 * online/offlined during this check.
+			 */
+			if (num_online_cpus() == 1) {
+				pr_warn("Unable to remove last online CPU %pOFn\n", dn);
+				rc = -EBUSY;
+				goto out_unlock;
+			}
+
 			cpu_maps_update_done();
 			rc = device_offline(get_cpu_device(cpu));
 			if (rc)
@@ -280,6 +370,7 @@ static int dlpar_offline_cpu(struct device_node *dn)
 				thread);
 		}
 	}
+out_unlock:
 	cpu_maps_update_done();
 
 out:
@@ -425,6 +516,27 @@ static bool valid_cpu_drc_index(struct device_node *parent, u32 drc_index)
 	return found;
 }
 
+static int pseries_cpuhp_attach_nodes(struct device_node *dn)
+{
+	struct of_changeset cs;
+	int ret;
+
+	/*
+	 * This device node is unattached but may have siblings; open-code the
+	 * traversal.
+	 */
+	for (of_changeset_init(&cs); dn != NULL; dn = dn->sibling) {
+		ret = of_changeset_attach_node(&cs, dn);
+		if (ret)
+			goto out;
+	}
+
+	ret = of_changeset_apply(&cs);
+out:
+	of_changeset_destroy(&cs);
+	return ret;
+}
+
 static ssize_t dlpar_cpu_add(u32 drc_index)
 {
 	struct device_node *dn, *parent;
@@ -467,7 +579,7 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 		return -EINVAL;
 	}
 
-	rc = dlpar_attach_node(dn, parent);
+	rc = pseries_cpuhp_attach_nodes(dn);
 
 	/* Regardless we are done with parent now */
 	of_node_put(parent);
@@ -483,6 +595,8 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 
 		return saved_rc;
 	}
+
+	update_numa_distance(dn);
 
 	rc = dlpar_online_cpu(dn);
 	if (rc) {
@@ -500,6 +614,53 @@ static ssize_t dlpar_cpu_add(u32 drc_index)
 	pr_debug("Successfully added CPU %pOFn, drc index: %x\n", dn,
 		 drc_index);
 	return rc;
+}
+
+static unsigned int pseries_cpuhp_cache_use_count(const struct device_node *cachedn)
+{
+	unsigned int use_count = 0;
+	struct device_node *dn;
+
+	WARN_ON(!of_node_is_type(cachedn, "cache"));
+
+	for_each_of_cpu_node(dn) {
+		if (of_find_next_cache_node(dn) == cachedn)
+			use_count++;
+	}
+
+	for_each_node_by_type(dn, "cache") {
+		if (of_find_next_cache_node(dn) == cachedn)
+			use_count++;
+	}
+
+	return use_count;
+}
+
+static int pseries_cpuhp_detach_nodes(struct device_node *cpudn)
+{
+	struct device_node *dn;
+	struct of_changeset cs;
+	int ret = 0;
+
+	of_changeset_init(&cs);
+	ret = of_changeset_detach_node(&cs, cpudn);
+	if (ret)
+		goto out;
+
+	dn = cpudn;
+	while ((dn = of_find_next_cache_node(dn))) {
+		if (pseries_cpuhp_cache_use_count(dn) > 1)
+			break;
+
+		ret = of_changeset_detach_node(&cs, dn);
+		if (ret)
+			goto out;
+	}
+
+	ret = of_changeset_apply(&cs);
+out:
+	of_changeset_destroy(&cs);
+	return ret;
 }
 
 static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
@@ -523,7 +684,7 @@ static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
 		return rc;
 	}
 
-	rc = dlpar_detach_node(dn);
+	rc = pseries_cpuhp_detach_nodes(dn);
 	if (rc) {
 		int saved_rc = rc;
 
@@ -575,6 +736,7 @@ static int dlpar_cpu_remove_by_index(u32 drc_index)
 	return rc;
 }
 
+<<<<<<< HEAD
 static int find_dlpar_cpus_to_remove(u32 *cpu_drcs, int cpus_to_remove)
 {
 	struct device_node *dn;
@@ -785,29 +947,34 @@ static int dlpar_cpu_add_by_count(u32 cpus_to_add)
 	return rc;
 }
 
+=======
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 int dlpar_cpu(struct pseries_hp_errorlog *hp_elog)
 {
-	u32 count, drc_index;
+	u32 drc_index;
 	int rc;
 
-	count = hp_elog->_drc_u.drc_count;
 	drc_index = hp_elog->_drc_u.drc_index;
 
 	lock_device_hotplug();
 
 	switch (hp_elog->action) {
 	case PSERIES_HP_ELOG_ACTION_REMOVE:
-		if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_COUNT)
-			rc = dlpar_cpu_remove_by_count(count);
-		else if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_INDEX)
+		if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_INDEX) {
 			rc = dlpar_cpu_remove_by_index(drc_index);
+			/*
+			 * Setting the isolation state of an UNISOLATED/CONFIGURED
+			 * device to UNISOLATE is a no-op, but the hypervisor can
+			 * use it as a hint that the CPU removal failed.
+			 */
+			if (rc)
+				dlpar_unisolate_drc(drc_index);
+		}
 		else
 			rc = -EINVAL;
 		break;
 	case PSERIES_HP_ELOG_ACTION_ADD:
-		if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_COUNT)
-			rc = dlpar_cpu_add_by_count(count);
-		else if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_INDEX)
+		if (hp_elog->id_type == PSERIES_HP_ELOG_ID_DRC_INDEX)
 			rc = dlpar_cpu_add(drc_index);
 		else
 			rc = -EINVAL;
@@ -886,6 +1053,7 @@ static struct notifier_block pseries_smp_nb = {
 static int __init pseries_cpu_hotplug_init(void)
 {
 	int qcss_tok;
+	unsigned int node;
 
 #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
 	ppc_md.cpu_probe = dlpar_cpu_probe;
@@ -907,8 +1075,19 @@ static int __init pseries_cpu_hotplug_init(void)
 	smp_ops->cpu_die = pseries_cpu_die;
 
 	/* Processors can be added/removed only on LPAR */
-	if (firmware_has_feature(FW_FEATURE_LPAR))
+	if (firmware_has_feature(FW_FEATURE_LPAR)) {
+		for_each_node(node) {
+			if (!alloc_cpumask_var_node(&node_recorded_ids_map[node],
+						    GFP_KERNEL, node))
+				return -ENOMEM;
+
+			/* Record ids of CPU added at boot time */
+			cpumask_copy(node_recorded_ids_map[node],
+				     cpumask_of_node(node));
+		}
+
 		of_reconfig_notifier_register(&pseries_smp_nb);
+	}
 
 	return 0;
 }

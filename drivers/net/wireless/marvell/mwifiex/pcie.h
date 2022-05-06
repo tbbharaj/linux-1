@@ -244,6 +244,10 @@ struct pcie_service_card {
 	unsigned long work_flags;
 
 	bool pci_reset_ongoing;
+<<<<<<< HEAD
+=======
+	unsigned long quirks;
+>>>>>>> 672c0c5173427e6b3e2a9bbb7be51ceeec78093a
 };
 
 static inline int
